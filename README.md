@@ -1,5 +1,7 @@
 # APEX — Commercial Control Plane
 
+**Live demo:** https://wglewis0721.github.io/apex/
+
 APEX is a pilot-grade demonstration of commercial infrastructure for software and AI products. It sits between **billing state**, **product plans**, **entitlements**, **usage**, and **application access** so a product team can answer one operational question consistently:
 
 > **Can this customer or agent perform this action right now, and why?**
@@ -105,9 +107,9 @@ The repository includes `.github/workflows/deploy-pages.yml`.
 
 After GitHub Pages is configured to use **GitHub Actions** as its deployment source, pushes to `main` build and deploy the Vite app automatically.
 
-Expected Pages URL:
+Live Pages URL:
 
-`https://wglewis0721.github.io/apex/`
+https://wglewis0721.github.io/apex/
 
 ## Product direction
 
