@@ -66,7 +66,7 @@ const niceDate = (iso: string) => new Date(iso).toLocaleString([], { month: 'sho
 
 function App() {
   const [store, setStore] = useState<Store>(() => loadStore());
-  const [page, setPage] = useState<Page>('Command Center');
+  const [page, setPage] = useState<Page>('Billing Sync');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState(store.customers[0].id);
   const [toast, setToast] = useState('');
@@ -98,16 +98,16 @@ function App() {
           <div className="brand-mark"><span>A</span></div>
           <div>
             <div className="brand">APEX</div>
-            <div className="brand-sub">Commercial assurance</div>
+            <div className="brand-sub">Payments & usage</div>
           </div>
           <button className="mobile-close" aria-label="Close navigation" onClick={() => setMobileOpen(false)}><X size={18}/></button>
         </div>
 
-        <div className="env-pill"><Database size={14}/> DocketFlow <span className="env-label">SANDBOX</span></div>
+        <div className="env-pill"><Database size={14}/> Demo workspace <span className="env-label">SANDBOX</span></div>
         <div className="nav-section-label">WORKSPACE</div>
 
         <nav>
-          {pages.map(([label, Icon]) => (
+          {pages.filter(([label]) => !['Command Center', 'Findings', 'Customer 360', 'Execution Demo', 'AI Controls', 'Connections', 'Developer'].includes(label)).map(([label, Icon]) => (
             <button key={label} aria-current={page === label ? 'page' : undefined} className={`nav-item ${page === label ? 'active' : ''}`} onClick={() => navigate(label)}>
               <Icon size={18}/><span>{label}</span>{label === 'Findings' && <b className="nav-count">{findings(store).filter(f => f.status === 'open').length}</b>}
             </button>
@@ -135,7 +135,7 @@ function App() {
             </div>
           </div>
           <div className="top-actions">
-            <div className="health"><Database size={15}/> Local sandbox · v0.2</div>
+            <div className="health"><Database size={15}/> Local sandbox · v0.3</div>
             <button className="icon-btn" title="Reset sandbox" aria-label="Reset sandbox" onClick={() => {
               if (!window.confirm('Reset all sandbox changes, findings, and demo history?')) return;
               const next = resetStore();
@@ -143,7 +143,7 @@ function App() {
               setStore(next);
               setToast('Sandbox reset to seed data');
             }}><RefreshCcw size={17}/></button>
-            <button className="primary" onClick={() => navigate('Execution Demo')}><Zap size={16}/> Run demo</button>
+            <button className="primary" onClick={() => navigate('Usage')}><Zap size={16}/> Track usage</button>
           </div>
         </header>
 
@@ -182,7 +182,7 @@ function subtitle(page: Page) {
     'Products & Plans': 'Define what customers buy and what each plan unlocks.',
     'Entitlements': 'Translate commercial terms into enforceable product rights.',
     'Access Lab': 'Test a live policy decision against your current control state.',
-    'Usage': 'Meter consumption before it becomes revenue leakage.',
+    'Usage': 'Track consumption and remaining plan balances.',
     'Billing Sync': 'Keep billing state and product access synchronized.',
     'AI Controls': 'Govern autonomous agents with identity, budgets, and permissions.',
     'Audit Log': 'Every commercial and access decision, recorded.',

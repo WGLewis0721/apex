@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00.000 --> 00:06.000
+Connect your payment provider. Configure the Starter plan with 1,000 tokens.
+
+00:06.000 --> 00:12.000
+A demo $29 subscription activates customer access and the token balance.
+
+00:12.000 --> 00:19.300
+Each generation uses 250 tokens. The remaining balance updates with each request.
+
+00:19.300 --> 00:21.000
+The token limit is reached. Another request is blocked without deducting tokens.
+
+00:21.000 --> 00:28.000
+An upgrade to Pro raises the allowance to 5,000 tokens. Existing usage is preserved. Creation resumes.
+
+00:28.000 --> 00:33.000
+The same embedded billing experience takes on your app name and brand colors.
+
+00:33.000 --> 00:36.000
+Switch to dark mode. Your app. Your brand. APEX underneath. All data shown is simulated.
