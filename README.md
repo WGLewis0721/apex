@@ -1,127 +1,75 @@
-# APEX — Commercial Control Plane
+# APEX — Commercial assurance for software and AI
 
-**Live demo:** https://wglewis0721.github.io/apex/
+**Live app: https://wglewis0721.github.io/apex/**
 
-APEX is a pilot-grade demonstration of commercial infrastructure for software and AI products. It sits between **billing state**, **product plans**, **entitlements**, **usage**, and **application access** so a product team can answer one operational question consistently:
+APEX compares what a customer was promised with what the application actually permits and consumes. The product direction is **observe → explain → preview → correct → selectively enforce**.
 
-> **Can this customer or agent perform this action right now, and why?**
+Version 0.2 upgrades the original control-plane pilot into an interactive verification workspace. It preserves the existing customer, plan, entitlement, usage, billing, access-lab, and audit capabilities.
 
-This repository intentionally focuses on the smallest valuable commercial-control loop rather than trying to implement every possible billing, licensing, IAM, and commerce feature.
+## What's new
 
-## Core loop
+- **Command Center:** evidence-driven findings, affected customers, resolutions, source coverage, and recent decisions.
+- **Findings:** five commercial discrepancy scenarios, status/search filters, source comparisons, operation IDs, impact classification, correction previews, local corrections, intentional exceptions, and JSON exports.
+- **Customer 360:** effective terms, overrides, commercial relationships, account findings, and a correlated timeline.
+- **Policy Studio:** draft feature grants and quotas, simulate affected customers while preserving overrides, then publish the reviewed policy to the sandbox.
+- **Execution Demo:** a 12-step DocketFlow walkthrough from subscription through reservation, settlement, quota denial, upgrade, restored access, delegated agent spending, an approval-required denial, and replay protection.
+- **AI Controls:** working local spending requests, separate agent and product-credit units, per-operation and session budget enforcement, and revocation.
+- **Connections:** inspect and export the proposed billing, application-evidence, and identity contracts. No credentials are collected.
+- **Design:** a responsive evidence-first workspace with custom Higgsfield-generated prism artwork, readable typography, keyboard focus states, and reduced-motion support.
 
-`Product / Plan → Entitlements → Billing state → Policy decision → Usage → Audit trail`
-
-The UI includes:
-
-- customer commercial state
-- product and plan definitions
-- inherited entitlements
-- customer-level allow/deny overrides
-- deterministic access-policy simulator
-- quota / usage metering
-- billing webhook simulation
-- automatic suspend / resume behavior
-- AI-agent policy concept surface
-- searchable audit log
-- developer API contract examples
-- responsive desktop/mobile admin console
-
-## Demo behavior
-
-The current pilot is a browser-side sandbox. State is persisted in `localStorage` so interactions survive refreshes on the same browser.
-
-The following flows are functional:
-
-1. Select a customer.
-2. Inspect the customer's plan and effective entitlements.
-3. Add an explicit entitlement allow or deny override.
-4. Run an access check against the deterministic policy engine.
-5. See the allow/deny reason recorded in the audit log.
-6. Add metered API usage and watch utilization change.
-7. Simulate `invoice.failed` and automatically suspend the account.
-8. Verify subsequent access checks are denied because the account is suspended.
-9. Simulate `invoice.paid` and automatically restore active access.
-10. Reset the sandbox to seed state at any time.
-
-## What is real vs. mocked
-
-### Implemented in this pilot
-
-- deterministic policy evaluation
-- plan inheritance
-- entitlement overrides
-- usage state
-- customer status enforcement
-- billing-event state transitions
-- audit-event creation
-- persistent demo state
-- full responsive product UI
-
-### Integration-ready / mocked
-
-These surfaces are represented but are **not** connected to production providers in this browser pilot:
-
-- Stripe Billing
-- authentication / SSO
-- external identity providers
-- production PostgreSQL
-- service-to-service API keys
-- webhook signature verification
-- production SDKs
-- AI model providers
-- enterprise audit export
-
-A production version would move the policy engine and state to a server-side service and make the browser admin console an API client.
-
-## Suggested production architecture
-
-```text
-Stripe / billing provider ─┐
-Identity provider ─────────┼──> APEX Control API ──> Postgres
-Customer product ──────────┤          │
-Usage events ──────────────┘          ├── Entitlement engine
-                                      ├── Usage meter
-                                      ├── Policy engine
-                                      └── Audit event stream
-
-Customer application ── POST /v1/access/check ──> allow / deny + reason
-```
-
-## Local development
+## Run locally
 
 ```bash
-npm install
+npm ci
 npm run dev
-```
-
-Build:
-
-```bash
+npm test
 npm run build
 ```
 
-## GitHub Pages
+The development server uses the existing Vite base path `/apex/`.
 
-The repository includes `.github/workflows/deploy-pages.yml`.
+## Try the product
 
-After GitHub Pages is configured to use **GitHub Actions** as its deployment source, pushes to `main` build and deploy the Vite app automatically.
+1. Run verification in **Command Center**.
+2. Open a finding and inspect approved terms versus observed behavior.
+3. Preview and apply a **sandbox correction**; inspect the audit trail.
+4. Open **Policy Studio**, change a feature or API allowance, and simulate customer impact before publishing.
+5. Run **Execution Demo** from beginning to end. A blocked request does not increment downstream execution; an upgrade preserves consumed credits; settlement replay does not repeat a debit.
+6. In **AI Controls**, test $4 and $7 requests, then revoke authority and try another request.
 
-Live Pages URL:
+All sample companies, evidence amounts, transactions, and execution receipts are fictional fixtures. The DocketFlow/Acme execution walkthrough is a separate local fixture from the imported customer evidence.
 
-https://wglewis0721.github.io/apex/
+## Implemented versus proposed
 
-## Product direction
+This remains a **browser-local sandbox**, with state stored in localStorage. Existing v1 local customer/plan state is migrated into the v2 format. If storage is unavailable, interactions remain usable for the current session.
 
-The near-term product wedge is:
+Implemented locally:
 
-**Licensing + entitlements + usage metering + billing sync + access control**
+- deterministic commercial comparisons and state transitions;
+- preview-before-correction and preview-before-policy-publication;
+- reservation and settlement state model, stable operation IDs, replay checks;
+- explicit override handling, API quota checks, and positive-integer validation;
+- grace-period behavior for payment failures;
+- payment recovery that preserves manual suspension;
+- structured local audit history and exports.
 
-Potential expansion stacks:
+Not implemented or claimed:
 
-- **Monetization Stack** — billing, licensing, entitlements, subscriptions, usage metering
-- **Access & Trust Stack** — identity, permissions, seat management, revocation, audit
-- **AI Control Stack** — agent identity, delegated permissions, budget/spending limits, usage tracking, audit trails
-- **Digital Commerce Stack** — payments, subscriptions, fraud signals, seller/customer access, digital delivery
+- production Stripe connections or signature verification;
+- hosted API, published npm SDK, identity provider, or resource authorization;
+- real AI execution, financial transactions, or provider credentials;
+- distributed transactions, production concurrency/availability guarantees, or durable server audit retention;
+- daily/rolling agent budget resets, delegation expiry, or arbitrary provider enforcement;
+- parsing uploaded contracts or ingesting arbitrary production evidence.
 
-The goal is not to become another license-key utility. The product thesis is to become the **commercial control plane for digital products**.
+The reservation tests validate a serial in-memory model. A production implementation needs an authoritative transactional ledger, trusted executor, and explicit uncertain-execution handling. Do not use the browser demo to protect production workloads.
+
+## Tests and deployment
+
+`npm test` compiles the dependency-free domain modules and runs Node's test runner. It covers findings and corrections, policy preview behavior, quota validation, grace/suspension rules, reservation capacity, idempotency conflicts, settlement retries, delegated limits, the complete walkthrough, and storage migration.
+
+The GitHub Pages workflow runs `npm ci`, tests, and a TypeScript/Vite build before publishing `dist/`. Pushes to `main` trigger the existing deployment workflow.
+
+## Visual asset provenance
+
+`public/assets/control-prism.webp` is an original Higgsfield generation produced for this upgrade (job `e8024cb1-3972-4908-a0d8-3c77822c3631`; returned model `nano_banana_2`). The optimized generation output is used as decorative artwork. Controls, text, data, and relationships are native HTML/CSS/React and Lucide icons.
