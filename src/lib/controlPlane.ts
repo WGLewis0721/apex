@@ -1,3 +1,5 @@
+import { Assurance, createAssurance } from './assurance';
+
 export type Plan = {
   id: string;
   name: string;
@@ -13,7 +15,7 @@ export type Customer = {
   name: string;
   email: string;
   planId: string;
-  status: 'active' | 'suspended';
+  status: 'active' | 'grace_period' | 'suspended';
   seatsUsed: number;
   apiCallsUsed: number;
   overrides: Record<string, boolean>;
@@ -33,11 +35,12 @@ export type BillingEvent = {
   id: string;
   at: string;
   customerId: string;
-  type: 'invoice.paid' | 'invoice.failed' | 'subscription.updated';
+  type: 'invoice.paid' | 'invoice.payment_failed' | 'subscription.updated';
   amount?: number;
 };
 
 export type Store = {
+  assurance: Assurance;
   plans: Plan[];
   customers: Customer[];
   audit: AuditEvent[];
@@ -45,6 +48,7 @@ export type Store = {
 };
 
 const seed: Store = {
+  assurance: createAssurance(),
   plans: [
     {
       id: 'starter',
@@ -157,26 +161,31 @@ const seed: Store = {
       id: 'b2',
       at: new Date(Date.now() - 1000 * 60 * 57).toISOString(),
       customerId: 'ember',
-      type: 'invoice.failed',
+      type: 'invoice.payment_failed',
       amount: 249,
     },
   ],
 };
 
-const KEY = 'apex-control-plane-v1';
+const KEY = 'apex-control-plane-v2';
 
 export function loadStore(): Store {
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return structuredClone(seed);
   try {
-    return JSON.parse(raw) as Store;
+    const raw = localStorage.getItem(KEY) ?? localStorage.getItem('apex-control-plane-v1');
+    if (!raw) return structuredClone(seed);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed.customers) || !parsed.customers.length || !Array.isArray(parsed.plans) || !parsed.plans.length || !Array.isArray(parsed.audit) || !Array.isArray(parsed.billing)) return structuredClone(seed);
+    if (!parsed.customers.every((c: Customer) => c && typeof c.id === 'string' && c.overrides && ['active', 'grace_period', 'suspended'].includes(c.status) && parsed.plans.some((p: Plan) => p.id === c.planId))) return structuredClone(seed);
+    parsed.assurance = parsed.assurance?.version === 2 && Array.isArray(parsed.assurance.evidence) && parsed.assurance.runtime && Array.isArray(parsed.assurance.runtime.operations) ? parsed.assurance : createAssurance();
+    parsed.billing = parsed.billing.map((b: BillingEvent & { type: string }) => ({ ...b, type: String(b.type) === 'invoice.failed' ? 'invoice.payment_failed' : b.type }));
+    return parsed as Store;
   } catch {
     return structuredClone(seed);
   }
 }
 
 export function saveStore(store: Store) {
-  localStorage.setItem(KEY, JSON.stringify(store));
+  try { localStorage.setItem(KEY, JSON.stringify(store)); return true; } catch { return false; }
 }
 
 export function resetStore(): Store {
@@ -201,11 +210,12 @@ export function evaluateAccess(
 ) {
   const customer = store.customers.find((c) => c.id === customerId);
   if (!customer) return { allow: false, reason: 'Customer not found' };
-  if (customer.status !== 'active') return { allow: false, reason: 'Customer is suspended' };
+  if (!Number.isSafeInteger(requestedUnits) || requestedUnits < 1) return { allow: false, reason: 'Requested units must be a positive whole number' };
+  if (customer.status === 'suspended') return { allow: false, reason: 'Customer is suspended' };
 
   const plan = findPlan(store, customer);
   const override = customer.overrides[feature];
-  const featureAllowed = override ?? plan.features.includes(feature);
+  const featureAllowed = override ?? (feature === 'api_calls' || feature === 'api' || plan.features.includes(feature));
   if (!featureAllowed) return { allow: false, reason: `Feature '${feature}' is not entitled` };
 
   if (feature === 'api_calls' || feature === 'api') {
@@ -234,7 +244,7 @@ export function recordAccessCheck(
     at: new Date().toISOString(),
     actor: 'policy-engine',
     action: 'access.check',
-    target: `${customer.name} / ${feature}`,
+    target: `${customer?.name ?? customerId} / ${feature}`,
     result: decision.allow ? 'allow' : 'deny',
     detail: decision.reason,
   };
