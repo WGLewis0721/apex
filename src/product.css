@@ -11,3 +11,45 @@
 .ap-launch-preview{text-align:center;padding:10px 30px 76px}
 .ap-launch-preview img{display:block;width:100%;max-width:960px;margin:0 auto 26px;border-radius:18px;border:1px solid #e7e7ec;box-shadow:0 20px 50px -35px #0004}
 @media(max-width:580px){.ap-plain-cta{font-size:13px}.ap-launch-preview{padding:6px 18px 50px}.ap-launch-preview img{border-radius:12px;margin-bottom:20px}}
+
+/* Final responsive polish for the public journey. */
+.ap-site button,
+.ap-site .ap-button { min-height: 44px; }
+.ap-site button:active:not(:disabled),
+.ap-site .ap-button:active { transform: translateY(1px); }
+.ap-nav-cta,
+.ap-button { white-space: nowrap; }
+.ap-simple-card,
+.ap-audience,
+.ap-house-card { min-width: 0; }
+.ap-film-frame { box-shadow: 0 22px 60px -32px #0006; }
+.ap-chapters { min-width: 0; }
+@media (max-width: 760px) {
+  .ap-nav { height: auto; min-height: 64px; padding: 14px 18px; gap: 14px; }
+  .ap-nav nav { display: none; }
+  .ap-nav-cta { padding: 9px 13px; font-size: 11px; }
+  .ap-hero { padding: 40px 18px 56px; }
+  .ap-hero h1 { font-size: clamp(48px, 14vw, 72px); }
+  .ap-hero-copy { font-size: 17px; }
+  .ap-hero-actions { gap: 10px; margin: 23px 0 32px; flex-direction: column; }
+  .ap-hero-actions .ap-button,
+  .ap-hero-actions .ap-text-button { width: min(100%, 280px); }
+  .ap-film-frame { border-radius: 16px; }
+  .ap-film-top { top: 14px; left: 16px; right: 16px; font-size: 8px; }
+  .ap-film-bottom { left: 16px; right: 14px; bottom: 13px; font-size: 10px; }
+  .ap-chapters { gap: 4px; }
+  .ap-chapters button { min-height: 38px; flex: 1; justify-content: center; }
+  .ap-launch-preview { padding-inline: 18px; }
+  .ap-simple-flow { gap: 14px; }
+  .ap-final-actions { flex-direction: column; gap: 8px; }
+  .ap-final-actions > * { width: min(100%, 280px); justify-content: center; }
+}
+@media (max-width: 420px) {
+  .ap-logo { font-size: 22px; }
+  .ap-nav-cta { max-width: 155px; overflow: hidden; text-overflow: ellipsis; }
+  .ap-hero h1 { font-size: 48px; }
+  .ap-hero-copy br { display: none; }
+  .ap-film-bottom > span { max-width: 62%; }
+  .ap-playground-section { overflow: hidden; }
+  .ap-config-body { grid-template-columns: 1fr; }
+}
