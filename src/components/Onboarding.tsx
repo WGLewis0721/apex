@@ -12,13 +12,14 @@ import {
   Loader2,
   Lock,
   RotateCcw,
-  ShieldCheck,
   Sparkles,
   Terminal as TerminalIcon,
 } from 'lucide-react';
 import {
   ChecklistItem,
   DemoKeys,
+  LAUNCHER_STAGES,
+  LAUNCHER_STAGE_COUNT,
   OFFERS,
   OnboardingAccount,
   OnboardingState,
@@ -54,13 +55,16 @@ const STEP_LABELS: Record<OnboardingStep, string> = {
   workspace: 'Workspace ready',
   stack: 'Select stack',
   payments: 'Connect Stripe',
-  install: 'Install APEX',
-  configure: 'Configure environment',
-  verify: 'Verify connection',
+  launcher: 'Install APEX',
   complete: 'Go live',
 };
 
 const TOTAL_NUMBERED_STEPS = STEP_ORDER.length - 1; // excludes the final "complete" summary
+
+// Both the desktop panel eyebrow and the mobile compact indicator derive
+// their step number from the same stepIndex() call, so the two can never
+// drift out of sync with each other or with a reordered STEP_ORDER.
+const stepEyebrow = (step: OnboardingStep, title: string) => `STEP ${stepIndex(step) + 1} OF ${TOTAL_NUMBERED_STEPS} · ${title}`;
 
 const asset = (name: string) => `/apex/assets/${name}`;
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -274,24 +278,17 @@ export default function Onboarding() {
           )}
 
           {state.step === 'payments' && (
-            <PaymentsStep status={state.paymentProviderStatus} connecting={connecting} onConnect={runConnect} onContinue={() => goto('install')} />
+            <PaymentsStep status={state.paymentProviderStatus} connecting={connecting} onConnect={runConnect} onContinue={() => goto('launcher')} />
           )}
 
-          {state.step === 'install' && (
-            <InstallStep
-              alreadyDone={state.sdkInstalled}
+          {state.step === 'launcher' && (
+            <LauncherStep
+              launcherStage={state.launcherStage}
               email={state.account?.email ?? null}
               workspaceId={state.workspaceId}
-              onInstalled={() => dispatch({ type: 'confirm_install' })}
+              onProgress={(stage) => dispatch({ type: 'launcher_progress', stage })}
+              onOpenDashboard={() => dispatch({ type: 'enter_complete' })}
             />
-          )}
-
-          {state.step === 'configure' && (
-            <ConfigureStep alreadyDone={state.environmentConfigured} onConfigured={() => dispatch({ type: 'configure_environment' })} />
-          )}
-
-          {state.step === 'verify' && (
-            <VerifyStep verificationPassed={state.verificationPassed} onVerified={() => dispatch({ type: 'run_verification' })} onContinue={() => dispatch({ type: 'enter_complete' })} />
           )}
 
           {state.step === 'complete' && (
@@ -306,7 +303,7 @@ export default function Onboarding() {
 function PlanStep({ selected, onSelect }: { selected: PlanId | null; onSelect: (plan: PlanId) => void }) {
   return (
     <>
-      <p className="ob-eyebrow">STEP 1 OF {TOTAL_NUMBERED_STEPS} · CHOOSE APEX</p>
+      <p className="ob-eyebrow">{stepEyebrow('plan', 'CHOOSE APEX')}</p>
       <h1>What if the paid part of your app was already built?</h1>
       <p className="ob-lede">APEX is the commercial plumbing behind a paid product: plan limits, credits, upgrades, and payment-state sync. Pick how you want to start.</p>
       <div className="ob-offers">
@@ -346,7 +343,7 @@ function AccountStep({ form, error, onChange, onSubmit, onBack }: {
 }) {
   return (
     <>
-      <p className="ob-eyebrow">STEP 2 OF {TOTAL_NUMBERED_STEPS} · CREATE ACCOUNT</p>
+      <p className="ob-eyebrow">{stepEyebrow('account', 'CREATE ACCOUNT')}</p>
       <h1>Create your APEX workspace.</h1>
       <p className="ob-lede">Just enough to personalize the rest of this preview.</p>
       <form className="ob-form" onSubmit={onSubmit}>
@@ -374,7 +371,7 @@ function PurchaseStep({ offer, purchasing, onPurchase, onBack }: { offer: (typeo
   const totalToday = offer.setupFee + offer.monthly;
   return (
     <>
-      <p className="ob-eyebrow">STEP 3 OF {TOTAL_NUMBERED_STEPS} · PURCHASE</p>
+      <p className="ob-eyebrow">{stepEyebrow('purchase', 'PURCHASE')}</p>
       <h1>Review your order.</h1>
       <span className="ob-sim-badge">SIMULATED CHECKOUT · NO CARD COLLECTED</span>
       <div className="ob-checkout">
@@ -399,7 +396,7 @@ function PurchaseStep({ offer, purchasing, onPurchase, onBack }: { offer: (typeo
 function WorkspaceStep({ workspaceId, keys, onContinue }: { workspaceId: string | null; keys: DemoKeys | null; onContinue: () => void }) {
   return (
     <>
-      <p className="ob-eyebrow">STEP 4 OF {TOTAL_NUMBERED_STEPS} · WORKSPACE CREATED</p>
+      <p className="ob-eyebrow">{stepEyebrow('workspace', 'WORKSPACE CREATED')}</p>
       <div className="ob-celebrate"><CheckCircle2 size={20} /> Payment received. Your workspace is ready.</div>
       <h1>{workspaceId ?? 'Your workspace'}</h1>
       <div className="ob-workspace-meta">
@@ -438,7 +435,7 @@ function StackStep({ alreadyChosen, onChoose }: { alreadyChosen: Stack | null; o
 
   return (
     <>
-      <p className="ob-eyebrow">STEP 5 OF {TOTAL_NUMBERED_STEPS} · SELECT STACK</p>
+      <p className="ob-eyebrow">{stepEyebrow('stack', 'SELECT STACK')}</p>
       <h1>Detect your application stack.</h1>
       <p className="ob-lede">APEX ships a thin client for your language. JavaScript and TypeScript are ready today.</p>
       <ArchitectureStrip />
@@ -460,7 +457,7 @@ function StackStep({ alreadyChosen, onChoose }: { alreadyChosen: Stack | null; o
 function PaymentsStep({ status, connecting, onConnect, onContinue }: { status: OnboardingState['paymentProviderStatus']; connecting: boolean; onConnect: () => void; onContinue: () => void }) {
   return (
     <>
-      <p className="ob-eyebrow">STEP 6 OF {TOTAL_NUMBERED_STEPS} · CONNECT STRIPE</p>
+      <p className="ob-eyebrow">{stepEyebrow('payments', 'CONNECT STRIPE')}</p>
       <h1>Connect Stripe.</h1>
       <p className="ob-lede">Stripe moves the money. APEX uses those payment events to update what the customer gets inside your product.</p>
       <ArchitectureStrip />
@@ -509,36 +506,156 @@ function CodeBlock({ label, code }: { label: string; code: string }) {
   );
 }
 
-function InstallStep({ alreadyDone, email, workspaceId, onInstalled }: { alreadyDone: boolean; email: string | null; workspaceId: string | null; onInstalled: () => void }) {
+function statusFor(n: number, completed: number, runningStage: number | null): 'pending' | 'running' | 'done' {
+  if (n <= completed) return 'done';
+  if (n === runningStage) return 'running';
+  return 'pending';
+}
+
+function staticDetailFor(n: number, email: string | null, workspaceId: string | null): string {
+  switch (n) {
+    case 1: return `Signed in as ${email ?? 'you'} · workspace ${workspaceId}`;
+    case 2: return 'Project scan complete';
+    case 3: return 'Node.js 20 · React · TypeScript';
+    case 4: return '@apex/sdk@0.1.0-preview';
+    case 5: return '.env.local (APEX_PUBLISHABLE_KEY, APEX_SECRET_KEY)';
+    case 6: return `Linked to ${workspaceId}`;
+    case 7: return 'Stripe connection confirmed (demo)';
+    case 8: return 'Webhook listener ready (preview)';
+    case 9: return 'cus_demo_pro (Pro)';
+    case 10: return '1,000 credits granted';
+    case 11: return '250 credits used';
+    case 12: return 'Request sent to APEX Cloud';
+    case 13: return 'ALLOW · 750 of 1,000 credits remaining';
+    case 14: return 'APEX IS READY';
+    default: return '';
+  }
+}
+
+function LauncherStep({ launcherStage, email, workspaceId, onProgress, onOpenDashboard }: {
+  launcherStage: number;
+  email: string | null;
+  workspaceId: string | null;
+  onProgress: (stage: number) => void;
+  onOpenDashboard: () => void;
+}) {
   const installer = useMemo(() => createSimulatedInstaller(), []);
-  const { lines, running, step } = useTerminalRunner();
-  const [done, setDone] = useState(alreadyDone);
-  const started = useRef(alreadyDone);
+  const environment = useMemo(() => createSimulatedEnvironment(), []);
+  const verification = useMemo(() => createSimulatedVerification(), []);
+
+  const [completed, setCompleted] = useState(launcherStage);
+  const [runningStage, setRunningStage] = useState<number | null>(null);
+  const [detail, setDetail] = useState<Record<number, string>>(() => {
+    const seed: Record<number, string> = {};
+    for (let n = 1; n <= launcherStage; n++) seed[n] = staticDetailFor(n, email, workspaceId);
+    return seed;
+  });
+  const [decision, setDecision] = useState<{ allowance: number; remaining: number } | null>(
+    launcherStage >= 13 ? { allowance: 1000, remaining: 750 } : null,
+  );
+  const [reverifying, setReverifying] = useState(false);
+  const [reverified, setReverified] = useState<{ allowance: number; remaining: number } | null>(null);
+  const started = useRef(launcherStage >= LAUNCHER_STAGE_COUNT);
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
     (async () => {
-      await step('Signing into your APEX workspace…', () => delay(400), `✓ Signed in as ${email ?? 'you'} · workspace ${workspaceId}`);
-      await step('Installing @apex/sdk…', () => installer.installSdk(), (pkg) => `✓ ${pkg.pkg}@${pkg.version} installed`);
-      setDone(true);
+      async function run(n: number, task: () => Promise<string>) {
+        setRunningStage(n);
+        const text = await task();
+        setDetail((d) => ({ ...d, [n]: text }));
+        setRunningStage(null);
+        setCompleted(n);
+        onProgress(n);
+      }
+      let n = launcherStage;
+      if (n < 1) await run(1, async () => { await delay(500); return `Signed in as ${email ?? 'you'} · workspace ${workspaceId}`; });
+      if (n < 2) await run(2, async () => { await delay(450); return 'Project scan complete'; });
+      if (n < 3) await run(3, async () => { const r = await installer.detectStack(); return `${r.runtime} · ${r.framework} · TypeScript`; });
+      if (n < 4) await run(4, async () => { const pkg = await installer.installSdk(); return `${pkg.pkg}@${pkg.version}`; });
+      if (n < 5) await run(5, async () => { const cfg = await environment.writeEnvConfig(); return `${cfg.path} (${cfg.variables.join(', ')})`; });
+      if (n < 6) await run(6, async () => { await delay(400); return `Linked to ${workspaceId}`; });
+      if (n < 7) await run(7, async () => { await delay(400); return 'Stripe connection confirmed (demo)'; });
+      if (n < 8) await run(8, async () => { const wh = await environment.configureWebhook(); return `${wh.endpoint} (preview)`; });
+      if (n < 9) await run(9, async () => { const c = await verification.sendTestCustomer(); return `${c.customerId} (${c.plan})`; });
+      if (n < 10) await run(10, async () => { const g = await verification.grantCredits(); return `${g.amount.toLocaleString()} credits granted`; });
+      if (n < 11) await run(11, async () => { const u = await verification.recordUsageEvent(); return `${u.quantity} credits used`; });
+      if (n < 12) await run(12, async () => { await delay(400); return 'Request sent to APEX Cloud'; });
+      if (n < 13) await run(13, async () => {
+        const d = await verification.checkAccess();
+        setDecision({ allowance: d.allowance, remaining: d.remaining });
+        return `ALLOW · ${d.remaining} of ${d.allowance.toLocaleString()} credits remaining`;
+      });
+      if (n < 14) await run(14, async () => { await delay(300); return 'APEX IS READY'; });
     })();
   }, []);
 
-  const staticLines = alreadyDone ? [`✓ Signed in as ${email ?? 'you'} · workspace ${workspaceId}`, '✓ @apex/sdk installed'] : lines;
+  async function verifyAgain() {
+    if (reverifying) return;
+    setReverifying(true);
+    const d = await verification.checkAccess();
+    setReverified({ allowance: d.allowance, remaining: d.remaining });
+    setReverifying(false);
+  }
+
+  const allDone = completed >= LAUNCHER_STAGE_COUNT;
 
   return (
     <>
-      <p className="ob-eyebrow">STEP 7 OF {TOTAL_NUMBERED_STEPS} · INSTALL APEX</p>
-      <h1>Install APEX in your app.</h1>
-      <p className="ob-lede">This installs a small client library — not APEX Cloud itself, which stays hosted.</p>
+      <p className="ob-eyebrow">{stepEyebrow('launcher', 'INSTALL APEX')}</p>
+      <h1>APEX Launcher.</h1>
+      <p className="ob-lede">Sit back — APEX is preparing your application to connect to hosted APEX Cloud. This remains an interactive product preview: no real operations run.</p>
       <ArchitectureStrip />
       <CodeBlock label="Recommended: guided setup" code={CLI_INIT} />
-      <CodeBlock label="Or install the SDK directly" code={NPM_INSTALL} />
-      <Terminal prompt={CLI_INIT} lines={staticLines} running={alreadyDone ? null : running} />
-      {(alreadyDone || done) && (
-        <button className="ob-primary" onClick={onInstalled}>Continue to configure environment <ArrowRight size={15} /></button>
+      <p className="ob-preview-flag"><Code2 size={13} /> CLI design preview · @apex/cli is not published yet.</p>
+
+      <div className="ob-launcher">
+        <div className="ob-launcher-legend">
+          <span><i className="ob-glyph">○</i> Pending</span>
+          <span><i className="ob-glyph is-running">◌</i> Running</span>
+          <span><i className="ob-glyph is-done">✓</i> Complete</span>
+          <span><i className="ob-glyph is-attn">!</i> Attention</span>
+        </div>
+        <ol className="ob-stage-list">
+          {LAUNCHER_STAGES.map((label, i) => {
+            const n = i + 1;
+            const status = statusFor(n, completed, runningStage);
+            return (
+              <li key={n} className={`ob-stage is-${status}`}>
+                <i className={`ob-glyph ${status === 'done' ? 'is-done' : status === 'running' ? 'is-running' : ''}`}>{status === 'done' ? '✓' : status === 'running' ? '◌' : '○'}</i>
+                <span className="ob-stage-text">
+                  {label}
+                  {detail[n] && <small>{detail[n]}</small>}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      {allDone ? (
+        <>
+          <div className="ob-celebrate is-ready"><CheckCircle2 size={22} /> APEX IS READY.</div>
+          <p className="ob-note">Nothing above called a real backend — @apex/cli, @apex/sdk, and the APEX Cloud API are all previews.</p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <button className="ob-ghost" onClick={verifyAgain} disabled={reverifying}>
+              {reverifying ? <><Loader2 size={15} className="ob-spin" /> Checking…</> : 'Verify APEX'}
+            </button>
+            <button className="ob-primary" style={{ width: 'auto', flex: 1 }} onClick={onOpenDashboard}>Open dashboard <ArrowRight size={15} /></button>
+          </div>
+          {reverified && (
+            <p className="ob-note"><CheckCircle2 size={13} style={{ verticalAlign: -2 }} /> APEX returned ALLOW just now · {reverified.remaining} of {reverified.allowance.toLocaleString()} credits remaining.</p>
+          )}
+          {decision && !reverified && (
+            <p className="ob-note">{decision.remaining} of {decision.allowance.toLocaleString()} credits remaining on the sample customer.</p>
+          )}
+        </>
+      ) : (
+        <p className="ob-note">Installing… this takes a few seconds.</p>
       )}
+
+      <CodeBlock label="Or install the SDK directly" code={NPM_INSTALL} />
       <CodeBlock label="Server-side quickstart" code={QUICKSTART} />
       <p className="ob-preview-flag"><Code2 size={13} /> API design preview · @apex/sdk and @apex/cli are not published packages yet.</p>
       <CodeBlock label="Optional embedded components" code={COMPONENTS} />
@@ -552,88 +669,6 @@ function InstallStep({ alreadyDone, email, workspaceId, onInstalled }: { already
   );
 }
 
-function ConfigureStep({ alreadyDone, onConfigured }: { alreadyDone: boolean; onConfigured: () => void }) {
-  const environment = useMemo(() => createSimulatedEnvironment(), []);
-  const { lines, running, step } = useTerminalRunner();
-  const [done, setDone] = useState(alreadyDone);
-  const started = useRef(alreadyDone);
-
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    (async () => {
-      await step('Creating .env.local…', () => environment.writeEnvConfig(), (cfg) => `✓ Wrote ${cfg.path} (${cfg.variables.join(', ')})`);
-      await step('Verifying Stripe connection…', () => delay(350), '✓ Stripe connection confirmed (demo)');
-      await step('Configuring webhook listener…', () => environment.configureWebhook(), (wh) => `✓ Webhook listener ready at ${wh.endpoint} (preview)`);
-      setDone(true);
-    })();
-  }, []);
-
-  const staticLines = alreadyDone
-    ? ['✓ Wrote .env.local (APEX_PUBLISHABLE_KEY, APEX_SECRET_KEY)', '✓ Stripe connection confirmed (demo)', '✓ Webhook listener ready (preview)']
-    : lines;
-
-  return (
-    <>
-      <p className="ob-eyebrow">STEP 8 OF {TOTAL_NUMBERED_STEPS} · CONFIGURE ENVIRONMENT</p>
-      <h1>Configure your environment.</h1>
-      <p className="ob-lede">APEX writes local config for keys, then confirms the webhook path Stripe events will use.</p>
-      <Terminal lines={staticLines} running={alreadyDone ? null : running} />
-      <div className="ob-preview-note"><Info size={15} /><span>The webhook endpoint shown is illustrative. A real build would register this with your connected Stripe account, not a hardcoded URL.</span></div>
-      {(alreadyDone || done) && (
-        <button className="ob-primary" onClick={onConfigured}>Continue to verify <ArrowRight size={15} /></button>
-      )}
-    </>
-  );
-}
-
-function VerifyStep({ verificationPassed, onVerified, onContinue }: { verificationPassed: boolean; onVerified: () => void; onContinue: () => void }) {
-  const verification = useMemo(() => createSimulatedVerification(), []);
-  const { lines, running, step } = useTerminalRunner();
-  const [passed, setPassed] = useState(verificationPassed);
-  const [remaining, setRemaining] = useState(750);
-  const [busy, setBusy] = useState(false);
-
-  async function runVerification() {
-    if (busy || passed) return;
-    setBusy(true);
-    await step('Sending test customer…', () => verification.sendTestCustomer(), (c) => `✓ Test customer ${c.customerId} (${c.plan}) created`);
-    await step('Recording usage event…', () => verification.recordUsageEvent(), (u) => `✓ Usage recorded · ${u.quantity} credits`);
-    const decision = await step('Requesting access decision…', () => verification.checkAccess(), (d) => `✓ APEX returned ${d.outcome.toUpperCase()} · ${d.remaining} of ${d.allowance} credits remaining`);
-    setRemaining(decision.remaining);
-    setPassed(true);
-    onVerified();
-    setBusy(false);
-  }
-
-  const staticLines = verificationPassed && lines.length === 0
-    ? ['✓ Test customer cus_demo_pro (Pro) created', '✓ Usage recorded · 250 credits', '✓ APEX returned ALLOW · 750 of 1000 credits remaining']
-    : lines;
-
-  return (
-    <>
-      <p className="ob-eyebrow">STEP 9 OF {TOTAL_NUMBERED_STEPS} · VERIFY CONNECTION</p>
-      <h1>Test APEX.</h1>
-      <p className="ob-lede">Your app can now ask APEX what a customer paid for, how much they have left, and whether an action should be allowed.</p>
-      <div className="ob-verify-card">
-        <div className="ob-verify-row"><ShieldCheck size={16} /> Sample customer <b style={{ marginLeft: 'auto' }}>Pro</b></div>
-        <div className="ob-verify-row"><Sparkles size={16} /> Allowance <b style={{ marginLeft: 'auto' }}>1,000 credits</b></div>
-      </div>
-      <Terminal lines={staticLines} running={running} />
-      {!passed ? (
-        <button className="ob-primary" onClick={runVerification} disabled={busy}>
-          {busy ? <><Loader2 size={16} className="ob-spin" /> Checking access…</> : <>Send a test request <ArrowRight size={15} /></>}
-        </button>
-      ) : (
-        <>
-          <div className="ob-celebrate"><CheckCircle2 size={20} /> APEX is ready.</div>
-          <p className="ob-note">{remaining} of 1,000 credits remaining on the sample customer.</p>
-          <button className="ob-primary" onClick={onContinue}>See your launch checklist <ArrowRight size={15} /></button>
-        </>
-      )}
-    </>
-  );
-}
 
 function CompleteStep({ items, progress, onJump, onRequestProduction, productionRequested }: {
   items: ChecklistItem[];

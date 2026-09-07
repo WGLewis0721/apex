@@ -117,12 +117,21 @@ a.ob-primary { color: #fff; }
 .ob-code pre { margin: 0; padding: 16px; color: #d6d3f6; font: 12.5px/1.7 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-x: auto; }
 .ob-preview-flag { font-size: 10px; color: var(--ap-muted); display: flex; align-items: center; gap: 6px; margin: -8px 0 18px; }
 
-.ob-verify-card { border: 1px solid #ececf0; border-radius: 16px; padding: 22px; margin-bottom: 20px; }
-.ob-verify-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; font-size: 13px; border-bottom: 1px dashed #ececf0; }
-.ob-verify-row:last-child { border-bottom: 0; }
-.ob-verify-row b { color: var(--rust); }
-.ob-verify-anim { display: flex; align-items: center; gap: 10px; margin: 16px 0; font-size: 13px; color: var(--ap-muted); }
-.ob-verify-success { display: flex; align-items: center; gap: 10px; color: var(--green); font-weight: 700; font-size: 16px; margin: 16px 0; }
+.ob-launcher { border: 1px solid #ececf0; border-radius: 16px; padding: 18px 20px; margin-bottom: 18px; background: #fbfbfd; }
+.ob-launcher-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 10px; color: var(--ap-muted); padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid #ececf0; }
+.ob-launcher-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.ob-glyph { font-style: normal; display: inline-block; width: 14px; text-align: center; color: #c4c4cc; }
+.ob-glyph.is-done { color: var(--green); }
+.ob-glyph.is-running { color: #96590d; animation: ob-rotate 1.1s linear infinite; }
+.ob-glyph.is-attn { color: var(--rust); }
+.ob-stage-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.ob-stage { display: flex; align-items: flex-start; gap: 11px; padding: 7px 6px; border-radius: 8px; font-size: 13px; color: #b7b7bf; transition: color .2s; }
+.ob-stage.is-running { color: var(--ap-ink); background: #fdf3e7; }
+.ob-stage.is-done { color: var(--ap-ink); }
+.ob-stage .ob-glyph { margin-top: 1px; }
+.ob-stage-text { display: flex; flex-direction: column; min-width: 0; }
+.ob-stage-text small { color: var(--ap-muted); font-size: 11px; margin-top: 1px; overflow-wrap: anywhere; }
+.ob-celebrate.is-ready { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
 
 .ob-checklist { list-style: none; margin: 0 0 22px; padding: 0; display: grid; gap: 4px; }
 .ob-checklist li button { width: 100%; display: flex; align-items: center; gap: 12px; border: 0; background: none; text-align: left; padding: 11px 8px; border-radius: 10px; font-size: 13px; cursor: pointer; color: var(--ap-ink); }
@@ -184,7 +193,7 @@ a.ob-primary { color: #fff; }
 .ob-offer,
 .ob-checkout,
 .ob-connect,
-.ob-verify-card { border-radius: var(--ob-radius); }
+.ob-launcher { border-radius: var(--ob-radius); }
 .ob-offer h3 { min-height: 1.35em; }
 .ob-offer-price b { white-space: nowrap; }
 .ob-checkout-row span:first-child { color: var(--ap-ink); }
@@ -213,4 +222,7 @@ a.ob-primary { color: #fff; }
   .ob-key-row span:first-child { width: 100%; }
   .ob-key-row code { width: calc(100% - 28px); }
   .ob-mobile-rail { padding-inline: 12px; }
+  .ob-launcher { padding: 14px 14px; }
+  .ob-launcher-legend { gap: 10px 14px; }
+  .ob-stage { font-size: 12px; }
 }

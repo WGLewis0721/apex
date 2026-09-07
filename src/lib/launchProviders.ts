@@ -111,28 +111,34 @@ export type AccessDecision = { outcome: 'allow'; allowance: number; remaining: n
 
 export interface VerificationProvider {
   sendTestCustomer(): Promise<{ customerId: string; plan: string }>;
+  grantCredits(): Promise<{ amount: number }>;
   recordUsageEvent(): Promise<{ quantity: number }>;
   checkAccess(): Promise<AccessDecision>;
 }
 
 // TODO(real integration):
-// - These three calls stand in for `apex.customers.identify`,
-//   `apex.usage.record`, and `apex.access.check` against the hosted API
-//   once `@apex/sdk` is published — see the Step 7 code sample.
+// - These four calls stand in for `apex.customers.identify`,
+//   `apex.entitlements.grant`, `apex.usage.record`, and
+//   `apex.access.check` against the hosted API once `@apex/sdk` is
+//   published — see the Step 7 code sample.
 // - A real check must run server-side with the secret key; never expose
 //   an access decision that trusts client-reported state.
 export function createSimulatedVerification(): VerificationProvider {
   return {
     async sendTestCustomer() {
-      await delay(600);
+      await delay(500);
       return { customerId: 'cus_demo_pro', plan: 'Pro' };
     },
+    async grantCredits() {
+      await delay(450);
+      return { amount: 1000 };
+    },
     async recordUsageEvent() {
-      await delay(500);
+      await delay(450);
       return { quantity: 250 };
     },
     async checkAccess() {
-      await delay(600);
+      await delay(550);
       return { outcome: 'allow', allowance: 1000, remaining: 750 };
     },
   };
