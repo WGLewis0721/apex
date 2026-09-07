@@ -1,4 +1,5 @@
 import { Assurance, createAssurance } from './assurance';
+import { FormaAccount, createFormaAccount } from './forma';
 
 export type Plan = {
   id: string;
@@ -41,6 +42,7 @@ export type BillingEvent = {
 
 export type Store = {
   assurance: Assurance;
+  forma: FormaAccount;
   plans: Plan[];
   customers: Customer[];
   audit: AuditEvent[];
@@ -49,6 +51,7 @@ export type Store = {
 
 const seed: Store = {
   assurance: createAssurance(),
+  forma: createFormaAccount(),
   plans: [
     {
       id: 'starter',
@@ -177,6 +180,7 @@ export function loadStore(): Store {
     if (!Array.isArray(parsed.customers) || !parsed.customers.length || !Array.isArray(parsed.plans) || !parsed.plans.length || !Array.isArray(parsed.audit) || !Array.isArray(parsed.billing)) return structuredClone(seed);
     if (!parsed.customers.every((c: Customer) => c && typeof c.id === 'string' && c.overrides && ['active', 'grace_period', 'suspended'].includes(c.status) && parsed.plans.some((p: Plan) => p.id === c.planId))) return structuredClone(seed);
     parsed.assurance = parsed.assurance?.version === 2 && Array.isArray(parsed.assurance.evidence) && parsed.assurance.runtime && Array.isArray(parsed.assurance.runtime.operations) ? parsed.assurance : createAssurance();
+    parsed.forma = parsed.forma && ['free', 'pro'].includes(parsed.forma.plan) && ['active', 'grace_period'].includes(parsed.forma.status) && typeof parsed.forma.generationsUsed === 'number' && typeof parsed.forma.bonusGenerations === 'number' ? parsed.forma : createFormaAccount();
     parsed.billing = parsed.billing.map((b: BillingEvent & { type: string }) => ({ ...b, type: String(b.type) === 'invoice.failed' ? 'invoice.payment_failed' : b.type }));
     return parsed as Store;
   } catch {
