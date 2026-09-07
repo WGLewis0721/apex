@@ -6,6 +6,7 @@ import './plain-language.css';
 
 const Console = lazy(() => import('./App'));
 const Forma = lazy(() => import('./components/FormaPage'));
+const Onboarding = lazy(() => import('./components/Onboarding'));
 const asset = (name: string) => `/apex/assets/${name}`;
 const themes = [
   { name: 'Indigo', color: '#635bff' },
@@ -19,6 +20,7 @@ export default function ProductSite() {
   const [route, setRoute] = useState(() => window.location.hash);
   const consoleOpen = route === '#console';
   const formaOpen = route === '#forma';
+  const startOpen = route === '#start';
   const [filmOpen, setFilmOpen] = useState(false);
   const film = useRef<HTMLDialogElement>(null);
   const fullVideo = useRef<HTMLVideoElement>(null);
@@ -36,7 +38,7 @@ export default function ProductSite() {
   }, []);
 
   useEffect(() => {
-    if (consoleOpen || formaOpen || filmOpen) return;
+    if (consoleOpen || formaOpen || startOpen || filmOpen) return;
     const el = preview.current;
     if (!el) return;
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -48,7 +50,7 @@ export default function ProductSite() {
     const reduce = () => { if (motion.matches) el.pause(); };
     motion.addEventListener('change', reduce);
     return () => { observer.disconnect(); motion.removeEventListener('change', reduce); };
-  }, [consoleOpen, formaOpen, filmOpen]);
+  }, [consoleOpen, formaOpen, startOpen, filmOpen]);
 
   useEffect(() => {
     if (filmOpen) {
@@ -72,6 +74,8 @@ export default function ProductSite() {
     watchButton.current?.focus();
   }
 
+  if (startOpen) return <Suspense fallback={<p className="ap-loading">Opening onboarding…</p>}><Onboarding/></Suspense>;
+
   if (formaOpen) return <Suspense fallback={<p className="ap-loading">Opening Forma…</p>}><Forma/></Suspense>;
 
   if (consoleOpen) return <>
@@ -88,7 +92,7 @@ export default function ProductSite() {
     <header className="ap-nav">
       <a className="ap-logo" href="#" aria-label="APEX home">APEX</a>
       <nav aria-label="Main navigation"><a href="#what-it-does">What it does</a><a href="#playground">Try it</a><a href="#forma">Forma demo</a><a href="#developers">For developers</a></nav>
-      <a className="ap-nav-cta" href="#playground">Try the demo <ArrowRight size={14}/></a>
+      <a className="ap-nav-cta" href="#start">Start with APEX <ArrowRight size={14}/></a>
     </header>
 
     <main id="main">
@@ -97,9 +101,10 @@ export default function ProductSite() {
         <h1>They paid.<br/><span>Now what do they get?</span></h1>
         <p className="ap-hero-copy"><strong>APEX connects a payment to what your customer can actually use.</strong><br/>Credits, plan limits, feature access, upgrades, and usage — without rebuilding that system inside every app.</p>
         <div className="ap-hero-actions">
-          <a className="ap-button" href="#what-it-does">Explain it simply <ArrowRight size={17}/></a>
+          <a className="ap-button" href="#start">Get APEX <ArrowRight size={17}/></a>
           <button ref={watchButton} className="ap-text-button" onClick={() => setFilmOpen(true)}>Watch the film <CirclePlay size={21}/></button>
         </div>
+        <p className="ap-plain-cta">Choose your plan. Create your workspace. Connect Stripe. Install APEX. Go live.</p>
 
         <div className="ap-film-wrap">
           <div className="ap-film-frame">
@@ -122,6 +127,11 @@ export default function ProductSite() {
           }}><span>0{i + 1}</span>{name}</button>)}</div>
         </div>
         <p className="ap-underfilm"><strong>Stripe, Link, Apple Pay or another provider takes the money.</strong> <span className="ap-rust">APEX keeps track of what that purchase unlocks.</span></p>
+      </section>
+
+      <section className="ap-launch-preview ap-container" aria-label="How you get APEX">
+        <img src={asset('launch/apex-customer-funnel.svg')} alt="Discover APEX, choose a plan, pay, create a workspace, connect and install, then go live."/>
+        <a className="ap-button" href="#start">Start with APEX <ArrowRight size={16}/></a>
       </section>
 
       <section className="ap-simple" id="what-it-does">
@@ -170,10 +180,10 @@ export default function ProductSite() {
 
       <DeveloperSection/>
 
-      <section className="ap-final-cta"><p className="ap-eyebrow">THE SIMPLE VERSION.</p><h2>Payment takes the money.<br/>APEX updates what they get.</h2><div className="ap-final-actions"><a href="#playground" className="ap-button">Try it yourself <ArrowRight size={17}/></a><a href="#forma" className="ap-text-button">Open the Forma demo app <ArrowRight size={17}/></a></div></section>
+      <section className="ap-final-cta"><p className="ap-eyebrow">THE SIMPLE VERSION.</p><h2>Payment takes the money.<br/>APEX updates what they get.</h2><div className="ap-final-actions"><a href="#start" className="ap-button">Start with APEX <ArrowRight size={17}/></a><a href="#playground" className="ap-text-button">Try it yourself <ArrowRight size={17}/></a><a href="#forma" className="ap-text-button">Open the Forma demo app <ArrowRight size={17}/></a></div></section>
     </main>
 
-    <footer className="ap-footer ap-container"><a href="#" className="ap-logo">APEX</a><p>The commercial layer between payment and product access.</p><a href="#forma">Open the Forma demo app <ExternalLink size={13}/></a><a href="#console">Open behind-the-scenes controls <ExternalLink size={13}/></a><small>Product preview. All transactions are simulated.</small></footer>
+    <footer className="ap-footer ap-container"><a href="#" className="ap-logo">APEX</a><p>The commercial layer between payment and product access.</p><a href="#start">Start with APEX <ExternalLink size={13}/></a><a href="#forma">Open the Forma demo app <ExternalLink size={13}/></a><a href="#console">Open behind-the-scenes controls <ExternalLink size={13}/></a><small>Product preview. All transactions are simulated.</small></footer>
 
     <dialog ref={film} className="ap-film-dialog" aria-label="APEX product walkthrough" onCancel={closeFilm} onClick={e => { if (e.target === e.currentTarget) closeFilm(); }}>
       <button autoFocus className="ap-close-film" aria-label="Close film" onClick={closeFilm}><X/></button>
