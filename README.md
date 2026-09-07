@@ -30,6 +30,10 @@ APEX's product direction is a configurable service that connects a payment provi
 
 All payments, accounts, generated content, integrations, and film scenes are simulated. No payment details or credentials are collected. The homepage playground stores only in-session state. The retained advanced sandbox uses browser localStorage.
 
+## Buy and install APEX (`#start`)
+
+The homepage's **Start with APEX** / **Get APEX** buttons open a dedicated onboarding funnel, built to the spec in `docs/CLAUDE_CUSTOMER_FUNNEL.md`: choose a plan, create a workspace account, pay, receive a workspace and demo API keys, connect a payment provider, install the SDK, verify a live access decision, then land on a launch checklist. State lives in `src/lib/onboarding.ts` (a pure reducer, same shape as `src/lib/embeddedDemo.ts`) and persists to `localStorage` under a versioned key with a **Reset onboarding demo** control. Every screen that stands in for a real integration says so — simulated checkout, no card collected; an interactive preview of a Stripe connection, not a real OAuth flow; demo API keys (`apex_test_...`), never real credentials. The two integration points a real build would swap in are isolated behind adapters in `src/lib/launchProviders.ts` (`BillingProvider`, `PaymentConnectionProvider`), each with TODOs describing the production implementation. Once the checklist is complete, **Open APEX dashboard** hands off to the existing `#console` sandbox.
+
 ## Implementation boundary
 
 This deployment is a **functional product preview**, not a hosted payment or metering backend. There is no production Stripe connection, published npm SDK, real AI execution, real charge, or server-side enforcement. Production payment connections and SDKs remain to be built. Illustrative prices are for the fictional customer application, not an APEX service price list. The upgrade demo uses the $50 plan-price difference and intentionally omits production proration calculations.

@@ -6,3 +6,8 @@
 @media(prefers-reduced-motion:reduce){.ap-site *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 .ap-final-actions{display:flex;align-items:center;justify-content:center;gap:26px;flex-wrap:wrap}
+
+.ap-plain-cta{font-size:14px;color:#6c6c76;margin:0 auto;max-width:520px;text-align:center}
+.ap-launch-preview{text-align:center;padding:10px 30px 76px}
+.ap-launch-preview img{display:block;width:100%;max-width:960px;margin:0 auto 26px;border-radius:18px;border:1px solid #e7e7ec;box-shadow:0 20px 50px -35px #0004}
+@media(max-width:580px){.ap-plain-cta{font-size:13px}.ap-launch-preview{padding:6px 18px 50px}.ap-launch-preview img{border-radius:12px;margin-bottom:20px}}
