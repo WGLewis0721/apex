@@ -5,6 +5,7 @@ import './product.css';
 import './plain-language.css';
 
 const Console = lazy(() => import('./App'));
+const Forma = lazy(() => import('./components/FormaPage'));
 const asset = (name: string) => `/apex/assets/${name}`;
 const themes = [
   { name: 'Indigo', color: '#635bff' },
@@ -15,7 +16,9 @@ const themes = [
 const chapters = [ ['Connect', 0], ['Subscribe', 6], ['Track usage', 12], ['Upgrade', 21], ['Make it yours', 28] ] as const;
 
 export default function ProductSite() {
-  const [consoleOpen, setConsoleOpen] = useState(() => window.location.hash === '#console');
+  const [route, setRoute] = useState(() => window.location.hash);
+  const consoleOpen = route === '#console';
+  const formaOpen = route === '#forma';
   const [filmOpen, setFilmOpen] = useState(false);
   const film = useRef<HTMLDialogElement>(null);
   const fullVideo = useRef<HTMLVideoElement>(null);
@@ -27,13 +30,13 @@ export default function ProductSite() {
   const [videoFailed, setVideoFailed] = useState(false);
 
   useEffect(() => {
-    const sync = () => setConsoleOpen(window.location.hash === '#console');
+    const sync = () => setRoute(window.location.hash);
     window.addEventListener('hashchange', sync);
     return () => window.removeEventListener('hashchange', sync);
   }, []);
 
   useEffect(() => {
-    if (consoleOpen || filmOpen) return;
+    if (consoleOpen || formaOpen || filmOpen) return;
     const el = preview.current;
     if (!el) return;
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -45,7 +48,7 @@ export default function ProductSite() {
     const reduce = () => { if (motion.matches) el.pause(); };
     motion.addEventListener('change', reduce);
     return () => { observer.disconnect(); motion.removeEventListener('change', reduce); };
-  }, [consoleOpen, filmOpen]);
+  }, [consoleOpen, formaOpen, filmOpen]);
 
   useEffect(() => {
     if (filmOpen) {
@@ -69,6 +72,8 @@ export default function ProductSite() {
     watchButton.current?.focus();
   }
 
+  if (formaOpen) return <Suspense fallback={<p className="ap-loading">Opening Forma…</p>}><Forma/></Suspense>;
+
   if (consoleOpen) return <>
     <div className="ap-console-return">
       <a href="#">← APEX home</a>
@@ -82,7 +87,7 @@ export default function ProductSite() {
     <a className="ap-skip" href="#main">Skip to content</a>
     <header className="ap-nav">
       <a className="ap-logo" href="#" aria-label="APEX home">APEX</a>
-      <nav aria-label="Main navigation"><a href="#what-it-does">What it does</a><a href="#playground">Try it</a><a href="#developers">For developers</a></nav>
+      <nav aria-label="Main navigation"><a href="#what-it-does">What it does</a><a href="#playground">Try it</a><a href="#forma">Forma demo</a><a href="#developers">For developers</a></nav>
       <a className="ap-nav-cta" href="#playground">Try the demo <ArrowRight size={14}/></a>
     </header>
 
@@ -165,10 +170,10 @@ export default function ProductSite() {
 
       <DeveloperSection/>
 
-      <section className="ap-final-cta"><p className="ap-eyebrow">THE SIMPLE VERSION.</p><h2>Payment takes the money.<br/>APEX updates what they get.</h2><a href="#playground" className="ap-button">Try it yourself <ArrowRight size={17}/></a></section>
+      <section className="ap-final-cta"><p className="ap-eyebrow">THE SIMPLE VERSION.</p><h2>Payment takes the money.<br/>APEX updates what they get.</h2><div className="ap-final-actions"><a href="#playground" className="ap-button">Try it yourself <ArrowRight size={17}/></a><a href="#forma" className="ap-text-button">Open the Forma demo app <ArrowRight size={17}/></a></div></section>
     </main>
 
-    <footer className="ap-footer ap-container"><a href="#" className="ap-logo">APEX</a><p>The commercial layer between payment and product access.</p><a href="#console">Open behind-the-scenes controls <ExternalLink size={13}/></a><small>Product preview. All transactions are simulated.</small></footer>
+    <footer className="ap-footer ap-container"><a href="#" className="ap-logo">APEX</a><p>The commercial layer between payment and product access.</p><a href="#forma">Open the Forma demo app <ExternalLink size={13}/></a><a href="#console">Open behind-the-scenes controls <ExternalLink size={13}/></a><small>Product preview. All transactions are simulated.</small></footer>
 
     <dialog ref={film} className="ap-film-dialog" aria-label="APEX product walkthrough" onCancel={closeFilm} onClick={e => { if (e.target === e.currentTarget) closeFilm(); }}>
       <button autoFocus className="ap-close-film" aria-label="Close film" onClick={closeFilm}><X/></button>
