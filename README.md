@@ -34,6 +34,84 @@ All payments, accounts, generated content, integrations, and film scenes are sim
 
 This deployment is a **functional product preview**, not a hosted payment or metering backend. There is no production Stripe connection, published npm SDK, real AI execution, real charge, or server-side enforcement. Production payment connections and SDKs remain to be built. Illustrative prices are for the fictional customer application, not an APEX service price list. The upgrade demo uses the $50 plan-price difference and intentionally omits production proration calculations.
 
+## How the new Forma entitlement engine works
+
+**Live app: https://wglewis0721.github.io/apex/**
+
+`src/lib/forma.ts` is a second, self-contained product domain living beside the
+existing customer/plan/entitlement control plane, wired into the same `Store`
+the rest of APEX already uses (`src/lib/controlPlane.ts`) — it adds a `forma`
+field to `Store` the same way `assurance.ts` adds an `assurance` field,
+reuses the shared audit log (`log()` from `assurance.ts`), and persists
+through the existing `loadStore` / `saveStore` localStorage helpers. It is not
+a parallel storage or persistence system.
+
+**Product rules**
+
+- **Free** — 3 generations total, no renewal.
+- **Pro** — 50 generations per month ($20/mo in this simulation).
+- Top-ups add bonus generations on top of the plan allowance; bonus
+  generations are never consumed by a period renewal.
+
+**State shape** (`FormaAccount`, in `src/lib/forma.ts`):
+
+```ts
+type FormaAccount = {
+  plan: 'free' | 'pro';
+  status: 'active' | 'grace_period';
+  generationsUsed: number;
+  bonusGenerations: number;
+  periodStart: string;
+};
+```
+
+**Pure domain functions** operate on `FormaAccount` alone (no I/O, no
+`Store`), so they're trivial to unit test:
+
+- `canGenerate(account)` — the allow/deny entitlement check, run before every
+  generation. Denies once `generationsUsed >= formaAllowance(account)`
+  (plan limit + bonus generations) — a **hard deny**, not a soft warning.
+- `consumeGeneration(account)` — re-checks `canGenerate` and only increments
+  `generationsUsed` if allowed; a denied call returns the account unchanged.
+- `subscribe(account, plan)`, `upgradeToPro(account)` — change plan.
+  Upgrading Free → Pro **preserves** `generationsUsed`; it only raises the
+  allowance.
+- `topUp(account, amount)` — adds bonus generations.
+- `failPayment(account)` / `recoverPayment(account)` — move a Pro account
+  into/out of `grace_period`. Access is **not** blocked during grace in this
+  demo (that's the point of a grace period); it exists so the UI/audit trail
+  can distinguish "payment at risk" from "payment healthy."
+- `renewPeriod(account)` — simulates the start of a new Pro billing month:
+  resets `generationsUsed` to 0, leaves bonus generations untouched, no-ops
+  for Free accounts.
+- `resetForma()` — returns a fresh Free account (full demo reset).
+
+A thin `Store`-level wrapper for each function (`recordGeneration`,
+`subscribeForma`, `upgradeForma`, `topUpForma`, `failFormaPayment`,
+`recoverFormaPayment`, `renewFormaPeriod`, `resetFormaAccount`) clones the
+`Store`, applies the pure function, and writes one entry to the shared audit
+log — the same pattern `assurance.ts` uses for `scan` / `resolveFinding`.
+
+**Page shell**: `src/components/FormaPage.tsx` is an unstyled, functional
+component that loads/saves the shared `Store` and calls every Forma action.
+It is intentionally not wired into product navigation or styled — that is
+left to a follow-up pass, along with picking where it lives in the nav.
+
+**Still simulated / explicitly not built**: there is no real payment
+provider. `src/lib/paymentProvider.ts` is a stub — a typed
+`PaymentProvider` interface (`createSubscription`, `changeSubscriptionPlan`,
+`chargeTopUp`, `cancelSubscription`) with `TODO` comments describing what a
+real Stripe-backed implementation would need (webhook verification,
+idempotency keys, persisted provider customer/subscription IDs). Nothing in
+`forma.ts` calls it; `failFormaPayment` / `recoverFormaPayment` are UI-driven
+simulations, not provider webhook handlers. There is also no server-side
+enforcement — `canGenerate` is a client-side, in-memory check, same
+limitation already called out below for the rest of APEX.
+
+Domain tests for the full lifecycle live in `tests/forma.test.cjs`: allow →
+consume → deny at the Free limit → upgrade preserving usage → top-up →
+payment failure/grace → recovery → period renewal → reset.
+
 ## Development and verification
 
 ```bash
