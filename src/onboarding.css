@@ -159,3 +159,58 @@ a.ob-primary { color: #fff; }
   .ob-nav-back { font-size: 11px; order: 3; margin-left: auto; }
   .ob-nav .ap-logo { order: 1; }
 }
+
+/* Shared onboarding rhythm and small-screen guardrails. */
+.ob {
+  --ob-space-1: 8px;
+  --ob-space-2: 12px;
+  --ob-space-3: 16px;
+  --ob-space-4: 24px;
+  --ob-radius: 12px;
+}
+.ob button,
+.ob a { -webkit-tap-highlight-color: transparent; }
+.ob button:focus-visible,
+.ob a:focus-visible,
+.ob input:focus-visible {
+  outline: 3px solid #1677ea;
+  outline-offset: 3px;
+}
+.ob-primary,
+.ob-ghost { min-height: 44px; }
+.ob-primary:active:not(:disabled),
+.ob-ghost:active:not(:disabled) { transform: translateY(1px); }
+.ob-panel { box-shadow: 0 18px 55px -38px #16243d66; }
+.ob-offer,
+.ob-checkout,
+.ob-connect,
+.ob-verify-card { border-radius: var(--ob-radius); }
+.ob-offer h3 { min-height: 1.35em; }
+.ob-offer-price b { white-space: nowrap; }
+.ob-checkout-row span:first-child { color: var(--ap-ink); }
+.ob-checkout-row span:last-child { text-align: right; overflow-wrap: anywhere; }
+.ob-connect > div:nth-child(2) { min-width: 0; flex: 1; }
+.ob-connect > div:nth-child(2) p { overflow-wrap: anywhere; }
+.ob-code pre { scrollbar-width: thin; }
+.ob-key-row { min-width: 0; }
+.ob-key-row code { min-width: 0; }
+
+@media (max-width: 640px) {
+  .ob-body { padding-inline: 12px; }
+  .ob-panel { padding: 20px 16px; }
+  .ob-panel h1 { font-size: clamp(27px, 8vw, 34px); }
+  .ob-lede { font-size: 14px; margin-bottom: 22px; }
+  .ob-offer { padding: 18px; }
+  .ob-offer h3 { min-height: 0; }
+  .ob-checkout-row { align-items: flex-start; padding-inline: 14px; }
+  .ob-checkout-row span:first-child { max-width: 44%; }
+  .ob-checkout-row span:last-child { max-width: 56%; }
+  .ob-connect { align-items: flex-start; padding: 16px; gap: 12px; flex-wrap: wrap; }
+  .ob-connect > .ob-ghost { width: 100%; }
+  .ob-stacks { display: grid; grid-template-columns: 1fr 1fr; }
+  .ob-stacks button { min-width: 0; padding-inline: 10px; }
+  .ob-key-row { align-items: flex-start; flex-wrap: wrap; }
+  .ob-key-row span:first-child { width: 100%; }
+  .ob-key-row code { width: calc(100% - 28px); }
+  .ob-mobile-rail { padding-inline: 12px; }
+}
