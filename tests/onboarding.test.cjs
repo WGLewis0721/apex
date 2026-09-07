@@ -12,7 +12,7 @@ test('a fresh funnel starts on the plan step with nothing unlocked', () => {
   assert.equal(ob.checklistProgress(state).done, 0);
 });
 
-test('full lifecycle: plan -> account -> purchase -> workspace -> payments -> install -> verify -> complete', () => {
+test('full lifecycle: plan -> account -> purchase -> workspace -> stack -> payments -> install -> configure -> verify -> complete', () => {
   let s = ob.initialOnboarding();
   s = ob.onboardingReducer(s, { type: 'select_plan', plan: 'founding' });
   assert.equal(s.step, 'account');
@@ -31,7 +31,11 @@ test('full lifecycle: plan -> account -> purchase -> workspace -> payments -> in
   assert.ok(s.demoKeys.publishable.startsWith('apex_test_pk'));
   assert.ok(s.demoKeys.secret.startsWith('apex_test_sk'));
 
-  s = ob.onboardingReducer(s, { type: 'goto_payments' });
+  s = ob.onboardingReducer(s, { type: 'goto', step: 'stack' });
+  assert.equal(s.step, 'stack');
+
+  s = ob.onboardingReducer(s, { type: 'choose_stack', stack: 'javascript' });
+  assert.equal(s.stack, 'javascript');
   assert.equal(s.step, 'payments');
 
   s = ob.onboardingReducer(s, { type: 'connect_payments_pending' });
@@ -41,9 +45,12 @@ test('full lifecycle: plan -> account -> purchase -> workspace -> payments -> in
 
   s = ob.onboardingReducer(s, { type: 'goto', step: 'install' });
   assert.equal(s.step, 'install');
-  s = ob.onboardingReducer(s, { type: 'choose_stack', stack: 'javascript' });
   s = ob.onboardingReducer(s, { type: 'confirm_install' });
   assert.equal(s.sdkInstalled, true);
+  assert.equal(s.step, 'configure');
+
+  s = ob.onboardingReducer(s, { type: 'configure_environment' });
+  assert.equal(s.environmentConfigured, true);
   assert.equal(s.step, 'verify');
 
   s = ob.onboardingReducer(s, { type: 'run_verification' });
@@ -62,7 +69,10 @@ test('invalid transitions never skip required steps or double-charge', () => {
   let s = ob.initialOnboarding();
   assert.equal(ob.onboardingReducer(s, { type: 'submit_account', account }), s);
   assert.equal(ob.onboardingReducer(s, { type: 'purchase_pending' }), s);
+  assert.equal(ob.onboardingReducer(s, { type: 'choose_stack', stack: 'javascript' }), s);
+  assert.equal(ob.onboardingReducer(s, { type: 'connect_payments_pending' }), s);
   assert.equal(ob.onboardingReducer(s, { type: 'confirm_install' }), s);
+  assert.equal(ob.onboardingReducer(s, { type: 'configure_environment' }), s);
   assert.equal(ob.onboardingReducer(s, { type: 'run_verification' }), s);
   assert.equal(ob.onboardingReducer(s, { type: 'enter_complete' }), s);
 
@@ -76,6 +86,10 @@ test('invalid transitions never skip required steps or double-charge', () => {
   s = ob.onboardingReducer(s, { type: 'purchase_succeeded', receiptId: 'rcpt_b' });
   assert.equal(s, paid);
   assert.equal(s.receiptId, 'rcpt_a');
+
+  // Cannot connect payments or install before a stack is chosen.
+  assert.equal(ob.onboardingReducer(s, { type: 'connect_payments_pending' }), s);
+  assert.equal(ob.onboardingReducer(s, { type: 'confirm_install' }), s);
 });
 
 test('goto cannot jump ahead of the furthest unlocked step', () => {
@@ -104,5 +118,16 @@ test('malformed or missing saved onboarding state recovers to a fresh funnel', (
   assert.equal(ob.saveOnboarding(ob.initialOnboarding()), false);
   global.localStorage = { getItem: () => JSON.stringify({ version: 2, step: 'plan' }), setItem: () => {} };
   assert.deepEqual(ob.loadOnboarding(), ob.initialOnboarding());
+  global.localStorage = original;
+});
+
+test('a state saved before the stack/configure steps existed still loads and reports sane progress', () => {
+  const original = global.localStorage;
+  const legacy = { version: 1, step: 'install', selectedPlan: 'founding', accountCreated: true, purchaseStatus: 'paid', workspaceCreated: true, paymentProviderStatus: 'demo_connected', sdkInstalled: false, verificationPassed: false, productionRequested: false };
+  global.localStorage = { getItem: () => JSON.stringify(legacy), setItem: () => {} };
+  const loaded = ob.loadOnboarding();
+  assert.equal(loaded.environmentConfigured, false);
+  assert.equal(loaded.stack, null);
+  assert.equal(ob.furthestUnlockedStep(loaded), 'install');
   global.localStorage = original;
 });

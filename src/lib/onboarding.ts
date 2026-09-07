@@ -6,14 +6,21 @@ import { uid } from './controlPlane';
 // engine in controlPlane.ts/forma.ts, so it is intentionally its own small
 // module — the same pattern src/lib/embeddedDemo.ts already uses for a
 // self-contained reducer.
+//
+// The post-purchase half of the funnel is an "installer": workspace ->
+// pick a stack -> connect Stripe -> install the SDK -> configure the
+// environment -> verify a live decision -> go live. None of it installs
+// APEX itself locally — only a small SDK/CLI that talks to hosted APEX
+// Cloud, which in turn talks to the payment provider. See the
+// ArchitectureStrip copy in Onboarding.tsx for how that is communicated.
 
-export type OnboardingStep = 'plan' | 'account' | 'purchase' | 'workspace' | 'payments' | 'install' | 'verify' | 'complete';
+export type OnboardingStep = 'plan' | 'account' | 'purchase' | 'workspace' | 'stack' | 'payments' | 'install' | 'configure' | 'verify' | 'complete';
 export type PlanId = 'founding' | 'sandbox';
 export type PurchaseStatus = 'unpaid' | 'processing' | 'paid';
 export type PaymentProviderStatus = 'not_connected' | 'connecting' | 'demo_connected';
 export type Stack = 'javascript';
 
-export const STEP_ORDER: OnboardingStep[] = ['plan', 'account', 'purchase', 'workspace', 'payments', 'install', 'verify', 'complete'];
+export const STEP_ORDER: OnboardingStep[] = ['plan', 'account', 'purchase', 'workspace', 'stack', 'payments', 'install', 'configure', 'verify', 'complete'];
 
 export function stepIndex(step: OnboardingStep): number {
   return STEP_ORDER.indexOf(step);
@@ -71,9 +78,10 @@ export type OnboardingState = {
   workspaceCreated: boolean;
   workspaceId: string | null;
   demoKeys: DemoKeys | null;
-  paymentProviderStatus: PaymentProviderStatus;
   stack: Stack | null;
+  paymentProviderStatus: PaymentProviderStatus;
   sdkInstalled: boolean;
+  environmentConfigured: boolean;
   verificationPassed: boolean;
   productionRequested: boolean;
 };
@@ -90,9 +98,10 @@ export function initialOnboarding(): OnboardingState {
     workspaceCreated: false,
     workspaceId: null,
     demoKeys: null,
-    paymentProviderStatus: 'not_connected',
     stack: null,
+    paymentProviderStatus: 'not_connected',
     sdkInstalled: false,
+    environmentConfigured: false,
     verificationPassed: false,
     productionRequested: false,
   };
@@ -103,11 +112,11 @@ export type OnboardingAction =
   | { type: 'submit_account'; account: OnboardingAccount }
   | { type: 'purchase_pending' }
   | { type: 'purchase_succeeded'; receiptId: string }
-  | { type: 'goto_payments' }
+  | { type: 'choose_stack'; stack: Stack }
   | { type: 'connect_payments_pending' }
   | { type: 'connect_payments_succeeded' }
-  | { type: 'choose_stack'; stack: Stack }
   | { type: 'confirm_install' }
+  | { type: 'configure_environment' }
   | { type: 'run_verification' }
   | { type: 'enter_complete' }
   | { type: 'request_production' }
@@ -139,23 +148,23 @@ export function onboardingReducer(state: OnboardingState, action: OnboardingActi
         demoKeys: state.demoKeys ?? { publishable: uid('apex_test_pk'), secret: uid('apex_test_sk') },
         step: 'workspace',
       };
-    case 'goto_payments':
+    case 'choose_stack':
       if (!state.workspaceCreated) return state;
-      return { ...state, step: 'payments' };
+      return { ...state, stack: action.stack, step: 'payments' };
     case 'connect_payments_pending':
-      if (!state.workspaceCreated || state.paymentProviderStatus === 'demo_connected') return state;
+      if (!state.stack || state.paymentProviderStatus === 'demo_connected') return state;
       return { ...state, paymentProviderStatus: 'connecting' };
     case 'connect_payments_succeeded':
-      if (!state.workspaceCreated) return state;
+      if (!state.stack) return state;
       return { ...state, paymentProviderStatus: 'demo_connected' };
-    case 'choose_stack':
-      if (state.paymentProviderStatus !== 'demo_connected') return state;
-      return { ...state, stack: action.stack };
     case 'confirm_install':
       if (!state.stack || state.paymentProviderStatus !== 'demo_connected') return state;
-      return { ...state, sdkInstalled: true, step: 'verify' };
-    case 'run_verification':
+      return { ...state, sdkInstalled: true, step: 'configure' };
+    case 'configure_environment':
       if (!state.sdkInstalled) return state;
+      return { ...state, environmentConfigured: true, step: 'verify' };
+    case 'run_verification':
+      if (!state.environmentConfigured) return state;
       return { ...state, verificationPassed: true };
     case 'enter_complete':
       if (!state.verificationPassed) return state;
@@ -175,9 +184,11 @@ export function onboardingReducer(state: OnboardingState, action: OnboardingActi
 export function furthestUnlockedStep(state: OnboardingState): OnboardingStep {
   if (state.step === 'complete') return 'complete';
   if (state.verificationPassed) return 'complete';
-  if (state.sdkInstalled) return 'verify';
+  if (state.environmentConfigured) return 'verify';
+  if (state.sdkInstalled) return 'configure';
   if (state.paymentProviderStatus === 'demo_connected') return 'install';
-  if (state.workspaceCreated) return 'payments';
+  if (state.stack) return 'payments';
+  if (state.workspaceCreated) return 'stack';
   if (state.purchaseStatus === 'paid') return 'workspace';
   if (state.accountCreated) return 'purchase';
   if (state.selectedPlan) return 'account';
@@ -191,8 +202,10 @@ export function checklist(state: OnboardingState): ChecklistItem[] {
     { id: 'account', label: 'APEX account created', done: state.accountCreated, step: 'account' },
     { id: 'subscription', label: 'Subscription active', done: state.purchaseStatus === 'paid', step: 'purchase' },
     { id: 'workspace', label: 'Workspace created', done: state.workspaceCreated, step: 'workspace' },
+    { id: 'stack', label: 'Application stack selected', done: !!state.stack, step: 'stack' },
     { id: 'payments', label: 'Payment provider connected', done: state.paymentProviderStatus === 'demo_connected', step: 'payments' },
     { id: 'sdk', label: 'SDK installed', done: state.sdkInstalled, step: 'install' },
+    { id: 'environment', label: 'Environment configured', done: state.environmentConfigured, step: 'configure' },
     { id: 'customer', label: 'First customer identified', done: state.verificationPassed, step: 'verify' },
     { id: 'usage', label: 'First usage event received', done: state.verificationPassed, step: 'verify' },
     { id: 'decision', label: 'First access decision verified', done: state.verificationPassed, step: 'verify' },
