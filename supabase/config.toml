@@ -28,12 +28,3 @@ enable_signup = true
 # no "check your email" interstitial) can continue immediately. Turn this
 # on before real customers sign up with addresses they don't control.
 enable_confirmations = false
-
-# Stripe verifies this endpoint via its own request signature, so it must
-# be reachable without a Supabase-issued JWT.
-[functions.stripe-webhook]
-verify_jwt = false
-
-# Called by an authenticated onboarding session.
-[functions.create-checkout-session]
-verify_jwt = true
