@@ -241,9 +241,9 @@
 }
 .ap-console-return .ap-console-guide {
   width: 100%;
-  font-size: 0.84rem;
+  font-size: var(--fs-caption);
+  line-height: 1.45;
   color: #64748b;
-  padding-top: 4px;
 }
 .ap-console-return .ap-console-guide b {
   color: #0f172a;

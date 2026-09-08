@@ -1335,24 +1335,35 @@
   background: #22232bd9;
   color: #fff;
 }
-.ap-console-return {
-  height: 40px;
-  padding: 10px 20px;
+/* Console chrome: the banner sizes to its own content and the shell fills the
+   rest of the viewport, so nothing needs a hardcoded offset and nothing overlaps. */
+.ap-console-page {
   display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+.ap-console-return {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-2) var(--sp-6);
+  min-height: var(--sp-7);
   position: relative;
   z-index: 50;
   background: #fff;
   border-bottom: 1px solid #eee;
-  font-size: 12px;
+  font-size: var(--fs-caption);
+  line-height: 1.45;
   color: #7b7b85;
 }
 .ap-console-return a {
   color: #006fdf;
   text-decoration: none;
-}
-.ap-console-return + .app-shell .sidebar {
-  top: 40px;
+  white-space: nowrap;
 }
 .ap-loading {
   padding: 40px;

@@ -89,36 +89,53 @@ function App() {
     setMobileOpen(false);
   }
 
+  function resetDemo() {
+    if (!window.confirm('Reset the demo?\n\nThis clears every change you made in this sandbox — customers, entitlements, usage, findings, billing events and demo history — and restores the original seed data.')) return;
+    const next = resetStore();
+    setSelectedCustomerId(next.customers[0].id);
+    setSelectedFindingId(undefined);
+    setStore(next);
+    setMobileOpen(false);
+    setToast('Demo reset. Original sandbox data restored.');
+  }
+
   const workspaceProps = { store, commit, go: (p: string, findingId?: string) => { setSelectedFindingId(findingId); navigate(p as Page); }, initialFindingId: selectedFindingId, selectedId: selectedCustomerId, select: setSelectedCustomerId };
 
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
+      <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} aria-label="Console navigation">
         <div className="brand-block">
           <div className="brand-mark"><span>A</span></div>
-          <div>
+          <div className="brand-text">
             <div className="brand">APEX</div>
-            <div className="brand-sub">Payments & usage</div>
+            <div className="brand-sub">Payments &amp; usage</div>
           </div>
           <button className="mobile-close" aria-label="Close navigation" onClick={() => setMobileOpen(false)}><X size={18}/></button>
         </div>
 
-        <div className="env-pill"><Database size={14}/> Demo workspace <span className="env-label">SANDBOX</span></div>
-        <div className="nav-section-label">WORKSPACE</div>
+        <div className="workspace-summary">
+          <span className="workspace-summary-label"><Database size={13}/> Workspace</span>
+          <div className="workspace-summary-row">
+            <strong title="Demo workspace">Demo workspace</strong>
+            <span className="env-label">Sandbox</span>
+          </div>
+        </div>
 
-        <nav>
+        <p className="nav-section-label" id="nav-section-workspace">Workspace</p>
+
+        <nav aria-labelledby="nav-section-workspace">
           {pages.filter(([label]) => !['Command Center', 'Findings', 'Customer 360', 'Execution Demo', 'AI Controls', 'Connections', 'Developer'].includes(label)).map(([label, Icon]) => (
             <button key={label} aria-current={page === label ? 'page' : undefined} className={`nav-item ${page === label ? 'active' : ''}`} onClick={() => navigate(label)}>
-              <Icon size={18}/><span>{label}</span>{label === 'Findings' && <b className="nav-count">{findings(store).filter(f => f.status === 'open').length}</b>}
+              <Icon size={18} aria-hidden="true"/><span className="nav-item-label">{label}</span>{label === 'Findings' && <b className="nav-count">{findings(store).filter(f => f.status === 'open').length}</b>}
             </button>
           ))}
         </nav>
 
         <div className="sidebar-footer">
           <div className="workspace-card">
-            <div className="avatar">GM</div>
-            <div><strong>Gray Matter Labs</strong><span>apex_sandbox_01</span></div>
-            <Settings2 size={16}/>
+            <div className="avatar" aria-hidden="true">GM</div>
+            <div className="workspace-card-text"><strong title="Gray Matter Labs">Gray Matter Labs</strong><span title="apex_sandbox_01">apex_sandbox_01</span></div>
+            <Settings2 size={16} aria-hidden="true"/>
           </div>
         </div>
       </aside>
@@ -135,15 +152,11 @@ function App() {
             </div>
           </div>
           <div className="top-actions">
-            <div className="health"><Database size={15}/> Local sandbox · v0.3</div>
-            <button className="icon-btn" title="Reset sandbox" aria-label="Reset sandbox" onClick={() => {
-              if (!window.confirm('Reset all sandbox changes, findings, and demo history?')) return;
-              const next = resetStore();
-              setSelectedCustomerId(next.customers[0].id);
-              setStore(next);
-              setToast('Sandbox reset to seed data');
-            }}><RefreshCcw size={17}/></button>
-            <button className="primary" onClick={() => navigate('Usage')}><Zap size={16}/> Track usage</button>
+            <div className="health"><Database size={15} aria-hidden="true"/> Local sandbox · v0.3</div>
+            <button className="secondary reset-demo" onClick={resetDemo} title="Clear every change made in this demo and restore the original sandbox data">
+              <RefreshCcw size={15} aria-hidden="true"/><span>Reset demo</span>
+            </button>
+            <button className="primary" onClick={() => navigate('Usage')}><Zap size={16} aria-hidden="true"/> Track usage</button>
           </div>
         </header>
 
