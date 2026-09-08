@@ -1,7 +1,7 @@
 .ap-logo {
   font-weight: 900;
   letter-spacing: -0.055em;
-  background: linear-gradient(105deg, #087f64 0%, #006fe8 44%, #635bff 68%, #a94f38 100%);
+  background: linear-gradient(105deg, var(--brand-ink) 0%, var(--brand-cobalt) 60%, var(--brand-tangerine) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -17,116 +17,14 @@
   display: flex;
   gap: 20px;
   align-items: flex-start;
-  color: #334155;
+  color: #253d63;
 }
 .ap-plain-strip strong {
-  color: #0f172a;
+  color: #101a29;
   white-space: nowrap;
 }
 .ap-plain-strip span {
   line-height: 1.55;
-}
-.ap-simple {
-  padding: var(--ap-section-y) var(--ap-gutter);
-}
-.ap-simple-inner {
-  max-width: var(--ap-max);
-  margin: 0 auto;
-}
-.ap-simple-head {
-  max-width: 68ch;
-  margin-bottom: var(--sp-8);
-}
-.ap-simple-head h2 {
-  font-size: var(--ap-h2);
-  line-height: 1.1;
-  letter-spacing: -0.04em;
-  margin: var(--sp-2) 0 var(--sp-4);
-  text-wrap: balance;
-  color: #0f172a;
-}
-.ap-simple-head h2 span {
-  background: linear-gradient(105deg, #087f64 0%, #006fe8 48%, #a94f38 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.ap-simple-head p {
-  font-size: var(--ap-lead);
-  line-height: var(--lh-body);
-  color: #64748b;
-  max-width: 60ch;
-}
-.ap-simple-flow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--ap-card-gap);
-}
-.ap-simple-card {
-  position: relative;
-  padding: var(--sp-6);
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
-}
-.ap-simple-card .ap-num {
-  display: inline-grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  font-size: var(--ap-caption);
-  font-weight: 800;
-  background: #eff6ff;
-  color: #006fe8;
-  margin-bottom: var(--sp-5);
-}
-.ap-simple-card:nth-child(2) .ap-num {
-  background: #fff1ed;
-  color: #a94f38;
-}
-.ap-simple-card:nth-child(3) .ap-num {
-  background: #ecfdf5;
-  color: #087f64;
-}
-.ap-simple-card h3 {
-  font-size: var(--ap-h3);
-  letter-spacing: -0.03em;
-  line-height: var(--lh-heading);
-  margin: 0 0 var(--sp-2);
-  color: #0f172a;
-}
-.ap-simple-card p {
-  margin: 0;
-  color: #64748b;
-  font-size: var(--ap-small);
-  line-height: var(--lh-body);
-}
-.ap-simple-card b {
-  color: #0f172a;
-}
-.ap-simple-eq {
-  margin-top: var(--ap-card-gap);
-  padding: var(--sp-5) var(--sp-6);
-  border-radius: 20px;
-  background: #0f172a;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-3);
-  font-size: var(--ap-h4);
-  flex-wrap: wrap;
-  line-height: var(--lh-heading);
-  font-weight: 700;
-  text-align: center;
-}
-.ap-simple-eq .money {
-  color: #7dd3fc;
-}
-.ap-simple-eq .apex {
-  color: #f09a7d;
 }
 .ap-audiences {
   padding: 0 var(--ap-gutter) var(--ap-section-y);
@@ -141,32 +39,32 @@
 .ap-audience {
   padding: var(--sp-6);
   border-radius: 22px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #fbfaf9;
+  border: 1px solid #efebe3;
 }
 .ap-audience small {
   display: block;
   font-size: var(--ap-eyebrow);
   font-weight: 800;
   letter-spacing: 0.12em;
-  color: #64748b;
+  color: #83796c;
   margin-bottom: var(--sp-4);
 }
 .ap-audience h3 {
   font-size: var(--ap-h3);
   line-height: var(--lh-heading);
   margin: 0 0 var(--sp-2);
-  color: #0f172a;
+  color: #101a29;
   letter-spacing: -0.025em;
 }
 .ap-audience p {
   margin: 0;
-  color: #64748b;
+  color: #83796c;
   font-size: var(--ap-small);
   line-height: var(--lh-body);
 }
 .ap-audience strong {
-  color: #0f172a;
+  color: #101a29;
 }
 .ap-house {
   max-width: var(--ap-max);
@@ -176,8 +74,8 @@
 .ap-house-card {
   padding: var(--sp-8);
   border-radius: 28px;
-  background: linear-gradient(135deg, #f8fafc, #fff);
-  border: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #fbfaf9, #fff);
+  border: 1px solid #efebe3;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: var(--sp-8);
@@ -187,14 +85,14 @@
   font-size: var(--ap-h2);
   line-height: 1.1;
   letter-spacing: -0.04em;
-  color: #0f172a;
+  color: #101a29;
   margin: var(--sp-2) 0 var(--sp-4);
   text-wrap: balance;
 }
 .ap-house-card p {
   font-size: var(--ap-body);
   line-height: var(--lh-body);
-  color: #64748b;
+  color: #83796c;
 }
 .ap-house-parts {
   display: grid;
@@ -204,7 +102,7 @@
   padding: var(--sp-3) var(--sp-4);
   border-radius: 14px;
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #efebe3;
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -212,21 +110,21 @@
 }
 .ap-house-parts span {
   font-weight: 700;
-  color: #0f172a;
+  color: #101a29;
 }
 .ap-house-parts b {
   font-size: var(--ap-small);
-  color: #64748b;
+  color: #83796c;
   text-align: right;
 }
 .ap-rust {
-  color: #a94f38 !important;
+  color: #a95638 !important;
 }
 .ap-rust-bg {
-  background: #a94f38 !important;
+  background: #a95638 !important;
 }
 .ap-underfilm strong {
-  color: #0f172a;
+  color: #101a29;
 }
 .ap-underfilm .ap-rust {
   font-weight: 800;
@@ -234,15 +132,15 @@
 .ap-comprehension-note {
   max-width: 900px;
   margin: 22px auto 0;
-  color: #64748b;
+  color: #83796c;
   text-align: center;
   line-height: 1.6;
 }
 .ap-comprehension-note strong {
-  color: #0f172a;
+  color: #101a29;
 }
 .ap-developers .ap-eyebrow {
-  color: #64748b;
+  color: #83796c;
 }
 .ap-console-return {
   flex-wrap: wrap;
@@ -251,36 +149,33 @@
   width: 100%;
   font-size: var(--fs-caption);
   line-height: 1.45;
-  color: #64748b;
+  color: #83796c;
 }
 .ap-console-return .ap-console-guide b {
-  color: #0f172a;
+  color: #101a29;
 }
 .ap-demo-disclosure {
   line-height: 1.55;
 }
 .ap-wallet .ap-track span,
 .ap-mini-meter .ap-track span {
-  background: linear-gradient(90deg, #087f64, #006fe8 55%, #a94f38) !important;
+  background: linear-gradient(90deg, #087f64, #002fe8 55%, #a95638) !important;
 }
 .ap-feature-card:nth-child(2) .ap-feature-icon {
-  color: #a94f38 !important;
-  background: #fff1ed !important;
+  color: #a95638 !important;
+  background: #fff2ed !important;
 }
 .ap-feature-card:nth-child(2) .ap-mini-meter b {
-  color: #a94f38;
+  color: #a95638;
 }
 .ap-hero-copy strong {
-  color: #0f172a;
+  color: #101a29;
 }
 @media (max-width: 820px) {
   .ap-house-card {
     padding: var(--sp-6);
     gap: var(--sp-5);
-  }
-  .ap-simple-eq {
-    flex-direction: column;
-    gap: var(--sp-1);
+    grid-template-columns: minmax(0, 1fr);
   }
   .ap-plain-strip {
     margin: var(--sp-3) var(--sp-3) 0;

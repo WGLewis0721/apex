@@ -1,7 +1,7 @@
 /* Forma demo app — visual layer only. All state comes from lib/forma.ts. */
 .fx {
   min-height: 100vh;
-  background: #fafafa;
+  background: var(--brand-canvas);
 }
 .fx-nav {
   display: flex;
@@ -16,7 +16,7 @@
   font-size: 13px;
   margin-right: auto;
   padding: 5px 11px;
-  border: 1px solid #e4e4e8;
+  border: 1px solid #ede8df;
   border-radius: 999px;
   background: #fff;
 }
@@ -40,6 +40,7 @@
 
 .fx-main {
   padding: 40px 0 80px;
+  max-width: 1280px;
 }
 .fx-head {
   display: flex;
@@ -74,7 +75,7 @@
   letter-spacing: 0.12em;
   font-weight: 700;
   color: var(--ap-muted);
-  border: 1px solid #e4e4e8;
+  border: 1px solid #ede8df;
   border-radius: 999px;
   padding: 5px 10px;
   background: #fff;
@@ -82,8 +83,8 @@
 
 .fx-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 22px;
   align-items: start;
 }
 .fx-side {
@@ -93,7 +94,7 @@
 
 .fx-panel {
   background: #fff;
-  border: 1px solid #ececf0;
+  border: 1px solid #f3f0e9;
   border-radius: 18px;
   padding: 20px;
 }
@@ -131,12 +132,12 @@
   letter-spacing: inherit;
   color: inherit;
   padding: 13px 14px;
-  border: 1px solid #e4e4e8;
+  border: 1px solid #ede8df;
   border-radius: 13px;
-  background: #fbfbfd;
+  background: #fdfcfb;
 }
 .fx-textarea:focus-visible {
-  outline: 3px solid #1677ea;
+  outline: 3px solid #093af7;
   outline-offset: 2px;
 }
 .fx-suggestions {
@@ -146,7 +147,7 @@
   margin: 10px 0 16px;
 }
 .fx-suggestions button {
-  border: 1px solid #e4e4e8;
+  border: 1px solid #ede8df;
   background: #fff;
   border-radius: 999px;
   padding: 6px 11px;
@@ -177,22 +178,22 @@
   gap: 9px;
   border: 0;
   border-radius: 999px;
-  background: var(--ap-ink);
+  background: var(--brand-cobalt);
   color: #fff;
-  padding: 11px 20px;
-  font-size: 13px;
+  padding: 12px 22px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 .fx-primary:hover:not(:disabled) {
-  background: #000;
+  background: #2447d6;
 }
 .fx-ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid #e4e4e8;
+  border: 1px solid #ede8df;
   border-radius: 999px;
   background: #fff;
   color: inherit;
@@ -202,7 +203,7 @@
   cursor: pointer;
 }
 .fx-ghost:hover:not(:disabled) {
-  border-color: #c9c9d2;
+  border-color: #dbd2c0;
 }
 .fx-small {
   padding: 8px 14px;
@@ -220,8 +221,8 @@
   padding: 13px 14px;
   border-radius: 13px;
   font-size: 13px;
-  border: 1px solid #ececf0;
-  background: #fbfbfd;
+  border: 1px solid #f3f0e9;
+  background: #fdfcfb;
 }
 .fx-alert p {
   margin: 4px 0 0;
@@ -236,15 +237,15 @@
 }
 .fx-alert.is-limit {
   border-color: #f0d9b0;
-  background: #fdf8ef;
+  background: #f9f7f3;
 }
 .fx-alert.is-error {
   border-color: #f0c2bb;
-  background: #fdf3f1;
+  background: #f9f8f5;
 }
 .fx-alert.is-ok {
   border-color: #c6e6d6;
-  background: #f2fbf6;
+  background: #f9f7f4;
 }
 .fx-alert-actions {
   display: flex;
@@ -259,10 +260,10 @@
   gap: 10px;
 }
 .fx-draft {
-  border: 1px solid #ececf0;
+  border: 1px solid #f3f0e9;
   border-radius: 14px;
   padding: 14px 15px;
-  background: #fbfbfd;
+  background: #fdfcfb;
 }
 .fx-draft small {
   display: block;
@@ -282,7 +283,7 @@
 .fx-draft.is-loading span {
   height: 10px;
   border-radius: 5px;
-  background: linear-gradient(90deg, #ededf2, #f7f7fa, #ededf2);
+  background: linear-gradient(90deg, #f4f1eb, #faf9f7, #f4f1eb);
   background-size: 200% 100%;
   animation: fx-shimmer 1.2s linear infinite;
 }
@@ -312,7 +313,7 @@
 .fx-empty {
   text-align: center;
   padding: 34px 20px;
-  border: 1px dashed #dedee5;
+  border: 1px dashed #eae4d9;
   border-radius: 14px;
   color: var(--ap-muted);
 }
@@ -342,7 +343,7 @@
   text-transform: uppercase;
   padding: 4px 9px;
   border-radius: 999px;
-  background: #eef7f1;
+  background: #f6f4ef;
   color: #0d7a4f;
 }
 .fx-status.is-warning {
@@ -350,9 +351,10 @@
   color: #96590d;
 }
 .fx-price {
-  font-size: 32px;
-  font-weight: 650;
-  letter-spacing: -0.04em;
+  font-family: var(--brand-display);
+  font-size: 38px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   margin-top: 10px;
 }
 .fx-price small {
@@ -367,26 +369,27 @@
   color: var(--ap-muted);
 }
 .fx-meter {
-  height: 7px;
+  height: 8px;
   border-radius: 999px;
-  background: #ededf2;
+  background: #f4f1eb;
   overflow: hidden;
 }
 .fx-meter span {
   display: block;
   height: 100%;
-  background: var(--ap-ink);
+  background: var(--brand-cobalt);
   transition: width 0.25s ease;
 }
 .fx-meter span.is-full {
-  background: #b4441f;
+  background: #b4471f;
 }
 .fx-meter-label {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--ap-muted);
-  margin: 7px 0 14px;
+  margin: 8px 0 14px;
 }
 .fx-stub {
   display: flex;
@@ -433,14 +436,67 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #c9c9d2;
+  background: #dbd2c0;
   margin-top: 5px;
 }
 .fx-dot.is-allow {
   background: #0d7a4f;
 }
 .fx-dot.is-deny {
-  background: #b4441f;
+  background: #b4471f;
+}
+
+.fx-explain {
+  margin-top: 36px;
+  padding: 28px 32px;
+  border-radius: 22px;
+  background: var(--ap-ink);
+  color: #fff;
+}
+.fx-explain p {
+  margin: 0;
+  font-size: 20px;
+  font-family: var(--brand-display);
+  font-weight: 500;
+  line-height: 1.35;
+  max-width: 62ch;
+}
+.fx-explain p strong {
+  font-weight: 600;
+}
+.fx-explain p span {
+  color: #b6c3ff;
+}
+
+.fx-advanced {
+  margin-top: 18px;
+}
+.fx-advanced > summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ap-muted);
+  padding: 8px 0;
+}
+.fx-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+.fx-advanced > summary::before {
+  content: '▸';
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+.fx-advanced[open] > summary::before {
+  transform: rotate(90deg);
+}
+.fx-advanced-body {
+  display: grid;
+  gap: 18px;
+  margin-top: 14px;
 }
 
 .fx-disclosure {

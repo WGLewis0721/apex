@@ -114,6 +114,7 @@ export default function FormaPage() {
           <div className="fx-head-meta">
             <span className="fx-pill">SIMULATED DATA</span>
             <button className="fx-ghost" onClick={() => {
+              if (!window.confirm('Reset this Forma demo? Nothing here is a real account — this clears your plan, credits, and drafts back to Free.')) return;
               setDrafts([]);
               setNotice(null);
               setError(null);
@@ -220,36 +221,45 @@ export default function FormaPage() {
               <p className="fx-stub"><CreditCard size={12} /> Checkout is a stub. A real build would call a payment provider here.</p>
             </section>
 
-            <section className="fx-panel fx-billing" aria-label="Billing simulation">
-              <div className="fx-panel-head"><h2>Billing simulation</h2></div>
-              <div className="fx-billing-actions">
-                {account.status === 'active' ? (
-                  <button className="fx-ghost fx-block" disabled={account.plan !== 'pro'} onClick={() => run(failFormaPayment(store), 'Renewal failed. Access continues during the grace period.')}>Simulate failed renewal</button>
-                ) : (
-                  <button className="fx-ghost fx-block" onClick={() => run(recoverFormaPayment(store), 'Payment recovered. The account is active again.')}>Recover payment</button>
-                )}
-                <button className="fx-ghost fx-block" disabled={account.plan !== 'pro'} onClick={() => run(renewFormaPeriod(store), 'New billing period started. Usage is back to zero.')}>Start next billing period</button>
-              </div>
-              {account.plan !== 'pro' && <p className="fx-stub">Billing events apply to the Pro subscription.</p>}
-            </section>
+            <details className="fx-advanced">
+              <summary>For developers: billing events &amp; activity log</summary>
+              <div className="fx-advanced-body">
+                <section className="fx-panel fx-billing" aria-label="Billing simulation">
+                  <div className="fx-panel-head"><h2>Billing simulation</h2></div>
+                  <div className="fx-billing-actions">
+                    {account.status === 'active' ? (
+                      <button className="fx-ghost fx-block" disabled={account.plan !== 'pro'} onClick={() => run(failFormaPayment(store), 'Renewal failed. Access continues during the grace period.')}>Simulate failed renewal</button>
+                    ) : (
+                      <button className="fx-ghost fx-block" onClick={() => run(recoverFormaPayment(store), 'Payment recovered. The account is active again.')}>Recover payment</button>
+                    )}
+                    <button className="fx-ghost fx-block" disabled={account.plan !== 'pro'} onClick={() => run(renewFormaPeriod(store), 'New billing period started. Usage is back to zero.')}>Start next billing period</button>
+                  </div>
+                  {account.plan !== 'pro' && <p className="fx-stub">Billing events apply to the Pro subscription.</p>}
+                </section>
 
-            <section className="fx-panel fx-activity" aria-label="Activity">
-              <div className="fx-panel-head"><h2>Activity</h2><span>{formaEvents.length}</span></div>
-              {formaEvents.length ? (
-                <ul className="fx-feed">
-                  {formaEvents.slice(0, 8).map((e: AuditEvent) => (
-                    <li key={e.id}>
-                      <span className={`fx-dot ${e.result === 'deny' ? 'is-deny' : e.result === 'allow' ? 'is-allow' : ''}`} />
-                      <div><code>{e.action}</code><p>{e.detail}</p></div>
-                      <time dateTime={e.at}>{time(e.at)}</time>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="fx-stub">Nothing yet. Generate a draft or change the plan to see APEX decisions here.</p>
-              )}
-            </section>
+                <section className="fx-panel fx-activity" aria-label="Activity">
+                  <div className="fx-panel-head"><h2>Activity</h2><span>{formaEvents.length}</span></div>
+                  {formaEvents.length ? (
+                    <ul className="fx-feed">
+                      {formaEvents.slice(0, 8).map((e: AuditEvent) => (
+                        <li key={e.id}>
+                          <span className={`fx-dot ${e.result === 'deny' ? 'is-deny' : e.result === 'allow' ? 'is-allow' : ''}`} />
+                          <div><code>{e.action}</code><p>{e.detail}</p></div>
+                          <time dateTime={e.at}>{time(e.at)}</time>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="fx-stub">Nothing yet. Generate a draft or change the plan to see APEX decisions here.</p>
+                  )}
+                </section>
+              </div>
+            </details>
           </aside>
+        </div>
+
+        <div className="fx-explain">
+          <p><strong>Stripe takes the payment.</strong> <span>APEX connects it to access.</span></p>
         </div>
 
         <p className="fx-disclosure">
