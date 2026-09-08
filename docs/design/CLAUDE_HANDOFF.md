@@ -1,49 +1,33 @@
-# APEX — build a warmer, more visual website
+# APEX visual redesign — four phases
 
-Work on `design/apex-brand-kit` or its merged successor. Read the repository instructions and ROADMAP.md. Use the supplied assets and existing React components to finish the redesign.
+Work from `design/apex-brand-kit` or its merged successor. Read the repository instructions and ROADMAP.md. Build the redesign using the supplied assets and existing React components. Keep the working demos, account flow, routes, and required hero video. This is frontend design work; use the existing stack.
 
-## The goal
+## Phase 1 — Establish the look
 
-Make APEX welcoming to someone who owns a software business but does not write code. Explain payments, credits, and access through pictures and a working example. Replace repetitive paragraphs and white text cards with a few memorable scenes.
+Review `docs/design/apex-brand-board.png` and BRAND_SPEC.md. Apply warm ivory, ink navy, cobalt blue, orange accents, and lilac. Use Fraunces for expressive headlines and Manrope for readable text, with licensed font files and sensible fallbacks.
 
-This is a visual redesign of the existing product. Keep the working demo, account flow, routes, and required hero video. No new backend services, frameworks, or animation libraries are needed.
+Keep the existing APEX wordmark. Treat the board as visual inspiration; ignore its incidental text and trademark symbol. Use the original artwork and SVGs in `public/assets/brand-v1/`. Optimize images for the web. Establish the palette and typography in the existing tokens.
 
-## The look
+## Phase 2 — Build the visual homepage
 
-Use the brand board as inspiration: warm ivory, ink navy, cobalt blue, orange accents, and lilac. Try Fraunces for short headlines and Manrope for readable body text. BRAND_SPEC.md provides supporting guidance, not a checklist requiring every decorative detail. Keep the existing APEX wordmark; ignore incidental text and the trademark symbol in the generated board.
+Create a welcoming hero with a large headline beside the sculpture, stacked above it on phones.
 
-Use `public/assets/brand-v1/apex-access-sculpture.png` and the three SVG graphics. Compress the large PNG for web delivery. Keep actual headings, buttons, and numbers as HTML.
+Example: “They pay. Your product follows.”
+Supporting sentence: “Keep subscriptions, credits, and customer access in sync—inside your app.”
+Buttons: “Try the demo” and “Explore setup.”
 
-## What to build — concrete examples
+Keep the film prominent and playable. Replace repetitive text cards with an open visual story: “Customer pays → Credits appear → Your app is ready.” Use the supplied graphics, generous space, and restrained motion.
 
-**1. A welcoming hero.** On desktop, a large headline on the left and the sculpture on the right, without a surrounding card. On phones, stack the headline above the artwork.
+Add “Your app. Your look.” showing the same billing interface styled for a creator tool, reporting app, and membership product. Label these fictional examples; do not build three applications.
 
-Example copy:
-- “For apps with paid plans”
-- “They pay. Your product follows.”
-- “Keep subscriptions, credits, and customer access in sync—inside your app.”
-- Buttons: “Try the demo” and “Explore setup”
+## Phase 3 — Make the experience intuitive
 
-Keep the product film prominent and playable. Clearly label payments and installation as previews.
+Enlarge the existing Forma demo and prioritize buying, generating, upgrading, and remaining credits. Example: buying activates 1,000 credits; one generation uses 250 and leaves 750. Use actual demo state.
 
-**2. A simple visual explanation.** Let the ticket, credits, and connection graphics tell a short story across an open colored background:
-“Customer pays.” → “Credits appear.” → “Your app is ready.”
-A small transition can connect these steps. Avoid another three-card feature grid.
+Move appearance settings and technical events into optional controls. Add a navy explanation section: “Stripe takes the payment. APEX connects it to access.” Put code under “For developers.” Carry the visual style into onboarding and the console, using straightforward labels and clear preview disclosures.
 
-**3. A demo people can actually use.** Enlarge the existing Forma demo. Put its purchase button and remaining credits first; tuck appearance settings and technical events behind optional controls.
+## Phase 4 — Polish and deliver
 
-Example: buying Starter activates 1,000 credits. Generating once uses 250, leaving 750. Reaching zero shows the limit; upgrading preserves usage. Drive these displays from the existing demo state.
+Fix mobile overflow, drawer layering, uneven Billing Sync padding, and reset wording. Check phone, tablet, and desktop layouts, keyboard access, contrast, reduced motion, video controls, and demo/reset behavior. Run existing tests and the build.
 
-**4. A ‘Your app. Your look.’ section.** Show the same billing interface in three fictional visual treatments: a colorful creator app, a restrained reporting app, and a warm membership app. Use lightweight previews or the existing theme controls; do not build three new products.
-
-**5. A clear finish.** A navy section explains “Stripe takes the payment. APEX connects it to access.” Put code under “For developers.” Finish with the setup/demo buttons.
-
-Carry the colors and readable type into onboarding and the console. Favor labels such as “Customer access” and “Try a failed payment.” Keep tables practical.
-
-## Finish well
-
-Use your design judgment on composition and spacing. Aim for noticeably less reading; no exact word-count report is needed. Preserve truthful simulation labels and existing behavior.
-
-Fix phone overflow, the drawer hidden beneath the banner, uneven Billing Sync padding, and the reset label’s scope. Check phone, tablet, and desktop layouts, keyboard access, readable contrast, reduced motion, and the existing demo/reset flows. Run the existing tests and build.
-
-Deliver a PR with desktop/mobile screenshots and a short verification summary. Update the roadmap to reflect what actually shipped. Complete the design, not another proposal.
+Deliver a PR with desktop/mobile screenshots and a short verification summary. Update the roadmap accurately. Use design judgment, keep reading light, and finish the implementation without introducing unnecessary infrastructure.
