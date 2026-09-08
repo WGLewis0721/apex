@@ -51,4 +51,42 @@
   --control-h-sm: 32px;
   --panel-pad: var(--sp-5);
   --panel-pad-tight: var(--sp-4);
+
+  /* Marketing site layout — one content width and one vertical rhythm. */
+  --ap-max: 1180px;
+  --ap-gutter: var(--sp-6);
+  --ap-section-y: var(--sp-11);
+  --ap-card-gap: var(--sp-5);
+
+  /* Marketing type scale. */
+  --ap-display: clamp(48px, 6.4vw, 84px);
+  --ap-h2: clamp(34px, 3.9vw, 52px);
+  --ap-h3: 22px;
+  --ap-h4: 18px;
+  --ap-lead: 19px;
+  --ap-body: 16px;
+  --ap-small: 14px;
+  --ap-caption: 12px;
+  --ap-eyebrow: 12px;
+}
+
+@media (max-width: 1050px) {
+  :root {
+    --ap-section-y: var(--sp-10);
+  }
+}
+
+@media (max-width: 800px) {
+  :root {
+    --ap-gutter: var(--sp-5);
+    --ap-section-y: var(--sp-9);
+    --ap-card-gap: var(--sp-4);
+  }
+}
+
+@media (max-width: 580px) {
+  :root {
+    --ap-gutter: var(--sp-4);
+    --ap-section-y: var(--sp-8);
+  }
 }
