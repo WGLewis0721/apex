@@ -7,6 +7,7 @@ import './plain-language.css';
 const Console = lazy(() => import('./App'));
 const Forma = lazy(() => import('./components/FormaPage'));
 const Onboarding = lazy(() => import('./components/Onboarding'));
+const Docs = lazy(() => import('./docs/DocsApp'));
 const asset = (name: string) => `/apex/assets/${name}`;
 const themes = [
   { name: 'Indigo', color: '#635bff' },
@@ -21,6 +22,7 @@ export default function ProductSite() {
   const consoleOpen = route === '#console';
   const formaOpen = route === '#forma';
   const startOpen = route === '#start';
+  const docsOpen = route === '#docs' || route.startsWith('#docs/') || route.startsWith('#docs?');
   const [filmOpen, setFilmOpen] = useState(false);
   const film = useRef<HTMLDialogElement>(null);
   const fullVideo = useRef<HTMLVideoElement>(null);
@@ -38,7 +40,7 @@ export default function ProductSite() {
   }, []);
 
   useEffect(() => {
-    if (consoleOpen || formaOpen || startOpen || filmOpen) return;
+    if (consoleOpen || formaOpen || startOpen || docsOpen || filmOpen) return;
     const el = preview.current;
     if (!el) return;
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -50,7 +52,7 @@ export default function ProductSite() {
     const reduce = () => { if (motion.matches) el.pause(); };
     motion.addEventListener('change', reduce);
     return () => { observer.disconnect(); motion.removeEventListener('change', reduce); };
-  }, [consoleOpen, formaOpen, startOpen, filmOpen]);
+  }, [consoleOpen, formaOpen, startOpen, docsOpen, filmOpen]);
 
   useEffect(() => {
     if (filmOpen) {
@@ -78,6 +80,8 @@ export default function ProductSite() {
 
   if (formaOpen) return <Suspense fallback={<p className="ap-loading">Opening Forma…</p>}><Forma/></Suspense>;
 
+  if (docsOpen) return <Suspense fallback={<p className="ap-loading">Opening APEX Docs…</p>}><Docs/></Suspense>;
+
   if (consoleOpen) return <div className="ap-console-page">
     <div className="ap-console-return">
       <a href="#">← APEX home</a>
@@ -91,7 +95,7 @@ export default function ProductSite() {
     <a className="ap-skip" href="#main">Skip to content</a>
     <header className="ap-nav">
       <a className="ap-logo" href="#" aria-label="APEX home">APEX</a>
-      <nav aria-label="Main navigation"><a href="#what-it-does">What it does</a><a href="#playground">Try it</a><a href="#forma">Forma demo</a><a href="#developers">Under the hood</a></nav>
+      <nav aria-label="Main navigation"><a href="#what-it-does">What it does</a><a href="#playground">Try it</a><a href="#forma">Forma demo</a><a href="#developers">Under the hood</a><a href="#docs">Docs</a></nav>
       <a className="ap-nav-cta" href="#start">Start with APEX <ArrowRight size={14}/></a>
     </header>
 
@@ -171,7 +175,7 @@ export default function ProductSite() {
       <section className="ap-final-cta"><p className="ap-eyebrow">THE SIMPLE VERSION.</p><h2>Make sure what you sell<br/>is what customers get.</h2><div className="ap-final-actions"><a href="#start" className="ap-button">Start with APEX <ArrowRight size={17}/></a><a href="#playground" className="ap-text-button">Try it yourself <ArrowRight size={17}/></a><a href="#forma" className="ap-text-button">Open the Forma demo app <ArrowRight size={17}/></a></div></section>
     </main>
 
-    <footer className="ap-footer ap-container"><a href="#" className="ap-logo">APEX</a><p>APEX keeps plans, payments, usage limits, credits, and product access in sync.</p><a href="#start">Start with APEX <ExternalLink size={13}/></a><a href="#forma">Open the Forma demo app <ExternalLink size={13}/></a><a href="#console">Open behind-the-scenes controls <ExternalLink size={13}/></a><small>Product preview. All transactions are simulated.</small></footer>
+    <footer className="ap-footer ap-container"><a href="#" className="ap-logo">APEX</a><p>APEX keeps plans, payments, usage limits, credits, and product access in sync.</p><a href="#start">Start with APEX <ExternalLink size={13}/></a><a href="#forma">Open the Forma demo app <ExternalLink size={13}/></a><a href="#console">Open behind-the-scenes controls <ExternalLink size={13}/></a><a href="#docs">Read the docs <ExternalLink size={13}/></a><small>Product preview. All transactions are simulated.</small></footer>
 
     <dialog ref={film} className="ap-film-dialog" aria-label="APEX product walkthrough" onCancel={closeFilm} onClick={e => { if (e.target === e.currentTarget) closeFilm(); }}>
       <button autoFocus className="ap-close-film" aria-label="Close film" onClick={closeFilm}><X/></button>
@@ -437,7 +441,8 @@ function DeveloperSection() {
   return <section className="ap-developers" id="developers"><div className="ap-container ap-developer-grid">
     <div><p className="ap-eyebrow">HOW IT ACTUALLY WORKS.</p><h2>Built to keep your product<br/><span>and pricing connected.</span></h2><p><strong>Stripe → APEX → Your product.</strong> Stripe handles payments. APEX connects plans, payment state, usage, credits, access decisions, and audit history, and your product asks APEX what a customer is allowed to do.</p>
       <details className="ap-dev-steps"><summary>How you'd wire it up <ChevronRight size={13}/></summary><ol><li><b>Connect how you get paid.</b> Stripe or another payment system — APEX follows purchases, renewals, upgrades, cancellations, and failures.</li><li><b>Say what each plan includes.</b> Example: Pro means 5,000 credits, 10 seats, and premium reports.</li><li><b>Let the product check APEX.</b> Before an action happens, ask: is this customer allowed, and do they have enough left?</li></ol></details>
-      <a href="#console">Open the behind-the-scenes sandbox <ArrowRight size={16}/></a></div>
+      <a href="#console">Open the behind-the-scenes sandbox <ArrowRight size={16}/></a>{' '}
+      <a href="#docs/build/quickstart">Read the Build docs <ArrowRight size={16}/></a></div>
     <div className="ap-code-card"><div className="ap-code-toolbar"><div><button aria-pressed={tab === 'embed'} onClick={() => { setTab('embed'); setCopied(false); }}>Show UI</button><button aria-pressed={tab === 'usage'} onClick={() => { setTab('usage'); setCopied(false); }}>Report usage</button></div><button aria-label="Copy illustrative integration code" onClick={async () => { try { await navigator.clipboard.writeText(snippets[tab]); setCopied(true); setError(false); window.setTimeout(() => setCopied(false), 2000); } catch { setError(true); } }}>{copied ? <Check size={15}/> : <Copy size={15}/>}</button></div><pre><code>{snippets[tab]}</code></pre><div className="ap-code-foot" role="status"><Code2 size={14}/>{error ? 'Clipboard unavailable. Select the code to copy it.' : copied ? 'Illustrative code copied' : 'API design preview · not a published SDK'}</div></div>
   </div></section>;
 }

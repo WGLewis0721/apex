@@ -205,6 +205,87 @@ lands on a fixed narrative (bought 10, used 3) rather than reflecting live demo
 state, since it's telling one consistent story rather than pulling from the
 Playground's separate simulated account.
 
+### APEX Docs — September 8, 2026
+
+New product surface, not a redesign of an existing one: a full documentation site at
+`#docs`, lazy-loaded like Console/Forma/Onboarding. Organized around five sections —
+Learn, Build, Explore, Operate, Reference — covering 37 content pages plus a Docs
+home and five section-index pages (43 routes total). Built on the existing brand
+system (`tokens.css`, `.ap-site`, Fraunces/Manrope, the five-color palette); no new
+visual direction.
+
+**Done:**
+- **Shell** (`src/docs/`): `DocsApp.tsx` parses `#docs/<section>/<slug>?h=<anchor>`
+  client-side; `DocsShell.tsx` provides a persistent sidebar (all 5 sections, current
+  page highlighted), client-side search (title/description/keyword match over a
+  static index, `/` or `Cmd/Ctrl+K` to focus), breadcrumb, previous/next page links,
+  an auto-generated on-page table of contents (scans rendered `h2[data-toc]`/
+  `h3[data-toc]` elements, scrollspy-highlighted), and a reading-progress bar.
+  Mobile gets a slide-in sidebar drawer behind a scrim.
+- **Content primitives** (`src/docs/primitives.tsx`): `Callout` (note/tip/warning/
+  planned/simulated, matching the existing "SIMULATED DATA" / "design preview" badge
+  language), `StatusPill`, `Steps` (numbered procedures), `CodeBlock` (copy-to-
+  clipboard, reusing the existing copy-button pattern), `DataTable` (horizontally
+  scrollable, never forces page-level overflow), `ExampleWalkthrough` ("what just
+  happened" staged explanations), `FlowDiagram` (CSS boxes-and-arrows, no image
+  assets), `SeeAlso` (Learn ↔ Reference cross-links), and `H2`/`H3` (stable,
+  deep-linkable ids feeding the TOC).
+- **Learn** (7 pages): what-is-APEX, Stripe→APEX→product, payments vs. plans vs.
+  access, credits and usage, entitlements, customer lifecycle, glossary. Credits and
+  usage carries a real interactive worked example (Jordan generates three reports,
+  10→9→8→7, click-driven, no auto-animation) and follows the requested progressive
+  structure (plain-English → visual model → example → use case → how APEX handles
+  it → implementation → technical details → edge cases) throughout.
+- **Build** (11 pages): quickstart through going-live, each with numbered steps,
+  illustrative code, expected results, and troubleshooting notes.
+- **Explore** (7 pages): one per requested use case (traditional SaaS, AI/token
+  apps, credit-based products, membership platforms, usage-based services, add-ons,
+  team accounts), sharing one data-driven template (customer journey, APEX
+  configuration, architecture, advantages, limitations, implementation
+  considerations) to keep the seven consistent.
+- **Operate** (6 pages): customer lookup, payment failures & cancellations, access
+  changes & credit corrections, event history, support workflows, debugging — each
+  pointing at `#console` as today's closest real analog.
+- **Reference** (6 pages): API overview & auth, requests/responses/errors,
+  events & webhooks, data model, limits, terminology. **Data model is real**: all
+  18 tables, every column, type, and nullability taken directly from
+  `supabase/migrations/20260908030805_core_platform_schema.sql`, including the
+  `current_workspace_ids()` RLS mechanism — nothing paraphrased or invented.
+- **Content honesty**: everything not yet built (the API, SDK, webhooks, access
+  decision engine) is labeled `planned` / "design preview" via `StatusPill`/
+  `Callout`, consistent with this file's own Phase 6/7 status and the "never mark a
+  simulation complete as production infrastructure" rule. No unapproved technology
+  was invented; Reference → Limits explicitly declines to invent rate-limit numbers
+  and says so.
+- Verified: `npm test` (36/36), `tsc -b`, and `npm run build` pass. Swept all 43
+  routes at 320/390/768/1024/1440px (215 checks) — zero horizontal overflow, zero
+  console/page errors. Fixed a real bug found in verification: the on-page TOC and
+  heading-permalink links were resolving `?h=<anchor>` against the page's bare path
+  instead of the current `#docs/...` route, so clicking one dropped the user out of
+  Docs entirely — fixed by composing the anchor link from the live route and
+  updating `window.location.hash` directly (confirmed via an automated click test
+  that the full route now survives). Contrast-audited every new color pairing
+  against WCAG AA; found and fixed three failures the same way the September 8
+  visual-redesign entry above did (white text on tangerine again, at 2.81:1) — the
+  Docs-home stage badges now use ink-on-tangerine (5.54:1), and two low-contrast
+  decorative grays (flow-diagram arrows, heading permalink icons) were darkened to
+  pass. Verified interactively: mobile sidebar drawer open/close, search filtering,
+  code-block copy-to-clipboard, and that `#start`/`#forma`/`#console`/the homepage
+  are unaffected.
+
+**Known limitation:** same as the prior two entries — this sandbox cannot reach
+`fonts.googleapis.com`, so screenshots show the Georgia/system-ui fallback stack,
+not Fraunces/Manrope; the font wiring itself is unchanged from the existing site.
+
+**Not done:** no full-text search (search matches page titles/descriptions/keywords
+only, not in-page prose — full-text would need a build-time content index this
+project's static Vite/React setup doesn't currently generate); no annotated
+product screenshots (Docs has no new product surface to screenshot beyond what
+Forma/console already show, which are linked from relevant pages instead); Operate
+and Reference describe an operational/API model that doesn't exist as running code
+yet, consistent with Phase 6/7 status — this is Phase 4's documentation of that
+model, not new backend work.
+
 ## Phase 2 — Accounts + backend foundation
 
 **Systems:** Accounts + Workspaces.
