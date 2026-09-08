@@ -36,11 +36,46 @@ The homepage's **Start with APEX** / **Get APEX** buttons open a dedicated onboa
 
 The APEX Launcher (`LauncherStep` in `src/components/Onboarding.tsx`) is a Battle.net/WoW-launcher-style single screen, not a stack of separate wizard pages: it plays 14 named stages end to end, each moving through the status glyphs `○ Pending → ◌ Running → ✓ Complete` (a `!` Attention state exists in the same vocabulary for future use) — signing into the workspace, detecting the project, finding React/Node/TypeScript, installing `@apex/sdk`, writing environment config, linking the workspace, confirming Stripe, registering a webhook, creating a sample customer, granting 1,000 credits, recording 250 credits of usage, running an access check, and receiving ALLOW — ending in **"APEX IS READY."** with two actions: **Verify APEX** (re-runs a live access check on demand) and **Open dashboard**. Launcher progress is tracked as `launcherStage` (0–14) in `OnboardingState`, so a mid-run refresh resumes exactly where it left off instead of replaying from the start, and **Reset onboarding demo** clears it along with everything else. A persistent architecture strip states the real shape of the system — **Your app → @apex/sdk / CLI → APEX Cloud → Stripe** — so nothing implies the APEX Cloud backend installs locally; only a thin client does. A separate "How APEX ships" strip explains APEX's own release pipeline (GitHub source → CI/CD → npm/installer distribution → customer app → hosted APEX Cloud). `npx @apex/cli init` is labeled **CLI design preview**; `@apex/sdk` and the embedded components remain **API design preview** — none of these packages are published.
 
-Every screen that stands in for a real integration says so — simulated checkout, no card collected; an interactive preview of a Stripe connection, not a real OAuth flow; demo API keys (`apex_test_...`), never real credentials; `npx @apex/cli init` and `npm install @apex/sdk` both marked as API design preview since neither package is published. The integration points a real build would swap in are isolated behind adapters in `src/lib/launchProviders.ts` (`BillingProvider`, `PaymentConnectionProvider`, `InstallerProvider`, `EnvironmentProvider`, `VerificationProvider`), each with TODOs describing the production implementation. Once the checklist is complete, **Open APEX dashboard** hands off to the existing `#console` sandbox.
+Every screen that still stands in for a real integration says so: an interactive preview of a Stripe *connection*, not a real OAuth flow; `npx @apex/cli init` and `npm install @apex/sdk` both marked as API design preview since neither package is published. (Account creation, the purchase itself, and the workspace/API keys shown on the "Workspace created" step are **real** when the backend is configured — see the section below — and honestly labeled as a preview when it isn't.) The remaining simulated integration points are isolated behind adapters in `src/lib/launchProviders.ts` (`BillingProvider` and `PaymentConnectionProvider` — the latter for the customer's *own* future Stripe Connect integration, a separate, unbuilt feature from APEX's own billing below — plus `InstallerProvider`, `EnvironmentProvider`, `VerificationProvider`), each with TODOs describing the production implementation. Once the checklist is complete, **Open APEX dashboard** hands off to the existing `#console` sandbox.
+
+## Real backend: account, payment, and workspace (Supabase + Stripe)
+
+The first half of the canonical funnel — **Create account → Pay → Get workspace** — is backed by a real Supabase project and real Stripe Checkout, not simulation, once the environment variables below are set. Everything after that (stack selection, the APEX Launcher, verification, the dashboard) remains intentionally simulated for this milestone.
+
+**Architecture**: Vite/React on GitHub Pages talks directly to Supabase (Postgres + Auth) from the browser using the public anon key, protected entirely by Postgres row-level security. Two Supabase Edge Functions hold the actual secrets and do the things a browser must never be trusted to do:
+
+- `supabase/functions/create-checkout-session` — looks up the plan's price server-side (the browser never sets the amount charged), creates a real Stripe Checkout Session for paid plans, or provisions a free Sandbox workspace immediately with no Stripe involvement at all.
+- `supabase/functions/stripe-webhook` — the *only* place a subscription is ever marked active. Verifies Stripe's signature, is idempotent against retried/duplicate deliveries (`stripe_events` table, keyed on Stripe's event id), and calls the same `provision_workspace()` Postgres function as the free-plan path.
+
+**Schema** (`supabase/migrations/`): `profiles`, `workspaces`, `workspace_members`, `plans`, `subscriptions`, `environments`, `api_keys`, `stripe_events`, `audit_events`. RLS scopes every table to workspaces the requesting user is a member of (via a `workspace_members` self-join, the standard Supabase multi-tenant pattern). `api_keys.secret_key_hash`/`secret_key_once` are additionally locked down with column-level `REVOKE`/`GRANT` — no client role can select them directly. A generated secret (`apex_sk_test_...`) is stored only as a SHA-256 hash plus a one-time plaintext column that `reveal_and_clear_secret()` returns and clears atomically the first (and only) time the owning workspace's member asks for it — the same "shown once" pattern as a GitHub personal access token. Publishable keys (`apex_pk_test_...`) remain readable normally.
+
+**Frontend wiring** (`src/lib/supabaseClient.ts`, `src/lib/backend.ts`): `Onboarding.tsx`'s account/purchase/workspace steps call real `supabase.auth` (sign up, log in, session restore) and the checkout Edge Function instead of the old local-only reducer actions — **only when `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` are set**. Without them, the app transparently falls back to the original fully-simulated flow, so nothing breaks for anyone who hasn't configured a backend yet. On the real path, a Stripe Checkout return is confirmed by polling Postgres (RLS-scoped) for the row the webhook creates — the browser's own claim that "payment succeeded" is never trusted.
+
+**Required environment variables**:
+
+| Variable | Where | Notes |
+|---|---|---|
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Frontend build (`.env.local`, GitHub Actions secrets) | Public by design; protected by RLS, not secrecy. |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Edge Functions (auto-provided by Supabase) | Service role bypasses RLS — used only inside the two functions above. |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Edge Functions (`supabase secrets set ...`) | Never sent to the browser. |
+
+**Deploying the backend** (once you have a Supabase project and a Stripe account):
+
+```bash
+npx supabase login
+npx supabase link --project-ref <your-project-ref>
+npx supabase db push                       # runs supabase/migrations/*.sql
+npx supabase secrets set STRIPE_SECRET_KEY=sk_... STRIPE_WEBHOOK_SECRET=whsec_...
+npx supabase functions deploy create-checkout-session
+npx supabase functions deploy stripe-webhook --no-verify-jwt
+STRIPE_SECRET_KEY=sk_... node scripts/stripe-setup.mjs   # creates the real Product/Prices, prints a SQL UPDATE for the plans table
+```
+
+Then add a Stripe webhook endpoint pointing at the deployed `stripe-webhook` function URL, listening for `checkout.session.completed`, and set `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` wherever the frontend is built.
 
 ## Implementation boundary
 
-This deployment is a **functional product preview**, not a hosted payment or metering backend. There is no production Stripe connection, published npm SDK, real AI execution, real charge, or server-side enforcement. Production payment connections and SDKs remain to be built. Illustrative prices are for the fictional customer application, not an APEX service price list. The upgrade demo uses the $50 plan-price difference and intentionally omits production proration calculations.
+Stack selection, the APEX Launcher (SDK "install", environment "configuration", webhook "registration", verification), and the advanced `#console` sandbox remain a **functional product preview** — no published npm SDK or CLI, no real AI execution, no customer-facing Stripe Connect, no usage metering or entitlement enforcement outside the demo Forma app. Illustrative prices for those simulated screens are launch-strategy examples, not a Stripe price list. Account creation, the APEX purchase itself, and Sandbox workspace provisioning are real once the Supabase/Stripe environment variables above are configured — see the section above for exactly what that does and does not cover.
 
 ## How the new Forma entitlement engine works
 

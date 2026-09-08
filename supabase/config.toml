@@ -1,0 +1,39 @@
+project_id = "apex"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173", "https://wglewis0721.github.io"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+# Auto-confirm on sign-up so the existing linear onboarding UI (which has
+# no "check your email" interstitial) can continue immediately. Turn this
+# on before real customers sign up with addresses they don't control.
+enable_confirmations = false
+
+# Stripe verifies this endpoint via its own request signature, so it must
+# be reachable without a Supabase-issued JWT.
+[functions.stripe-webhook]
+verify_jwt = false
+
+# Called by an authenticated onboarding session.
+[functions.create-checkout-session]
+verify_jwt = true

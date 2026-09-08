@@ -9,3 +9,7 @@ dist
 
 .test-build/
 *.tsbuildinfo
+
+# Supabase CLI local dev state (created by `supabase start`)
+supabase/.branches
+supabase/.temp
