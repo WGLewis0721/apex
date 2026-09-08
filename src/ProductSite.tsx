@@ -78,14 +78,14 @@ export default function ProductSite() {
 
   if (formaOpen) return <Suspense fallback={<p className="ap-loading">Opening Forma…</p>}><Forma/></Suspense>;
 
-  if (consoleOpen) return <>
+  if (consoleOpen) return <div className="ap-console-page">
     <div className="ap-console-return">
       <a href="#">← APEX home</a>
       <span>Behind-the-scenes controls · simulated data</span>
       <span className="ap-console-guide"><b>Plain English:</b> Plans = what people buy · Entitlements = what they get · Usage = how much they used · Billing Sync = what changes when payment changes.</span>
     </div>
     <Suspense fallback={<p className="ap-loading">Opening the sandbox…</p>}><Console /></Suspense>
-  </>;
+  </div>;
 
   return <div className="ap-site">
     <a className="ap-skip" href="#main">Skip to content</a>
