@@ -92,10 +92,7 @@ export const OFFERS: Record<PlanId, Offer> = {
 
 export type OnboardingAccount = { name: string; email: string; company: string };
 
-// secret is null when a real backend workspace's one-time secret reveal
-// was already consumed in an earlier session (see reveal_and_clear_secret
-// in the schema migration); the publishable key remains available.
-export type DemoKeys = { publishable: string; secret: string | null };
+export type DemoKeys = { publishable: string; secret: string };
 
 export type OnboardingState = {
   version: 1;

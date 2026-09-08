@@ -95,17 +95,32 @@ and dashboard/sandbox UI exist and clearly label simulations.
 
 **Tech:** Supabase Auth + Supabase Postgres.
 
-**Build:** `users`/`profiles`, `workspaces`, `workspace_members`, `plans`,
-`subscriptions`, `environments`, `api_keys`, `stripe_events`, `audit_events`,
-migrations, workspace-scoped RLS.
+**Build:** `profiles`, `workspaces`, `workspace_members`, `plans`, `features`,
+`plan_features`, `customers`, `subscriptions`, `environments`, `api_keys`,
+`stripe_connections`, `usage_events`, `usage_counters`, `credit_grants`,
+`credit_consumptions`, `access_decisions`, `stripe_webhook_events`,
+`audit_logs` — every customer-owned table scoped by `workspace_id`, with
+foreign keys, timestamps, status fields, and workspace-membership RLS.
+Real Supabase Auth signup/login wired into the existing `AccountStep` UI.
 
 **Done when:** Real users can create and log into accounts and securely access only
 their own workspace.
 
-**Status:** In progress. Migrations, tables and workspace-scoped RLS exist in
-`supabase/migrations/`; frontend auth wiring exists in `src/lib/supabaseClient.ts`
-and `src/lib/backend.ts` and activates only when the Supabase environment variables
-are configured. Not yet verified against a deployed project.
+**Status:** Complete for accounts + schema. Applied live to the connected Supabase
+project (`supabase/migrations/20260908030805_core_platform_schema.sql` and
+`20260908030837_lock_down_handle_new_user_rpc.sql`): all 18 tables exist with RLS
+enabled, workspace-membership policies (via a `current_workspace_ids()` helper, never
+`raw_user_meta_data`/`user_metadata`), and `api_keys` secret columns locked down by
+column-level `REVOKE`/`GRANT`. `src/lib/supabaseClient.ts` uses a publishable key
+(`sb_publishable_...`) only. `src/lib/backend.ts` + `Onboarding.tsx`'s `AccountStep`
+call real `supabase.auth` (sign up, log in, session restore), active only when
+`VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` are set; otherwise the original
+simulated account step runs unchanged. Verified: `npm test` (36/36) and `npm run
+build` pass, tables/RLS confirmed live via Supabase's own advisors (no unresolved
+security lints). Not yet done: nothing writes to `workspaces`/`workspace_members`/
+`environments`/`api_keys` yet — that is workspace provisioning, explicitly deferred
+to Phase 4. `plan_features` cross-workspace consistency (a plan and its features
+belonging to the same workspace) is not enforced by a trigger, only by convention.
 
 ## Phase 3 — APEX billing
 
@@ -119,9 +134,9 @@ server-side Checkout Session creation, verified payment webhook.
 **Done when:** A real confirmed Stripe payment activates the APEX subscription, and
 browser redirects cannot mark accounts paid.
 
-**Status:** In progress. `supabase/functions/create-checkout-session` creates the
-session server-side and `supabase/functions/stripe-webhook` is the only path that
-marks a subscription active. Not yet verified end to end against live Stripe.
+**Status:** Not started. The onboarding funnel's Purchase step uses the simulated
+`BillingProvider` in `src/lib/launchProviders.ts` regardless of backend
+configuration.
 
 ## Phase 4 — Workspace provisioning
 
@@ -135,9 +150,9 @@ marks a subscription active. Not yet verified end to end against live Stripe.
 **Done when:** A paying customer receives one real persisted workspace/environment
 and credentials, without duplicate provisioning.
 
-**Status:** In progress. `provision_workspace()` exists in the Phase 2 migration and
-is called from both the free-plan and webhook paths with idempotency keyed on
-Stripe's event id. Not yet verified end to end.
+**Status:** Not started. The Phase 2 schema and RLS are ready to receive
+workspace/environment/api_key rows, but no provisioning function exists yet — the
+onboarding funnel's Workspace step still shows locally generated demo keys.
 
 ## Phase 5 — Connect customer Stripe
 
@@ -150,8 +165,10 @@ connection to the workspace.
 
 **Done when:** APEX can securely identify the customer's connected Stripe account.
 
-**Status:** Not started. The onboarding funnel currently shows a simulated Stripe
-connection behind `PaymentConnectionProvider` in `src/lib/launchProviders.ts`.
+**Status:** Not started. The Phase 2 migration created a `stripe_connections` table
+with workspace-scoped RLS, but no OAuth flow writes to it. The onboarding funnel
+currently shows a simulated Stripe connection behind `PaymentConnectionProvider` in
+`src/lib/launchProviders.ts`.
 
 ## Phase 6 — APEX Cloud
 
@@ -185,7 +202,9 @@ wallet.
 **Done when:** Reported usage and granted credits persist server-side and are
 idempotent against retried event IDs.
 
-**Status:** Not started.
+**Status:** Not started. The Phase 2 migration created `usage_events`,
+`usage_counters`, `credit_grants`, and `credit_consumptions` tables with
+workspace-scoped RLS, but no code writes to or reads from them yet.
 
 ### Phase 6.3 — Access decision engine
 
@@ -197,7 +216,9 @@ idempotent against retried event IDs.
 **Done when:** The server-side APEX system returns real ALLOW/DENY decisions with a
 reason and a stored decision record.
 
-**Status:** Not started.
+**Status:** Not started. The Phase 2 migration created `features`, `plan_features`,
+and `access_decisions` tables with workspace-scoped RLS, but no evaluation logic
+exists yet.
 
 ### Phase 6.4 — Background processing
 

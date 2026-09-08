@@ -14,7 +14,6 @@ import {
   RotateCcw,
   Sparkles,
   Terminal as TerminalIcon,
-  TriangleAlert,
 } from 'lucide-react';
 import {
   ChecklistItem,
@@ -45,10 +44,8 @@ import {
   createSimulatedVerification,
 } from '../lib/launchProviders';
 import { backendConfigured } from '../lib/supabaseClient';
-import { BackendWorkspace, getCurrentAccount, getOwnWorkspaceSummary, loadWorkspaceByCheckoutSession, loadWorkspaceById, signIn, signUpOrSignIn, startCheckout } from '../lib/backend';
+import { getCurrentAccount, signIn, signUpOrSignIn } from '../lib/backend';
 import '../onboarding.css';
-
-const asPlanId = (id: string): PlanId | null => (id === 'founding' || id === 'sandbox' ? id : null);
 
 const billingProvider = createSimulatedBillingProvider();
 const paymentConnection = createSimulatedPaymentConnection();
@@ -166,8 +163,6 @@ export default function Onboarding() {
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [authBusy, setAuthBusy] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [connecting, setConnecting] = useState(false);
 
   function apply(next: OnboardingState) {
@@ -193,73 +188,25 @@ export default function Onboarding() {
     });
   }
 
-  // On mount: restore a real signed-in session (and any workspace it
-  // already owns) so a returning customer picks up where they left off
-  // instead of starting the simulated funnel over from "plan".
+  // On mount: restore a real signed-in session so a returning customer
+  // doesn't have to log in again. Everything after "Create account" in the
+  // funnel (purchase, workspace, install, verify) remains simulated for
+  // this phase, so this only ever fast-forwards past the account step —
+  // and only when a plan was already selected locally.
   useEffect(() => {
     if (!backendConfigured) return;
     (async () => {
       const account = await getCurrentAccount();
       if (!account) return;
       setAccountForm((f) => ({ ...f, name: account.fullName ?? f.name, email: account.email, company: account.companyName ?? f.company }));
-      const patch: Partial<OnboardingState> = {
-        account: { name: account.fullName ?? '', email: account.email, company: account.companyName ?? '' },
-        accountCreated: true,
-      };
-      let landOn: OnboardingStep | undefined = state.accountCreated ? undefined : 'purchase';
-      const summary = await getOwnWorkspaceSummary();
-      if (summary) {
-        const planId = asPlanId(summary.planId);
-        if (planId) patch.selectedPlan = planId;
-        patch.purchaseStatus = 'paid';
-        patch.workspaceCreated = true;
-        patch.workspaceId = summary.workspaceId;
-        if (!state.workspaceCreated) landOn = 'workspace';
-      }
-      hydrateFromServer(patch, landOn);
+      if (state.accountCreated) return;
+      hydrateFromServer(
+        { account: { name: account.fullName ?? '', email: account.email, company: account.companyName ?? '' }, accountCreated: true },
+        state.selectedPlan ? 'purchase' : undefined,
+      );
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Stripe redirects back here after Checkout. Detect that return, then
-  // poll (RLS-scoped, never trusting the URL itself) until the webhook has
-  // actually provisioned the workspace server-side.
-  useEffect(() => {
-    if (!backendConfigured) return;
-    const hash = window.location.hash;
-    const query = hash.includes('?') ? new URLSearchParams(hash.slice(hash.indexOf('?') + 1)) : null;
-    if (hash.startsWith('#start') && query?.get('checkout') === 'success') {
-      const sessionId = query.get('session_id');
-      window.history.replaceState(null, '', window.location.pathname + '#start');
-      if (sessionId) void confirmCheckoutSession(sessionId);
-    } else if (hash.startsWith('#start') && query?.get('checkout') === 'cancel') {
-      window.history.replaceState(null, '', window.location.pathname + '#start');
-      setCheckoutError('Checkout was canceled. No charge was made.');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function confirmCheckoutSession(sessionId: string) {
-    setConfirmingPayment(true);
-    setCheckoutError(null);
-    const deadline = Date.now() + 30000;
-    let ws: BackendWorkspace | null = null;
-    while (Date.now() < deadline) {
-      ws = await loadWorkspaceByCheckoutSession(sessionId);
-      if (ws) break;
-      await delay(1500);
-    }
-    if (ws) {
-      const planId = asPlanId(ws.planId);
-      const patch: Partial<OnboardingState> = { purchaseStatus: 'paid', workspaceCreated: true, workspaceId: ws.workspaceId };
-      if (planId) patch.selectedPlan = planId;
-      if (ws.secretKey) patch.demoKeys = { publishable: ws.publishableKey, secret: ws.secretKey };
-      hydrateFromServer(patch, 'workspace');
-    } else {
-      setCheckoutError("Payment succeeded, but we couldn't confirm your workspace yet. This can take a few extra seconds — refresh to check again.");
-    }
-    setConfirmingPayment(false);
-  }
 
   const furthest = furthestUnlockedStep(state);
   const items = checklist(state);
@@ -291,16 +238,6 @@ export default function Onboarding() {
           type: 'submit_account',
           account: { name: account.fullName ?? accountForm.name.trim(), email: account.email, company: account.companyName ?? accountForm.company.trim() },
         });
-        const summary = await getOwnWorkspaceSummary();
-        if (summary) {
-          const planId = asPlanId(summary.planId);
-          hydrateFromServer({
-            selectedPlan: planId ?? state.selectedPlan,
-            purchaseStatus: 'paid',
-            workspaceCreated: true,
-            workspaceId: summary.workspaceId,
-          }, 'workspace');
-        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Something went wrong.';
         setAccountError(message === 'Failed to fetch' ? 'Could not reach APEX. Check your connection and try again.' : message);
@@ -326,29 +263,6 @@ export default function Onboarding() {
   async function runPurchase() {
     if (purchasing || !state.selectedPlan) return;
     setPurchasing(true);
-    setCheckoutError(null);
-
-    if (backendConfigured) {
-      const outcome = await startCheckout({ planId: state.selectedPlan, companyName: state.account?.company ?? '' });
-      if (outcome.mode === 'checkout') {
-        window.location.href = outcome.url; // navigates away to Stripe
-        return;
-      }
-      if (outcome.mode === 'provisioned') {
-        const ws = await loadWorkspaceById(outcome.workspaceId);
-        if (ws) {
-          const patch: Partial<OnboardingState> = { purchaseStatus: 'paid', workspaceCreated: true, workspaceId: ws.workspaceId };
-          if (ws.secretKey) patch.demoKeys = { publishable: ws.publishableKey, secret: ws.secretKey };
-          hydrateFromServer(patch, 'workspace');
-        }
-        setPurchasing(false);
-        return;
-      }
-      setCheckoutError(outcome.message ?? 'Something went wrong starting checkout. Please try again.');
-      setPurchasing(false);
-      return;
-    }
-
     dispatch({ type: 'purchase_pending' });
     const offer = OFFERS[state.selectedPlan];
     const result = await billingProvider.checkout({ planId: offer.id, setupFee: offer.setupFee, monthly: offer.monthly });
@@ -403,13 +317,11 @@ export default function Onboarding() {
         </nav>
 
         <section className="ob-panel" aria-live="polite">
-          {confirmingPayment && <ConfirmingPaymentStep />}
-
-          {!confirmingPayment && state.step === 'plan' && (
+          {state.step === 'plan' && (
             <PlanStep selected={state.selectedPlan} onSelect={(plan) => dispatch({ type: 'select_plan', plan })} />
           )}
 
-          {!confirmingPayment && state.step === 'account' && (
+          {state.step === 'account' && (
             <AccountStep
               form={accountForm}
               error={accountError}
@@ -422,11 +334,11 @@ export default function Onboarding() {
             />
           )}
 
-          {!confirmingPayment && state.step === 'purchase' && state.selectedPlan && (
-            <PurchaseStep offer={OFFERS[state.selectedPlan]} purchasing={purchasing} error={checkoutError} onPurchase={runPurchase} onBack={() => goto('account')} />
+          {state.step === 'purchase' && state.selectedPlan && (
+            <PurchaseStep offer={OFFERS[state.selectedPlan]} purchasing={purchasing} onPurchase={runPurchase} onBack={() => goto('account')} />
           )}
 
-          {!confirmingPayment && state.step === 'workspace' && (
+          {state.step === 'workspace' && (
             <WorkspaceStep workspaceId={state.workspaceId} keys={state.demoKeys} onContinue={() => goto('stack')} />
           )}
 
@@ -548,14 +460,13 @@ function AccountStep({ form, error, busy, mode, onToggleMode, onChange, onSubmit
   );
 }
 
-function PurchaseStep({ offer, purchasing, error, onPurchase, onBack }: { offer: (typeof OFFERS)['founding']; purchasing: boolean; error: string | null; onPurchase: () => void; onBack: () => void }) {
+function PurchaseStep({ offer, purchasing, onPurchase, onBack }: { offer: (typeof OFFERS)['founding']; purchasing: boolean; onPurchase: () => void; onBack: () => void }) {
   const totalToday = offer.setupFee + offer.monthly;
-  const isFree = totalToday === 0;
   return (
     <>
       <p className="ob-eyebrow">{stepEyebrow('purchase', 'PURCHASE')}</p>
       <h1>Review your order.</h1>
-      <span className="ob-sim-badge">{backendConfigured ? (isFree ? 'NO CHARGE · FREE PLAN' : 'REAL STRIPE CHECKOUT') : 'SIMULATED CHECKOUT · NO CARD COLLECTED'}</span>
+      <span className="ob-sim-badge">SIMULATED CHECKOUT · NO CARD COLLECTED</span>
       <div className="ob-checkout">
         <div className="ob-checkout-row"><span>{offer.name}</span><span>{offer.tagline}</span></div>
         {offer.setupFee > 0 && <div className="ob-checkout-row"><span>Setup fee</span><span>${offer.setupFee.toLocaleString()}</span></div>}
@@ -564,33 +475,13 @@ function PurchaseStep({ offer, purchasing, error, onPurchase, onBack }: { offer:
         <div className="ob-checkout-row is-total"><span>Total due today</span><span>${totalToday.toLocaleString()}</span></div>
         <div className="ob-checkout-row"><span>Renews at</span><span>${offer.monthly}/mo</span></div>
       </div>
-      {backendConfigured ? (
-        isFree ? (
-          <div className="ob-preview-note"><Info size={15} /><span>Nothing to charge — your Sandbox workspace is provisioned immediately.</span></div>
-        ) : (
-          <div className="ob-preview-note"><CreditCard size={15} /><span>You'll be redirected to Stripe Checkout to pay securely. APEX never sees or stores your card details.</span></div>
-        )
-      ) : (
-        <div className="ob-preview-note"><CreditCard size={15} /><span>A real build would redirect here to a Stripe Checkout session. This demo simulates a successful payment and never asks for a card number.</span></div>
-      )}
-      {error && <p className="ob-form-error"><TriangleAlert size={13} style={{ verticalAlign: -2 }} /> {error}</p>}
+      <div className="ob-preview-note"><CreditCard size={15} /><span>A real build would redirect here to a Stripe Checkout session. This demo simulates a successful payment and never asks for a card number.</span></div>
       <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
         <button type="button" className="ob-ghost" onClick={onBack} disabled={purchasing}><ArrowLeft size={14} /> Back</button>
         <button className="ob-primary" onClick={onPurchase} disabled={purchasing}>
-          {purchasing ? <><Loader2 size={16} className="ob-spin" /> Processing…</> : isFree && backendConfigured ? <>Activate Sandbox workspace <ArrowRight size={15} /></> : <>Pay ${totalToday.toLocaleString()} and activate <ArrowRight size={15} /></>}
+          {purchasing ? <><Loader2 size={16} className="ob-spin" /> Processing…</> : <>Pay ${totalToday.toLocaleString()} and activate <ArrowRight size={15} /></>}
         </button>
       </div>
-    </>
-  );
-}
-
-function ConfirmingPaymentStep() {
-  return (
-    <>
-      <p className="ob-eyebrow">CONFIRMING PAYMENT</p>
-      <h1>Confirming your payment with Stripe.</h1>
-      <p className="ob-lede">We never mark an account as paid from the browser alone — this waits for Stripe's own confirmation to reach APEX.</p>
-      <div className="ob-preview-note"><Loader2 size={15} className="ob-spin" /><span>This usually takes a few seconds.</span></div>
     </>
   );
 }
@@ -605,19 +496,11 @@ function WorkspaceStep({ workspaceId, keys, onContinue }: { workspaceId: string 
         <div><span>Environment</span><b>Sandbox</b></div>
         <div><span>Workspace ID</span><code>{workspaceId}</code></div>
       </div>
-      <p className="ob-lede">
-        {backendConfigured
-          ? 'These are real Sandbox API keys for your new workspace. The secret is shown once, right now — copy it before continuing.'
-          : 'These are demo keys — obvious preview values, not real credentials. A real workspace would show live keys here instead.'}
-      </p>
+      <p className="ob-lede">These are demo keys — obvious preview values, not real credentials. A real workspace would show live keys here instead.</p>
       {keys && (
         <div className="ob-keys">
           <div className="ob-key-row"><span>PUBLISHABLE</span><code>{keys.publishable}</code><CopyButton text={keys.publishable} /></div>
-          {keys.secret ? (
-            <div className="ob-key-row"><span>SECRET</span><code>{keys.secret}</code><CopyButton text={keys.secret} /></div>
-          ) : (
-            <div className="ob-key-row"><span>SECRET</span><code>Already viewed — not shown again</code></div>
-          )}
+          <div className="ob-key-row"><span>SECRET</span><code>{keys.secret}</code><CopyButton text={keys.secret} /></div>
         </div>
       )}
       <button className="ob-primary" onClick={onContinue}>Start installing APEX <ArrowRight size={15} /></button>

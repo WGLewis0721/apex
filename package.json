@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "node tests/run.mjs",
-    "stripe:setup": "node scripts/stripe-setup.mjs"
+    "test": "node tests/run.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
@@ -20,7 +19,6 @@
   "devDependencies": {
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "stripe": "^22.6.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.10"
   }
