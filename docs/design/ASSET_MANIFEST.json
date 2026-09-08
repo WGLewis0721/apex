@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "notes": "Original assets. Fonts not bundled. PNG artwork requires web optimization. Brand board is a mood reference, not production logo or copy.",
+  "files": [
+    {
+      "path": "public/assets/brand-v1/access-pass.svg",
+      "bytes": 643,
+      "sha256": "5ce61793ea4934302f2321cfc6f0977a5c3427c82b30e8dd2b777934bc67aa75"
+    },
+    {
+      "path": "public/assets/brand-v1/apex-access-sculpture.png",
+      "bytes": 1838016,
+      "sha256": "c3312bce8f968026eded1de233f52fc75efde547e441c9a20e7129f737710c66"
+    },
+    {
+      "path": "public/assets/brand-v1/connection.svg",
+      "bytes": 656,
+      "sha256": "80bf76aad82ac82b82923237d8eeef6219e00d21d24b20171b1103c129d4eb1a"
+    },
+    {
+      "path": "public/assets/brand-v1/credits.svg",
+      "bytes": 687,
+      "sha256": "90a381b4266326f16a5a2a8aea097b30ca241fde5d1df0c5d19e0f245395827e"
+    },
+    {
+      "path": "docs/design/BRAND_SPEC.md",
+      "bytes": 3760,
+      "sha256": "2e363cab554c0e7b0127dcffec04111ed15b1ccd960537c0b3f0947c91deee77"
+    },
+    {
+      "path": "docs/design/CLAUDE_HANDOFF.md",
+      "notes": "Living implementation brief; use the current Git version."
+    },
+    {
+      "path": "docs/design/README.md",
+      "bytes": 377,
+      "sha256": "f5bb4548c53dc55ea6a29e5f3097d0130b33e6dc9bdd44c1117dd06ee5572374"
+    },
+    {
+      "path": "docs/design/apex-brand-board.png",
+      "bytes": 1856029,
+      "sha256": "a70ba448b87542b911697619d2937ae58669e1b73d6cbc4acbab0246f4fcdd0c"
+    },
+    {
+      "path": "docs/design/brand-tokens.css",
+      "bytes": 601,
+      "sha256": "fa7e424f8e8643641551e1ba3aca5d8bfdf92eff285b9043c26662b0947b0163"
+    }
+  ]
+}
