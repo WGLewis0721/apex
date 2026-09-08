@@ -29,8 +29,7 @@
     },
     {
       "path": "docs/design/CLAUDE_HANDOFF.md",
-      "bytes": 7753,
-      "sha256": "68a509bec3e09e1857c69284863edd00050abf187458d5e40262d26d0f377ed3"
+      "notes": "Living implementation brief; use the current Git version."
     },
     {
       "path": "docs/design/README.md",
