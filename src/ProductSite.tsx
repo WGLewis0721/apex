@@ -91,15 +91,15 @@ export default function ProductSite() {
     <a className="ap-skip" href="#main">Skip to content</a>
     <header className="ap-nav">
       <a className="ap-logo" href="#" aria-label="APEX home">APEX</a>
-      <nav aria-label="Main navigation"><a href="#what-it-does">What it does</a><a href="#playground">Try it</a><a href="#forma">Forma demo</a><a href="#developers">For developers</a></nav>
+      <nav aria-label="Main navigation"><a href="#what-it-does">What it does</a><a href="#playground">Try it</a><a href="#forma">Forma demo</a><a href="#developers">Under the hood</a></nav>
       <a className="ap-nav-cta" href="#start">Start with APEX <ArrowRight size={14}/></a>
     </header>
 
     <main id="main">
       <section className="ap-hero">
-        <p className="ap-eyebrow"><span/> THE PART AFTER SOMEONE PAYS.</p>
-        <h1>They paid.<br/><span>Now what do they get?</span></h1>
-        <p className="ap-hero-copy"><strong>APEX connects a payment to what your customer can actually use.</strong><br/>Credits, plan limits, feature access, upgrades, and usage — without rebuilding that system inside every app.</p>
+        <p className="ap-eyebrow"><span/> SELL IT. DELIVER IT. KEEP THEM IN SYNC.</p>
+        <h1>Make sure what you sell<br/><span>is what customers get.</span></h1>
+        <p className="ap-hero-copy"><strong>APEX keeps plans, payments, usage limits, credits, and product access in sync.</strong><br/>When a customer pays, upgrades, cancels, misses a payment, or reaches their limit, what they can use stays correct.</p>
         <div className="ap-hero-actions">
           <a className="ap-button" href="#start">Get APEX <ArrowRight size={17}/></a>
           <button ref={watchButton} className="ap-text-button" onClick={() => setFilmOpen(true)}>Watch the film <CirclePlay size={21}/></button>
@@ -114,7 +114,7 @@ export default function ProductSite() {
               Your browser does not support embedded video.
             </video>
             <div className="ap-film-top"><span><span className="ap-small-dot"/> THE APEX EXPERIENCE</span><span>SIMULATED DATA</span></div>
-            <div className="ap-film-bottom"><span>Payment in. Product access updated.</span><div><button aria-label={playing ? 'Pause hero video' : 'Play hero video'} onClick={() => {
+            <div className="ap-film-bottom"><span>They buy. Their access stays correct.</span><div><button aria-label={playing ? 'Pause hero video' : 'Play hero video'} onClick={() => {
               const el = preview.current;
               if (!el) return;
               if (el.paused) { manuallyPaused.current = false; void el.play().catch(() => setVideoFailed(true)); }
@@ -126,7 +126,7 @@ export default function ProductSite() {
             if (preview.current) { manuallyPaused.current = false; preview.current.currentTime = time; void preview.current.play().catch(() => {}); }
           }}><span>0{i + 1}</span>{name}</button>)}</div>
         </div>
-        <p className="ap-underfilm"><strong>Stripe, Link, Apple Pay or another provider takes the money.</strong> <span className="ap-rust">APEX keeps track of what that purchase unlocks.</span></p>
+        <p className="ap-underfilm"><strong>Stripe handles the payment.</strong> <span className="ap-rust">APEX helps make sure your product responds correctly.</span></p>
       </section>
 
       <section className="ap-launch-preview ap-container" aria-label="How you get APEX">
@@ -137,53 +137,54 @@ export default function ProductSite() {
       <section className="ap-simple" id="what-it-does">
         <div className="ap-simple-inner">
           <div className="ap-simple-head">
-            <p className="ap-eyebrow">NO FINTECH DEGREE REQUIRED.</p>
-            <h2>Checkout is the cashier.<br/><span>APEX updates the account.</span></h2>
-            <p>Think about buying credits in a game. Paying is only the first step. Something still has to add the credits, remember the balance, unlock what you bought, and stop usage when the balance runs out.</p>
+            <p className="ap-eyebrow">HOW APEX WORKS.</p>
+            <h2>Customer buys something.<br/><span>Their access stays correct.</span></h2>
+            <p><b>Customer buys something</b><br/>→ APEX knows what they bought<br/>→ APEX tracks what they use<br/>→ APEX keeps their product access in sync</p>
+            <p><strong>Stripe handles the payment. APEX helps make sure your product responds correctly.</strong></p>
           </div>
           <div className="ap-simple-flow">
-            <article className="ap-simple-card"><span className="ap-num">01</span><h3>The customer pays.</h3><p>Stripe, Link, Apple Pay, Google Pay or another payment provider says: <b>“Payment successful.”</b></p></article>
-            <article className="ap-simple-card"><span className="ap-num">02</span><h3>APEX translates the purchase.</h3><p><b>$29 Starter</b> might mean 1,000 credits, three premium features, and one active seat.</p></article>
-            <article className="ap-simple-card"><span className="ap-num">03</span><h3>The app knows what to allow.</h3><p>Use 250 credits? APEX tracks it. Hit zero? Stop the action or offer an upgrade. Buy more? Update immediately.</p></article>
+            <article className="ap-simple-card"><span className="ap-num">01</span><h3>They buy a plan.</h3><p>Stripe, Link, Apple Pay, Google Pay or another payment provider confirms: <b>“Payment successful.”</b></p></article>
+            <article className="ap-simple-card"><span className="ap-num">02</span><h3>APEX knows what that means.</h3><p><b>$29 Starter</b> might mean 1,000 credits, three premium features, and one active seat.</p></article>
+            <article className="ap-simple-card"><span className="ap-num">03</span><h3>Your product stays in sync.</h3><p>They use 250 credits? APEX tracks it. They reach the limit, cancel, or miss a payment? Access updates with them.</p></article>
           </div>
-          <div className="ap-simple-eq"><span className="money">PAYMENT</span><span>→</span><span className="apex">APEX</span><span>→</span><span>WHAT THE CUSTOMER GETS</span></div>
+          <div className="ap-simple-eq"><span className="money">WHAT THEY BOUGHT</span><span>→</span><span className="apex">APEX</span><span>→</span><span>WHAT THEY CAN USE</span></div>
         </div>
       </section>
 
-      <section className="ap-audiences" aria-label="APEX explained for different audiences">
+      <section className="ap-audiences" aria-label="What APEX means for your business">
         <div className="ap-audience-grid">
-          <article className="ap-audience"><small>IF YOU PLAY GAMES</small><h3>If you understand game credits, you understand APEX.</h3><p>The payment buys the credits. <strong>APEX is the system that adds them to your account, tracks what is left, and knows what you can unlock.</strong></p></article>
-          <article className="ap-audience"><small>IF YOU RUN A BUSINESS</small><h3>It is the membership system behind the register.</h3><p>The register takes payment. <strong>APEX knows the customer is Gold, Pro, VIP, active, expired, over the limit, or ready to upgrade.</strong></p></article>
-          <article className="ap-audience"><small>IF YOU BUILD SOFTWARE</small><h3>It is commercial plumbing you do not have to rebuild.</h3><p>Your app asks APEX what a customer bought, what is left, and whether an action should be allowed. <strong>You focus on your actual product.</strong></p></article>
+          <article className="ap-audience"><small>SELL WITH CONFIDENCE</small><h3>What you promise is what the software delivers.</h3><p>Finance, sales, and product all describe the same plan. <strong>APEX makes sure the product agrees with the offer your customer actually bought.</strong></p></article>
+          <article className="ap-audience"><small>PROTECT REVENUE</small><h3>Fewer things given away by accident.</h3><p>Over-delivery, access that continues after a payment fails, and manual credits all cost money. <strong>APEX reduces the gap between what is paid for and what is used.</strong></p></article>
+          <article className="ap-audience"><small>CHANGE OFFERS MORE EASILY</small><h3>Pricing changes should not be a rebuild.</h3><p>Plans, limits, credits, upgrades, and cancellations live in one place. <strong>Business rules stop being scattered through the application.</strong></p></article>
         </div>
       </section>
 
       <section className="ap-house">
         <div className="ap-house-card">
-          <div><p className="ap-eyebrow">THE HOME-BUILDER TEST.</p><h2>Builders do not manufacture every lock.</h2><p>A homebuilder chooses the doors, locks, thermostat, electrical panel, and security system — then installs them into the house. A software team should be able to do the same with the paid part of its app.</p><p><strong>APEX is the prebuilt commercial system they plug in instead of manufacturing one from scratch.</strong></p></div>
-          <div className="ap-house-parts"><div><span>Payment provider</span><b>Takes the money</b></div><div><span>APEX</span><b>Turns payment into rights + balances</b></div><div><span>Your app</span><b>Delivers the actual product</b></div></div>
+          <div><p className="ap-eyebrow">KNOW WHY ACCESS CHANGED.</p><h2>Every change should have a reason.</h2><p>Customers gain and lose access every day: they upgrade, they cancel, a card fails, a limit is reached. When someone asks why a customer could or could not do something, the answer should not be a guess.</p><p><strong>APEX keeps the plan, the payment state, and the usage that produced each access decision — so support, finance, and product see the same story.</strong></p></div>
+          <div className="ap-house-parts"><div><span>What they bought</span><b>Plan, limits, credits</b></div><div><span>What changed</span><b>Payment, upgrade, cancellation, usage</b></div><div><span>What happened next</span><b>Access allowed or stopped</b></div></div>
         </div>
       </section>
 
       <section className="ap-product ap-container" id="product">
-        <div className="ap-section-heading"><p className="ap-eyebrow">WHAT APEX HANDLES.</p><h2>The paid part of your app,<br/>already thought through.</h2><p>APEX sits between the payment and the product experience.</p></div>
+        <div className="ap-section-heading"><p className="ap-eyebrow">WHAT APEX KEEPS IN SYNC.</p><h2>The paid part of your product,<br/>already thought through.</h2><p>Plans, payments, usage, credits, and access, kept consistent with each other.</p></div>
         <div className="ap-feature-grid">
-          <article className="ap-feature-card"><div className="ap-feature-icon"><CreditCard/></div><h3>Know who paid.</h3><p>Subscriptions, renewals, failed payments, and upgrades stay tied to the right customer.</p><div className="ap-payment-example"><span className="ap-avatar-small">AC</span><div><b>Acme Studio</b><small>Pro subscription</small></div><div><b>$79.00</b><small className="ap-green">● Paid</small></div></div><div className="ap-mini-note"><CheckCircle2 size={14}/> Customer access updated</div></article>
-          <article className="ap-feature-card"><div className="ap-feature-icon"><Gauge/></div><h3>Know what is left.</h3><p>Track credits, tokens, API calls, seats, or another allowance. The balance and the rules stay together.</p><div className="ap-mini-meter"><div><span>AI tokens</span><b>750 <small>/ 1,000</small></b></div><div className="ap-track"><span style={{ width: '75%' }}/></div><small>250 tokens left before an upgrade is needed.</small></div></article>
-          <article className="ap-feature-card"><div className="ap-feature-icon"><Layers/></div><h3>Make it look like your app.</h3><p>Drop in billing, balance, and upgrade experiences without making customers feel like they left your product.</p><div className="ap-mini-themes"><div style={{ '--embed-accent': '#006fe8' } as CSSProperties}>Forma<span>Upgrade plan <ArrowRight size={12}/></span></div><div style={{ '--embed-accent': '#a94f38' } as CSSProperties}>studio<span>Add credits <ArrowRight size={12}/></span></div></div></article>
+          <article className="ap-feature-card"><div className="ap-feature-icon"><CreditCard/></div><h3>Know who is paying.</h3><p>Subscriptions, renewals, failed payments, upgrades, and cancellations stay tied to the right customer.</p><div className="ap-payment-example"><span className="ap-avatar-small">AC</span><div><b>Acme Studio</b><small>Pro subscription</small></div><div><b>$79.00</b><small className="ap-green">● Paid</small></div></div><div className="ap-mini-note"><CheckCircle2 size={14}/> Customer access updated</div></article>
+          <article className="ap-feature-card"><div className="ap-feature-icon"><Gauge/></div><h3>Know what is left.</h3><p>Credits, tokens, API calls, seats, or another allowance. The balance and the rules that govern it stay together.</p><div className="ap-mini-meter"><div><span>AI tokens</span><b>750 <small>/ 1,000</small></b></div><div className="ap-track"><span style={{ width: '75%' }}/></div><small>250 tokens left before an upgrade is needed.</small></div></article>
+          <article className="ap-feature-card"><div className="ap-feature-icon"><Layers/></div><h3>Keep it inside your product.</h3><p>Show plans, balances, and upgrades without making customers feel like they left your product to deal with billing.</p><div className="ap-mini-themes"><div style={{ '--embed-accent': '#006fe8' } as CSSProperties}>Forma<span>Upgrade plan <ArrowRight size={12}/></span></div><div style={{ '--embed-accent': '#a94f38' } as CSSProperties}>studio<span>Add credits <ArrowRight size={12}/></span></div></div></article>
         </div>
       </section>
 
       <Playground/>
 
-      <section className="ap-how ap-container" id="how-it-works"><p className="ap-eyebrow">THREE STEPS.</p><h2>You build the product.<br/><span>APEX handles the paid-product logic.</span></h2><div className="ap-steps"><article><span>01</span><h3>Connect how you get paid.</h3><p>Connect Stripe or another payment system. APEX listens for purchases, renewals, upgrades, and failures.</p></article><article><span>02</span><h3>Say what each purchase means.</h3><p>Example: Pro means 5,000 credits, 10 seats, and premium reports.</p></article><article><span>03</span><h3>Let the app check APEX.</h3><p>Before an action happens, your app can ask: does this customer have access and enough usage left?</p></article></div></section>
+      <section className="ap-how ap-container" id="how-it-works"><p className="ap-eyebrow">THREE STEPS.</p><h2>You build the product.<br/><span>APEX keeps the offer and the product connected.</span></h2><div className="ap-steps"><article><span>01</span><h3>Connect how you get paid.</h3><p>Connect Stripe or another payment system. APEX follows purchases, renewals, upgrades, cancellations, and failures.</p></article><article><span>02</span><h3>Say what each plan includes.</h3><p>Example: Pro means 5,000 credits, 10 seats, and premium reports.</p></article><article><span>03</span><h3>Let the product check APEX.</h3><p>Before an action happens, your product can ask: is this customer allowed, and do they have enough left?</p></article></div></section>
 
       <DeveloperSection/>
 
-      <section className="ap-final-cta"><p className="ap-eyebrow">THE SIMPLE VERSION.</p><h2>Payment takes the money.<br/>APEX updates what they get.</h2><div className="ap-final-actions"><a href="#start" className="ap-button">Start with APEX <ArrowRight size={17}/></a><a href="#playground" className="ap-text-button">Try it yourself <ArrowRight size={17}/></a><a href="#forma" className="ap-text-button">Open the Forma demo app <ArrowRight size={17}/></a></div></section>
+      <section className="ap-final-cta"><p className="ap-eyebrow">THE SIMPLE VERSION.</p><h2>Make sure what you sell<br/>is what customers get.</h2><div className="ap-final-actions"><a href="#start" className="ap-button">Start with APEX <ArrowRight size={17}/></a><a href="#playground" className="ap-text-button">Try it yourself <ArrowRight size={17}/></a><a href="#forma" className="ap-text-button">Open the Forma demo app <ArrowRight size={17}/></a></div></section>
     </main>
 
-    <footer className="ap-footer ap-container"><a href="#" className="ap-logo">APEX</a><p>The commercial layer between payment and product access.</p><a href="#start">Start with APEX <ExternalLink size={13}/></a><a href="#forma">Open the Forma demo app <ExternalLink size={13}/></a><a href="#console">Open behind-the-scenes controls <ExternalLink size={13}/></a><small>Product preview. All transactions are simulated.</small></footer>
+    <footer className="ap-footer ap-container"><a href="#" className="ap-logo">APEX</a><p>APEX keeps plans, payments, usage limits, credits, and product access in sync.</p><a href="#start">Start with APEX <ExternalLink size={13}/></a><a href="#forma">Open the Forma demo app <ExternalLink size={13}/></a><a href="#console">Open behind-the-scenes controls <ExternalLink size={13}/></a><small>Product preview. All transactions are simulated.</small></footer>
 
     <dialog ref={film} className="ap-film-dialog" aria-label="APEX product walkthrough" onCancel={closeFilm} onClick={e => { if (e.target === e.currentTarget) closeFilm(); }}>
       <button autoFocus className="ap-close-film" aria-label="Close film" onClick={closeFilm}><X/></button>
@@ -288,7 +289,7 @@ function DeveloperSection() {
   };
 
   return <section className="ap-developers" id="developers"><div className="ap-container ap-developer-grid">
-    <div><p className="ap-eyebrow">FOR THE ENGINEERING TEAM.</p><h2>Simple for the customer.<br/><span>Useful for the developer.</span></h2><p>The business explanation is simple. The integration can be simple too: connect payments, tell APEX what each plan includes, report usage, and let the app read the current customer state.</p><ul><li><Check size={17}/> Brandable customer components</li><li><Check size={17}/> Backend usage tracking</li><li><Check size={17}/> Plan, credit, and payment-state events</li></ul><a href="#console">Open the behind-the-scenes sandbox <ArrowRight size={16}/></a></div>
+    <div><p className="ap-eyebrow">HOW IT ACTUALLY WORKS.</p><h2>Built to keep your product<br/><span>and pricing connected.</span></h2><p><strong>Stripe → APEX → Your product.</strong> Stripe handles payments. APEX connects plans, payment state, usage, credits, access decisions, and audit history, and your product asks APEX what a customer is allowed to do.</p><ul><li><Check size={17}/> Plans, payment state, and entitlements in one place</li><li><Check size={17}/> Usage and credit tracking through a server-side API</li><li><Check size={17}/> Runtime access decisions and an audit history of why access changed</li></ul><a href="#console">Open the behind-the-scenes sandbox <ArrowRight size={16}/></a></div>
     <div className="ap-code-card"><div className="ap-code-toolbar"><div><button aria-pressed={tab === 'embed'} onClick={() => { setTab('embed'); setCopied(false); }}>Show UI</button><button aria-pressed={tab === 'usage'} onClick={() => { setTab('usage'); setCopied(false); }}>Report usage</button></div><button aria-label="Copy illustrative integration code" onClick={async () => { try { await navigator.clipboard.writeText(snippets[tab]); setCopied(true); setError(false); window.setTimeout(() => setCopied(false), 2000); } catch { setError(true); } }}>{copied ? <Check size={15}/> : <Copy size={15}/>}</button></div><pre><code>{snippets[tab]}</code></pre><div className="ap-code-foot" role="status"><Code2 size={14}/>{error ? 'Clipboard unavailable. Select the code to copy it.' : copied ? 'Illustrative code copied' : 'API design preview · not a published SDK'}</div></div>
   </div></section>;
 }
