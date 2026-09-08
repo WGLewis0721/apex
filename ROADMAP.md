@@ -152,6 +152,59 @@ not re-illustrated; the console's 15 operator pages were not individually
 redesigned beyond shared chrome accents, consistent with Phase 4's "finish the
 implementation without introducing unnecessary infrastructure."
 
+### Homepage story recomposition — September 8, 2026
+
+Same brand (palette, typography, existing assets) — no new visual direction. Turned
+the homepage from a sequence of explained sections into one unfolding story told
+through a single recurring customer, "Jordan," per Typeform/Pitch/Dropbox-style
+execution principles (simple staged actions, large product imagery over
+explanation, one consistent visual family). Homepage-only change; routes, the
+account/backend flow, the product film, the Forma/console demos, and accessibility
+behavior are unchanged.
+
+**Done:**
+- **Hero**: added a small ambient badge over the sculpture art that cycles through
+  "Payment confirmed → 10 credits added → Access unlocked" (static list, no motion,
+  under `prefers-reduced-motion`).
+- **Jordan story** (new, replaces the old 3-motif "Customer pays → Credits appear
+  → Your app is ready" row): a full-bleed cobalt scene — Jordan buys Pro for
+  $29/mo, an oversized number animates 10 → 7 as credits are spent (scroll-triggered
+  once, "Watch it again" to replay, shows the final "7" immediately with no
+  animation under reduced motion), "Product access stays on the whole time,"
+  then a link into the real Forma demo.
+- **Business payoff** (new, replaces three separate sections — a 3-card "what APEX
+  means for your business" grid, a "why access changed" card, and a 3-card "what
+  APEX keeps in sync" feature grid): one floating product-UI close-up (a small
+  audit-log window: Payment confirmed / Pro activated / 10 credits added / Access
+  changed) beside one headline, one sentence, and a "See what happened" progressive
+  disclosure — instead of three more cards.
+- **"Your app. Your look."**: the three illustrative examples now read as different
+  products, not the same card recolored — distinct shape/corner treatment per
+  example (pill-rounded + slightly rotated, sharp-cornered, soft/rotated the other
+  way), not just a different accent color.
+- **For developers**: the old standalone 3-step "how you build it" section folded
+  into a collapsed `<details>` disclosure inside the existing dark developer
+  section, so the mechanic is still there without being its own card grid.
+- Composition now alternates: quiet ivory hero → dark film → full-bleed cobalt
+  scene → quiet ivory demo → floating cards → quiet lilac-wash payoff → dark
+  developer reveal → quiet ivory close. No two conventional card-grid sections
+  run back to back. Cut roughly 40% of the homepage's explanatory copy by removing
+  the three sections consolidated into the one payoff scene, rather than trimming
+  sentences in place.
+- Contrast-checked every new color pairing against WCAG AA and fixed two failures
+  found this way (light-blue captions on the cobalt scene were under 4.5:1).
+- Verified: `npm test` (36/36), `npm run build`, and `tsc -b` pass. Rechecked for
+  horizontal overflow at 320/390/768/1024/1440px — zero. Verified interactively:
+  keyboard tab order, `prefers-reduced-motion` (both the hero badge and the Jordan
+  countdown skip animation and show final state), the film modal, and that
+  `#forma`/`#start`/`#console` still load correctly.
+
+**Not done:** no new illustration assets were created (the brand kit's existing
+SVG motifs and sculpture PNG remain the only imagery); the "10 → 7" countdown
+lands on a fixed narrative (bought 10, used 3) rather than reflecting live demo
+state, since it's telling one consistent story rather than pulling from the
+Playground's separate simulated account.
+
 ## Phase 2 — Accounts + backend foundation
 
 **Systems:** Accounts + Workspaces.

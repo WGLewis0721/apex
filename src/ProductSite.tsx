@@ -1,5 +1,5 @@
 import { CSSProperties, lazy, Suspense, useEffect, useReducer, useRef, useState } from 'react';
-import { ArrowRight, Check, CheckCircle2, ChevronRight, Code2, Copy, CreditCard, ExternalLink, Gauge, Layers, Maximize2, Pause, Play, Plus, RotateCcw, Sparkles, X } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, ChevronRight, Code2, Copy, CreditCard, ExternalLink, Layers, Maximize2, Pause, Play, Plus, Receipt, RotateCcw, Sparkles, Unlock, X } from 'lucide-react';
 import { allowance, embeddedReducer, initialEmbedded, plans } from './lib/embeddedDemo';
 import './product.css';
 import './plain-language.css';
@@ -110,6 +110,7 @@ export default function ProductSite() {
           </div>
           <div className="ap-hero-art-col">
             <img className="ap-hero-art" src={asset('brand-v1/apex-access-sculpture.png')} alt="A sculptural still life: a cobalt ribbon threading an ivory arch, tangerine credit discs, a lilac sphere, and a checked access pass." width={1536} height={1024} loading="eager"/>
+            <FlowBadge/>
           </div>
         </div>
 
@@ -136,30 +137,7 @@ export default function ProductSite() {
         <p className="ap-underfilm"><strong>Stripe handles the payment.</strong> <span className="ap-rust">APEX helps make sure your product responds correctly.</span></p>
       </section>
 
-      <section className="ap-story" id="what-it-does" aria-label="How payment becomes product access">
-        <div className="ap-story-head">
-          <p className="ap-eyebrow">HOW IT WORKS.</p>
-          <h2>Customer pays.<br/><span>Credits appear. Your app is ready.</span></h2>
-          <p>Stripe handles the payment. APEX turns that event into credits, plan rights, and product access — automatically.</p>
-        </div>
-        <div className="ap-story-row">
-          <figure className="ap-story-step">
-            <img src={asset('brand-v1/connection.svg')} alt="A payment connects to product access"/>
-            <figcaption><b>Customer pays.</b><span>Stripe, Link, or another provider confirms the charge.</span></figcaption>
-          </figure>
-          <ArrowRight className="ap-story-arrow" size={22}/>
-          <figure className="ap-story-step">
-            <img src={asset('brand-v1/credits.svg')} alt="Usage credits appear"/>
-            <figcaption><b>Credits appear.</b><span>APEX knows what the plan includes and activates it.</span></figcaption>
-          </figure>
-          <ArrowRight className="ap-story-arrow" size={22}/>
-          <figure className="ap-story-step">
-            <img src={asset('brand-v1/access-pass.svg')} alt="Customer access is enabled"/>
-            <figcaption><b>Your app is ready.</b><span>Access updates itself as they use, upgrade, or cancel.</span></figcaption>
-          </figure>
-        </div>
-        <a className="ap-button" href="#start">Start with APEX <ArrowRight size={16}/></a>
-      </section>
+      <JordanStory/>
 
       <Playground/>
 
@@ -171,11 +149,11 @@ export default function ProductSite() {
         </div>
         <div className="ap-yourlook-row">
           {[
-            { name: 'Studio', label: 'Creator tool · illustrative example', accent: 'var(--brand-tangerine)', text: 'var(--brand-ink)', plan: 'Creator plan', credits: 620, total: 1000 },
-            { name: 'Northwind', label: 'Reporting app · illustrative example', accent: 'var(--brand-cobalt)', text: '#fff', plan: 'Team plan', credits: 340, total: 500 },
-            { name: 'Circle', label: 'Membership product · illustrative example', accent: 'var(--brand-lilac)', text: 'var(--brand-ink)', plan: 'Member plan', credits: 90, total: 250 },
+            { name: 'Studio', label: 'Creator tool · illustrative example', accent: 'var(--brand-tangerine)', text: 'var(--brand-ink)', plan: 'Creator plan', credits: 620, total: 1000, shape: 'is-round' },
+            { name: 'Northwind', label: 'Reporting app · illustrative example', accent: 'var(--brand-cobalt)', text: '#fff', plan: 'Team plan', credits: 340, total: 500, shape: 'is-sharp' },
+            { name: 'Circle', label: 'Membership product · illustrative example', accent: 'var(--brand-lilac)', text: 'var(--brand-ink)', plan: 'Member plan', credits: 90, total: 250, shape: 'is-soft' },
           ].map((ex) => (
-            <article className="ap-yourlook-card" key={ex.name} style={{ '--ap-yl-accent': ex.accent, '--ap-yl-text': ex.text } as CSSProperties}>
+            <article className={`ap-yourlook-card ${ex.shape}`} key={ex.name} style={{ '--ap-yl-accent': ex.accent, '--ap-yl-text': ex.text } as CSSProperties}>
               <div className="ap-yourlook-top"><span className="ap-yourlook-dot"/><b>{ex.name}</b></div>
               <div className="ap-yourlook-plan"><span>{ex.plan}</span><b>{ex.credits.toLocaleString()} <small>/ {ex.total.toLocaleString()} credits</small></b></div>
               <div className="ap-track"><span style={{ width: `${(ex.credits / ex.total) * 100}%`, background: 'var(--ap-yl-accent)' }}/></div>
@@ -186,31 +164,7 @@ export default function ProductSite() {
         </div>
       </section>
 
-      <section className="ap-audiences" aria-label="What APEX means for your business">
-        <div className="ap-audience-grid">
-          <article className="ap-audience"><small>SELL WITH CONFIDENCE</small><h3>What you promise is what the software delivers.</h3><p>Finance, sales, and product all describe the same plan. <strong>APEX makes sure the product agrees with the offer your customer actually bought.</strong></p></article>
-          <article className="ap-audience"><small>PROTECT REVENUE</small><h3>Fewer things given away by accident.</h3><p>Over-delivery, access that continues after a payment fails, and manual credits all cost money. <strong>APEX reduces the gap between what is paid for and what is used.</strong></p></article>
-          <article className="ap-audience"><small>CHANGE OFFERS MORE EASILY</small><h3>Pricing changes should not be a rebuild.</h3><p>Plans, limits, credits, upgrades, and cancellations live in one place. <strong>Business rules stop being scattered through the application.</strong></p></article>
-        </div>
-      </section>
-
-      <section className="ap-house">
-        <div className="ap-house-card">
-          <div><p className="ap-eyebrow">KNOW WHY ACCESS CHANGED.</p><h2>Every change should have a reason.</h2><p>Customers gain and lose access every day: they upgrade, they cancel, a card fails, a limit is reached. When someone asks why a customer could or could not do something, the answer should not be a guess.</p><p><strong>APEX keeps the plan, the payment state, and the usage that produced each access decision — so support, finance, and product see the same story.</strong></p></div>
-          <div className="ap-house-parts"><div><span>What they bought</span><b>Plan, limits, credits</b></div><div><span>What changed</span><b>Payment, upgrade, cancellation, usage</b></div><div><span>What happened next</span><b>Access allowed or stopped</b></div></div>
-        </div>
-      </section>
-
-      <section className="ap-product ap-container" id="product">
-        <div className="ap-section-heading"><p className="ap-eyebrow">WHAT APEX KEEPS IN SYNC.</p><h2>The paid part of your product,<br/>already thought through.</h2><p>Plans, payments, usage, credits, and access, kept consistent with each other.</p></div>
-        <div className="ap-feature-grid">
-          <article className="ap-feature-card"><div className="ap-feature-icon"><CreditCard/></div><h3>Know who is paying.</h3><p>Subscriptions, renewals, failed payments, upgrades, and cancellations stay tied to the right customer.</p><div className="ap-payment-example"><span className="ap-avatar-small">AC</span><div><b>Acme Studio</b><small>Pro subscription</small></div><div><b>$79.00</b><small className="ap-green">● Paid</small></div></div><div className="ap-mini-note"><CheckCircle2 size={14}/> Customer access updated</div></article>
-          <article className="ap-feature-card"><div className="ap-feature-icon"><Gauge/></div><h3>Know what is left.</h3><p>Credits, tokens, API calls, seats, or another allowance. The balance and the rules that govern it stay together.</p><div className="ap-mini-meter"><div><span>AI tokens</span><b>750 <small>/ 1,000</small></b></div><div className="ap-track"><span style={{ width: '75%' }}/></div><small>250 tokens left before an upgrade is needed.</small></div></article>
-          <article className="ap-feature-card"><div className="ap-feature-icon"><Layers/></div><h3>Keep it inside your product.</h3><p>Show plans, balances, and upgrades without making customers feel like they left your product to deal with billing.</p><div className="ap-mini-themes"><div style={{ '--embed-accent': '#315BFF' } as CSSProperties}>Forma<span>Upgrade plan <ArrowRight size={12}/></span></div><div style={{ '--embed-accent': '#F27649' } as CSSProperties}>studio<span>Add credits <ArrowRight size={12}/></span></div></div></article>
-        </div>
-      </section>
-
-      <section className="ap-how ap-container" id="how-it-works"><p className="ap-eyebrow">THREE STEPS.</p><h2>You build the product.<br/><span>APEX keeps the offer and the product connected.</span></h2><div className="ap-steps"><article><span>01</span><h3>Connect how you get paid.</h3><p>Connect Stripe or another payment system. APEX follows purchases, renewals, upgrades, cancellations, and failures.</p></article><article><span>02</span><h3>Say what each plan includes.</h3><p>Example: Pro means 5,000 credits, 10 seats, and premium reports.</p></article><article><span>03</span><h3>Let the product check APEX.</h3><p>Before an action happens, your product can ask: is this customer allowed, and do they have enough left?</p></article></div></section>
+      <Payoff/>
 
       <DeveloperSection/>
 
@@ -225,6 +179,165 @@ export default function ProductSite() {
       <p>APEX product walkthrough · 36 seconds · simulated data · silent film</p>
     </dialog>
   </div>;
+}
+
+const FLOW_STEPS = [
+  { icon: Receipt, text: 'Payment confirmed' },
+  { icon: Sparkles, text: '10 credits added' },
+  { icon: Unlock, text: 'Access unlocked' },
+] as const;
+
+// A small ambient badge over the hero art, cycling through the same
+// payment -> credits -> access sequence the rest of the page tells in full.
+// Purely illustrative text, no motion, when prefers-reduced-motion is set.
+function FlowBadge() {
+  const [step, setStep] = useState(0);
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(motion.matches);
+    const onChange = () => setReduced(motion.matches);
+    motion.addEventListener('change', onChange);
+    return () => motion.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    if (reduced) return;
+    const timer = window.setInterval(() => setStep(s => (s + 1) % FLOW_STEPS.length), 1900);
+    return () => window.clearInterval(timer);
+  }, [reduced]);
+
+  if (reduced) {
+    return (
+      <ul className="ap-flow-badge is-static" aria-label="Payment becomes product access">
+        {FLOW_STEPS.map(({ icon: Icon, text }) => <li key={text}><Icon size={13}/> {text}</li>)}
+      </ul>
+    );
+  }
+
+  const Icon = FLOW_STEPS[step].icon;
+  return (
+    <p className="ap-flow-badge" role="status" aria-live="polite">
+      <Icon size={13}/> {FLOW_STEPS[step].text}
+    </p>
+  );
+}
+
+const JORDAN_CREDITS = [10, 9, 8, 7];
+
+// The canonical APEX story, told once, start to finish, with one customer:
+// Jordan buys Pro, spends three credits, keeps working the whole time.
+function JordanStory() {
+  const [tick, setTick] = useState(0);
+  const [reduced, setReduced] = useState(false);
+  const [played, setPlayed] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(motion.matches);
+  }, []);
+
+  useEffect(() => {
+    if (reduced || played) return;
+    const el = sectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setPlayed(true);
+      let n = 0;
+      const timer = window.setInterval(() => {
+        n += 1;
+        setTick(n);
+        if (n >= JORDAN_CREDITS.length - 1) window.clearInterval(timer);
+      }, 650);
+    }, { threshold: 0.5 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [reduced, played]);
+
+  function replay() {
+    setTick(0);
+    window.setTimeout(() => {
+      let n = 0;
+      const timer = window.setInterval(() => {
+        n += 1;
+        setTick(n);
+        if (n >= JORDAN_CREDITS.length - 1) window.clearInterval(timer);
+      }, 650);
+    }, 150);
+  }
+
+  const credits = reduced ? JORDAN_CREDITS[JORDAN_CREDITS.length - 1] : JORDAN_CREDITS[tick];
+
+  return (
+    <section className="ap-jordan" id="what-it-does" aria-label="One customer, start to finish" ref={sectionRef}>
+      <div className="ap-jordan-inner">
+        <p className="ap-eyebrow ap-jordan-eyebrow">ONE CUSTOMER, START TO FINISH.</p>
+        <div className="ap-jordan-receipt"><Receipt size={14}/> Jordan chooses Pro <span>· $29/mo</span></div>
+
+        <div className="ap-jordan-number" aria-live="polite">
+          <span className="ap-jordan-disc ap-jordan-disc-a" aria-hidden="true"/>
+          <span className="ap-jordan-disc ap-jordan-disc-b" aria-hidden="true"/>
+          <span className="ap-jordan-disc ap-jordan-disc-c" aria-hidden="true"/>
+          <b>{credits}</b>
+        </div>
+        <p className="ap-jordan-caption">
+          {reduced
+            ? 'Jordan bought 10 credits, used 3, and has 7 credits left.'
+            : tick === 0 ? '10 credits, just activated.' : `Jordan has ${credits} credits left.`}
+        </p>
+
+        <div className="ap-jordan-unlocked">
+          <Unlock size={14}/> Product access stays on the whole time <span>— no manual step, no lockout.</span>
+        </div>
+
+        {!reduced && played && tick === JORDAN_CREDITS.length - 1 && (
+          <button type="button" className="ap-jordan-replay" onClick={replay}><RotateCcw size={13}/> Watch it again</button>
+        )}
+
+        <a className="ap-jordan-cta" href="#forma">See it live in Forma <ArrowRight size={15}/></a>
+      </div>
+    </section>
+  );
+}
+
+const PAYOFF_EVENTS = ['Payment confirmed', 'Pro activated', '10 credits added', 'Access changed'];
+
+// The one business-value idea worth making, made once, as a product
+// close-up instead of three more "here's why we're great" cards.
+function Payoff() {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <section className="ap-payoff-band" aria-label="Why every access change has a reason">
+      <div className="ap-payoff">
+        <div className="ap-payoff-visual">
+          <div className="ap-payoff-window">
+            <div className="ap-payoff-window-top"><i/><i/><i/><span>Audit log</span></div>
+            <ul className="ap-payoff-log">
+              {PAYOFF_EVENTS.map(e => <li key={e}><CheckCircle2 size={14}/> {e}</li>)}
+            </ul>
+          </div>
+        </div>
+        <div className="ap-payoff-copy">
+          <p className="ap-eyebrow">KNOW WHY ACCESS CHANGED.</p>
+          <h2>Every change has a reason.</h2>
+          <p>Support, finance, and product see the same story — not a guess.</p>
+          <button type="button" className="ap-payoff-toggle" aria-expanded={expanded} onClick={() => setExpanded(v => !v)}>
+            See what happened <ChevronRight size={14} className={expanded ? 'is-open' : ''}/>
+          </button>
+          {expanded && (
+            <div className="ap-payoff-detail">
+              <div><span>What they bought</span><b>Plan, limits, credits</b></div>
+              <div><span>What changed</span><b>Payment, upgrade, cancellation, usage</b></div>
+              <div><span>What happened next</span><b>Access allowed or stopped</b></div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function Playground() {
@@ -322,7 +435,9 @@ function DeveloperSection() {
   };
 
   return <section className="ap-developers" id="developers"><div className="ap-container ap-developer-grid">
-    <div><p className="ap-eyebrow">HOW IT ACTUALLY WORKS.</p><h2>Built to keep your product<br/><span>and pricing connected.</span></h2><p><strong>Stripe → APEX → Your product.</strong> Stripe handles payments. APEX connects plans, payment state, usage, credits, access decisions, and audit history, and your product asks APEX what a customer is allowed to do.</p><ul><li><Check size={17}/> Plans, payment state, and entitlements in one place</li><li><Check size={17}/> Usage and credit tracking through a server-side API</li><li><Check size={17}/> Runtime access decisions and an audit history of why access changed</li></ul><a href="#console">Open the behind-the-scenes sandbox <ArrowRight size={16}/></a></div>
+    <div><p className="ap-eyebrow">HOW IT ACTUALLY WORKS.</p><h2>Built to keep your product<br/><span>and pricing connected.</span></h2><p><strong>Stripe → APEX → Your product.</strong> Stripe handles payments. APEX connects plans, payment state, usage, credits, access decisions, and audit history, and your product asks APEX what a customer is allowed to do.</p>
+      <details className="ap-dev-steps"><summary>How you'd wire it up <ChevronRight size={13}/></summary><ol><li><b>Connect how you get paid.</b> Stripe or another payment system — APEX follows purchases, renewals, upgrades, cancellations, and failures.</li><li><b>Say what each plan includes.</b> Example: Pro means 5,000 credits, 10 seats, and premium reports.</li><li><b>Let the product check APEX.</b> Before an action happens, ask: is this customer allowed, and do they have enough left?</li></ol></details>
+      <a href="#console">Open the behind-the-scenes sandbox <ArrowRight size={16}/></a></div>
     <div className="ap-code-card"><div className="ap-code-toolbar"><div><button aria-pressed={tab === 'embed'} onClick={() => { setTab('embed'); setCopied(false); }}>Show UI</button><button aria-pressed={tab === 'usage'} onClick={() => { setTab('usage'); setCopied(false); }}>Report usage</button></div><button aria-label="Copy illustrative integration code" onClick={async () => { try { await navigator.clipboard.writeText(snippets[tab]); setCopied(true); setError(false); window.setTimeout(() => setCopied(false), 2000); } catch { setError(true); } }}>{copied ? <Check size={15}/> : <Copy size={15}/>}</button></div><pre><code>{snippets[tab]}</code></pre><div className="ap-code-foot" role="status"><Code2 size={14}/>{error ? 'Clipboard unavailable. Select the code to copy it.' : copied ? 'Illustrative code copied' : 'API design preview · not a published SDK'}</div></div>
   </div></section>;
 }

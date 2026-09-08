@@ -149,6 +149,7 @@
   text-align: left;
 }
 .ap-hero-art-col {
+  position: relative;
   display: flex;
   justify-content: center;
 }
@@ -336,18 +337,6 @@
 .ap-video-fallback a {
   text-decoration: underline;
 }
-.ap-product {
-  padding-top: var(--ap-section-y);
-  padding-bottom: var(--ap-section-y);
-}
-.ap-section-heading {
-  text-align: center;
-  max-width: 68ch;
-  margin: 0 auto;
-}
-.ap-section-heading .ap-eyebrow {
-  color: #897f70;
-}
 .ap-site h2 {
   font-size: var(--ap-h2);
   line-height: 1.1;
@@ -355,114 +344,6 @@
   letter-spacing: -0.04em;
   margin: var(--sp-4) 0;
   text-wrap: balance;
-}
-.ap-section-heading > p:last-child {
-  font-size: var(--ap-lead);
-  line-height: var(--lh-body);
-  color: #83796b;
-}
-.ap-feature-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--ap-card-gap);
-  margin-top: var(--sp-8);
-}
-.ap-feature-card {
-  border-radius: 22px;
-  background: #f5f3ee;
-  padding: var(--sp-6);
-  overflow: hidden;
-}
-.ap-feature-icon {
-  margin-bottom: var(--sp-5);
-  color: #6a6257;
-}
-.ap-feature-icon svg {
-  width: 27px;
-  height: 27px;
-  stroke-width: 1.5;
-}
-.ap-feature-card h3 {
-  font-size: var(--ap-h3);
-  letter-spacing: -0.04em;
-  font-weight: 650;
-  line-height: var(--lh-heading);
-  margin-bottom: var(--sp-2);
-}
-.ap-feature-card > p {
-  font-size: var(--ap-small);
-  line-height: var(--lh-body);
-  color: #877d6f;
-  min-height: 94px;
-}
-.ap-payment-example {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  background: #fff;
-  padding: 16px 11px;
-  border: 1px solid #eee9e0;
-  border-radius: 12px;
-  font-size: 11px;
-  margin-top: 25px;
-}
-.ap-avatar-small {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  background: #f9f8f5;
-  color: #5b7cff;
-  border-radius: 9px;
-  font-size: 10px;
-  font-weight: 600;
-}
-.ap-payment-example > div:last-child {
-  margin-left: auto;
-  text-align: right;
-}
-.ap-payment-example b,
-.ap-payment-example small {
-  display: block;
-}
-.ap-payment-example small {
-  font-size: 9px;
-  color: #9f968a;
-  margin-top: 3px;
-}
-.ap-payment-example .ap-green {
-  color: #078264;
-}
-.ap-mini-note {
-  color: #8e8374;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  margin: 12px 0 0 4px;
-}
-.ap-mini-note svg {
-  color: #079475;
-}
-.ap-mini-meter {
-  background: #fff;
-  border: 1px solid #eee9e0;
-  border-radius: 12px;
-  padding: 20px 15px;
-  margin-top: 25px;
-}
-.ap-mini-meter > div:first-child {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-}
-.ap-mini-meter b {
-  font-size: 13px;
-}
-.ap-mini-meter b small {
-  font-size: 10px;
-  color: #968c7f;
-  font-weight: 400;
 }
 .ap-track {
   width: 100%;
@@ -479,47 +360,6 @@
   transition:
     width 0.5s ease,
     background 0.3s;
-}
-.ap-mini-meter .ap-track {
-  margin: 15px 0 9px;
-}
-.ap-mini-meter > small {
-  color: #9a9184;
-  font-size: 10px;
-}
-.ap-mini-themes {
-  display: flex;
-  gap: 10px;
-  margin-top: 25px;
-}
-.ap-mini-themes > div {
-  flex: 1;
-  min-width: 0;
-  background: white;
-  border: 1px solid #eee9e0;
-  border-radius: 12px;
-  padding: 13px 11px;
-  font-weight: 650;
-  font-size: 13px;
-}
-.ap-mini-themes > div:last-child {
-  font-family: Georgia, serif;
-  font-style: italic;
-}
-.ap-mini-themes span {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--embed-accent);
-  font:
-    8px -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  color: #fff;
-  border-radius: 6px;
-  padding: 9px 7px;
-  margin-top: 17px;
 }
 .ap-playground-section {
   padding: var(--ap-section-y) 0;
@@ -1162,44 +1002,42 @@
 .ap-invoice-list svg {
   color: var(--embed-accent);
 }
-.ap-how {
-  padding-top: var(--ap-section-y);
-  padding-bottom: var(--ap-section-y);
+.ap-dev-steps {
+  margin: var(--sp-5) 0;
 }
-.ap-how > .ap-eyebrow {
-  color: #8e8475;
-}
-.ap-how h2 {
-  margin-bottom: var(--sp-8);
-}
-.ap-how h2 span {
-  color: #a79f93;
-}
-.ap-steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--sp-8);
-}
-.ap-steps article {
-  border-top: 1px solid #e8e2d7;
-  padding-top: 20px;
-}
-.ap-steps article > span {
-  font-size: 11px;
-  color: #aea69b;
-}
-.ap-steps h3 {
-  font-size: var(--ap-h4);
-  font-weight: 620;
-  letter-spacing: -0.04em;
-  line-height: var(--lh-heading);
-  margin: var(--sp-4) 0 var(--sp-2);
-}
-.ap-steps p {
+.ap-dev-steps > summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--ap-small);
-  color: #968c7e;
-  line-height: 1.7;
-  max-width: 280px;
+  font-weight: 600;
+  color: #c9c0b0;
+}
+.ap-dev-steps > summary::-webkit-details-marker {
+  display: none;
+}
+.ap-dev-steps > summary svg {
+  transition: transform 0.15s ease;
+}
+.ap-dev-steps[open] > summary svg {
+  transform: rotate(90deg);
+}
+.ap-dev-steps ol {
+  margin: var(--sp-4) 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: var(--sp-3);
+}
+.ap-dev-steps li {
+  font-size: var(--ap-small);
+  color: #a29a8e;
+  line-height: var(--lh-body);
+}
+.ap-dev-steps li b {
+  color: #f9f7f3;
+  font-weight: 600;
 }
 .ap-developers {
   background: #0e1726;
@@ -1941,68 +1779,296 @@
   text-align: center;
 }
 /* Visual story: "Customer pays -> Credits appear -> Your app is ready." */
-.ap-story {
-  padding: var(--ap-section-y) var(--ap-gutter);
-  text-align: center;
-}
-.ap-story-head {
-  max-width: 62ch;
-  margin: 0 auto var(--sp-9);
-}
-.ap-story-head h2 {
-  font-size: var(--ap-h2);
-  line-height: 1.1;
-  margin: var(--sp-2) 0 var(--sp-4);
-  text-wrap: balance;
-}
-.ap-story-head p {
-  font-size: var(--ap-lead);
-  line-height: var(--lh-body);
-  color: #5c5346;
-}
-.ap-story-row {
-  max-width: var(--ap-max);
-  margin: 0 auto var(--sp-8);
-  display: flex;
+/* Small ambient badge floating over the hero art -- Phase 1's
+   payment -> credits -> access sequence, told in one line, in miniature. */
+.ap-flow-badge {
+  position: absolute;
+  left: 0;
+  bottom: 6%;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--sp-6);
-}
-.ap-story-step {
-  flex: 1 1 260px;
-  max-width: 300px;
+  gap: 7px;
   margin: 0;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 14px 34px -18px rgba(22, 36, 58, 0.35);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ap-ink);
 }
-.ap-story-step img {
-  width: 100%;
-  max-width: 220px;
-  height: auto;
-  margin: 0 auto var(--sp-5);
-  display: block;
-}
-.ap-story-step figcaption b {
-  display: block;
-  font-size: var(--ap-h3);
-  letter-spacing: -0.02em;
-  margin-bottom: var(--sp-2);
-}
-.ap-story-step figcaption span {
-  display: block;
-  font-size: var(--ap-small);
-  color: #5c5346;
-  line-height: var(--lh-body);
-}
-.ap-story-arrow {
-  color: #c9c0b0;
+.ap-flow-badge svg {
+  color: var(--brand-cobalt);
   flex: 0 0 auto;
 }
+.ap-flow-badge.is-static {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  list-style: none;
+  padding: 14px 18px;
+  font-size: 12px;
+}
+.ap-flow-badge.is-static li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
 @media (max-width: 900px) {
-  .ap-story-row {
-    flex-direction: column;
-    gap: var(--sp-7);
+  .ap-flow-badge {
+    position: static;
+    margin-top: var(--sp-4);
   }
-  .ap-story-arrow {
-    transform: rotate(90deg);
+}
+
+/* Jordan's story: one customer, told full-bleed, in cobalt. */
+.ap-jordan {
+  background: var(--brand-cobalt);
+  color: #fff;
+  padding: var(--ap-section-y) var(--ap-gutter);
+  text-align: center;
+  overflow: hidden;
+}
+.ap-jordan-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ap-jordan-eyebrow {
+  color: #eef1ff;
+}
+.ap-jordan-receipt {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: var(--sp-5) 0 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ap-jordan-receipt span {
+  font-weight: 500;
+  color: #eef1ff;
+}
+.ap-jordan-number {
+  position: relative;
+  margin: var(--sp-8) 0 var(--sp-4);
+  display: grid;
+  place-items: center;
+  width: 220px;
+  height: 220px;
+}
+.ap-jordan-number b {
+  font-family: var(--brand-display);
+  font-size: clamp(96px, 14vw, 148px);
+  font-weight: 600;
+  line-height: 1;
+  z-index: 1;
+}
+.ap-jordan-disc {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--brand-tangerine);
+  opacity: 0.9;
+}
+.ap-jordan-disc-a {
+  width: 46px;
+  height: 46px;
+  top: 6%;
+  left: 4%;
+}
+.ap-jordan-disc-b {
+  width: 30px;
+  height: 30px;
+  bottom: 10%;
+  right: 2%;
+  background: var(--brand-lilac);
+}
+.ap-jordan-disc-c {
+  width: 34px;
+  height: 34px;
+  bottom: 2%;
+  left: 14%;
+  background: var(--brand-tangerine);
+}
+.ap-jordan-caption {
+  font-size: var(--ap-lead);
+  font-weight: 600;
+  margin: 0;
+}
+.ap-jordan-unlocked {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: var(--sp-6);
+  font-size: 13px;
+  color: #eef1ff;
+}
+.ap-jordan-unlocked svg {
+  color: #8bffc7;
+  flex: 0 0 auto;
+}
+.ap-jordan-unlocked span {
+  color: #eef1ff;
+}
+.ap-jordan-replay {
+  margin-top: var(--sp-5);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 15px;
+}
+.ap-jordan-cta {
+  margin-top: var(--sp-7);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-size: var(--ap-small);
+  font-weight: 650;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  padding-bottom: 2px;
+}
+@media (max-width: 580px) {
+  .ap-jordan-number {
+    width: 180px;
+    height: 180px;
+  }
+}
+
+/* Business payoff: one product close-up, not three more cards. A quiet
+   lilac wash separates it from the ivory sections on either side. */
+.ap-payoff-band {
+  background: linear-gradient(180deg, rgba(200, 188, 246, 0.16), rgba(200, 188, 246, 0.28));
+}
+.ap-payoff {
+  max-width: var(--ap-max);
+  margin: 0 auto;
+  padding: var(--ap-section-y) var(--ap-gutter);
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: var(--sp-9);
+  align-items: center;
+}
+.ap-payoff-window {
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid #ede7d9;
+  box-shadow: 0 30px 70px -40px rgba(22, 36, 58, 0.3);
+  overflow: hidden;
+  transform: rotate(-1.2deg);
+}
+.ap-payoff-window-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #f0ece3;
+}
+.ap-payoff-window-top i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e3ddcf;
+}
+.ap-payoff-window-top span {
+  margin-left: 8px;
+  font-size: 11px;
+  color: #a29a8e;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.ap-payoff-log {
+  list-style: none;
+  margin: 0;
+  padding: 20px 20px 22px;
+  display: grid;
+  gap: 14px;
+}
+.ap-payoff-log li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ap-payoff-log svg {
+  color: #0d7a4f;
+  flex: 0 0 auto;
+}
+.ap-payoff-copy p.ap-eyebrow {
+  color: #5c5346;
+}
+.ap-payoff-copy > p {
+  font-size: var(--ap-lead);
+  color: #5c5346;
+  margin-bottom: var(--sp-4);
+}
+.ap-payoff-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  color: var(--brand-cobalt);
+  font-size: var(--ap-small);
+  font-weight: 650;
+  padding: 0;
+}
+.ap-payoff-toggle svg {
+  transition: transform 0.15s ease;
+}
+.ap-payoff-toggle svg.is-open {
+  transform: rotate(90deg);
+}
+.ap-payoff-detail {
+  margin-top: var(--sp-4);
+  display: grid;
+  gap: var(--sp-2);
+  max-width: 360px;
+}
+.ap-payoff-detail div {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: 14px;
+  background: #fbf8f1;
+  border: 1px solid #ede7d9;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-4);
+}
+.ap-payoff-detail span {
+  font-weight: 700;
+  color: var(--ap-ink);
+}
+.ap-payoff-detail b {
+  font-size: var(--ap-small);
+  color: #5c5346;
+  text-align: right;
+}
+@media (max-width: 800px) {
+  .ap-payoff {
+    grid-template-columns: minmax(0, 1fr);
+    text-align: center;
+  }
+  .ap-payoff-window {
+    transform: none;
+    max-width: 380px;
+    margin: 0 auto;
+  }
+  .ap-payoff-detail {
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
@@ -2086,6 +2152,41 @@
 .ap-yourlook-card > small {
   color: #756d61;
   font-size: var(--ap-caption);
+}
+
+/* Three shape personalities, so the examples read as different products
+   running the same system -- not the same card three times in a row. */
+.ap-yourlook-card.is-round {
+  border-radius: 30px;
+  transform: rotate(-1deg);
+}
+.ap-yourlook-card.is-round .ap-yourlook-btn {
+  border-radius: 999px;
+}
+.ap-yourlook-card.is-sharp {
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 20px 45px -30px rgba(22, 36, 58, 0.35);
+}
+.ap-yourlook-card.is-sharp .ap-yourlook-btn {
+  border-radius: 6px;
+}
+.ap-yourlook-card.is-sharp .ap-yourlook-top {
+  font-family: var(--brand-display);
+}
+.ap-yourlook-card.is-soft {
+  border-radius: 30px;
+  background: radial-gradient(circle at 85% 15%, rgba(200, 188, 246, 0.35), transparent 55%), #fbf8f1;
+  transform: rotate(1deg);
+}
+.ap-yourlook-card.is-soft .ap-yourlook-btn {
+  border-radius: 999px;
+}
+@media (max-width: 700px) {
+  .ap-yourlook-card.is-round,
+  .ap-yourlook-card.is-soft {
+    transform: none;
+  }
 }
 
 /* Final responsive polish for the public journey. */
