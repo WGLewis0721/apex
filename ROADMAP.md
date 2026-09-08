@@ -89,12 +89,68 @@ and dashboard/sandbox UI exist and clearly label simulations.
 
 **Status:** Complete.
 
-### Visual design handoff — September 8, 2026
+### Visual redesign — September 8, 2026
 
-Original brand board, hero artwork, SVG motifs, and implementation brief are provided
-in `docs/design/` and `public/assets/brand-v1/`. This is a design asset delivery;
-the proposed redesign has not been implemented or deployed. Backend phase status
-is unchanged. Start implementation with `docs/design/CLAUDE_HANDOFF.md`.
+Original brand board, hero artwork, SVG motifs, and implementation brief were provided
+in `docs/design/` and `public/assets/brand-v1/` (`docs/design/CLAUDE_HANDOFF.md`), then
+implemented across the marketing site, Forma demo, onboarding, and console chrome.
+Backend phase status is unchanged — this is a visual/frontend change only.
+
+**Done:**
+- Brand palette (warm ivory canvas, ink navy, cobalt, tangerine, lilac) and Fraunces
+  (display) / Manrope (body) typography wired into `src/tokens.css` and `.ap-site`,
+  loaded via Google Fonts with Georgia/system-ui fallbacks. Marketing, Forma, and
+  onboarding surfaces (`product.css`, `plain-language.css`, `forma.css`,
+  `onboarding.css`) recolored from the prior cool-gray/blue palette to the brand
+  palette; the console (`styles.css`) got chrome-level brand accents (primary
+  buttons, active nav state, brand mark) without a full page-by-page reskin of its
+  15 operator pages.
+- Homepage hero rebuilt: headline beside the supplied sculpture artwork (stacked
+  above it on phones), new copy/buttons ("Try the demo" / "Explore setup"), hero
+  video kept prominent and playable and unchanged as an asset.
+- The old funnel-graphic + three-text-card explainer replaced with an open visual
+  story using the three supplied SVG motifs (`connection.svg`, `credits.svg`,
+  `access-pass.svg`): "Customer pays → Credits appear → Your app is ready."
+  The interactive Playground demo was moved earlier on the page, directly after
+  the visual story, and a new "Your app. Your look." section shows three labeled,
+  static illustrative examples (not real separate apps).
+- Forma demo: primary actions (Generate, Upgrade, credits remaining) restyled to
+  the brand palette and given more visual weight; billing simulation and the
+  activity feed moved behind a "For developers" disclosure; a navy explainer band
+  ("Stripe takes the payment. APEX connects it to access.") added.
+- Bug fixes found during verification: two CSS grid `1fr` tracks (`.ap-developer-grid`,
+  `.ap-house-card`) without `minmax(0, ...)` caused real horizontal overflow at
+  320px width (long code lines / a 300px-minimum grid track forcing overflow);
+  the console's mobile nav drawer was a `position: fixed` overlay inside an
+  `overflow: hidden` ancestor with a stray `z-index: 50` on the bar above it,
+  which visually clipped/outranked the open drawer — fixed by repositioning the
+  drawer relative to its actual page wrapper and lowering that bar's z-index;
+  the Billing Sync page's intro paragraph was missing the panel's standard
+  horizontal padding (`<p className="muted">` outside a `.panel.compact`); Forma's
+  reset button was missing the confirm-before-reset step present in onboarding
+  and the console.
+- Verified: `npm test` (36/36) and `npm run build` pass. Rechecked at 320/390/768/1024px
+  widths across the homepage, Forma, onboarding (all 8 steps), and all 8
+  mobile-visible console pages — zero horizontal overflow. Keyboard tab order,
+  `prefers-reduced-motion` (video stays paused), the film modal's open/Escape-close,
+  and both Forma's and the console's reset flows (now both confirm first) verified
+  interactively. Contrast-checked every new text/background pairing against WCAG AA
+  (4.5:1) — two failures found and fixed: white-on-tangerine and an invented
+  off-palette purple both under 4.5:1, per `docs/design/BRAND_SPEC.md`'s own
+  warning not to assume white passes on orange; the "Your app. Your look." example
+  cards now use the exact 5-color brand palette with ink text on tangerine/lilac.
+
+**Known limitation:** this sandbox's headless-browser screenshots could not reach
+`fonts.googleapis.com` (network policy), so they render the Georgia/system-ui
+fallback stack, not actual Fraunces/Manrope — the font `<link>` and CSS
+`font-family` stack are correct and will render the real typefaces in a normal
+browser with internet access (confirmed via computed-style inspection).
+
+**Not done:** the pre-existing illustrative SVG assets outside this design kit
+(e.g. the old customer-funnel and payment-to-access diagrams) were left as-is,
+not re-illustrated; the console's 15 operator pages were not individually
+redesigned beyond shared chrome accents, consistent with Phase 4's "finish the
+implementation without introducing unnecessary infrastructure."
 
 ## Phase 2 — Accounts + backend foundation
 

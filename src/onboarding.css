@@ -1,8 +1,8 @@
 /* APEX onboarding funnel — visual layer only. All state comes from lib/onboarding.ts. */
 .ob {
   min-height: 100vh;
-  background: #fafafa;
-  --rust: #a94f38;
+  background: var(--brand-canvas);
+  --rust: #a95638;
   --green: #0b8a6a;
 }
 .ob-nav {
@@ -18,7 +18,7 @@
   font-size: 13px;
   margin-right: auto;
   padding: 5px 11px;
-  border: 1px solid #e4e4e8;
+  border: 1px solid #ede8df;
   border-radius: 999px;
   background: #fff;
 }
@@ -76,7 +76,7 @@
   cursor: pointer;
 }
 .ob-rail-item:hover:not(:disabled) {
-  background: #f1f1f4;
+  background: #f6f4ef;
 }
 .ob-rail-item[aria-current="step"] {
   background: var(--ap-ink);
@@ -84,7 +84,7 @@
   font-weight: 600;
 }
 .ob-rail-item:disabled {
-  color: #c4c4cc;
+  color: #cec9c3;
   cursor: not-allowed;
 }
 .ob-rail-dot {
@@ -112,7 +112,7 @@
 
 .ob-panel {
   background: #fff;
-  border: 1px solid #ececf0;
+  border: 1px solid #f3f0e9;
   border-radius: 20px;
   padding: 34px;
   min-width: 0;
@@ -140,7 +140,7 @@
 .ob-translate {
   font-size: 12px;
   color: var(--ap-muted);
-  background: #f6f6f8;
+  background: #f9f8f5;
   border-radius: 10px;
   padding: 10px 13px;
   margin: -10px 0 24px;
@@ -158,7 +158,7 @@
   margin-bottom: 8px;
 }
 .ob-offer {
-  border: 1px solid #e4e4e8;
+  border: 1px solid #ede8df;
   border-radius: 16px;
   padding: 22px;
   display: flex;
@@ -221,7 +221,7 @@
   gap: 8px;
   align-items: flex-start;
   font-size: 13px;
-  color: #4a4a52;
+  color: #2b4671;
 }
 .ob-offer li svg {
   color: var(--green);
@@ -259,7 +259,7 @@ a.ob-primary {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid #e4e4e8;
+  border: 1px solid #ede8df;
   border-radius: 999px;
   background: #fff;
   color: inherit;
@@ -269,7 +269,7 @@ a.ob-primary {
   cursor: pointer;
 }
 .ob-ghost:hover:not(:disabled) {
-  border-color: #c9c9d2;
+  border-color: #dbd2c0;
 }
 .ob-ghost:disabled {
   opacity: 0.5;
@@ -300,14 +300,14 @@ a.ob-primary {
   width: 100%;
   margin-top: 7px;
   padding: 12px 13px;
-  border: 1px solid #e0e0e7;
+  border: 1px solid #ebe6dc;
   border-radius: 10px;
   font: inherit;
   letter-spacing: inherit;
-  background: #fbfbfd;
+  background: #fdfcfb;
 }
 .ob-field input:focus-visible {
-  outline: 3px solid #1677ea;
+  outline: 3px solid #093af7;
   outline-offset: 2px;
 }
 .ob-form-error {
@@ -319,7 +319,7 @@ a.ob-primary {
   gap: 9px;
   font-size: 12px;
   color: var(--ap-muted);
-  background: #f6f6f8;
+  background: #f9f8f5;
   border-radius: 12px;
   padding: 12px 14px;
 }
@@ -329,7 +329,7 @@ a.ob-primary {
 }
 
 .ob-checkout {
-  border: 1px solid #ececf0;
+  border: 1px solid #f3f0e9;
   border-radius: 16px;
   overflow: hidden;
   margin-bottom: 20px;
@@ -340,17 +340,17 @@ a.ob-primary {
   gap: 12px;
   padding: 13px 18px;
   font-size: 13px;
-  border-top: 1px solid #f1f1f4;
+  border-top: 1px solid #f6f4ef;
 }
 .ob-checkout-row:first-child {
   border-top: 0;
-  background: #f9f9fb;
+  background: #fbfaf9;
   font-weight: 600;
 }
 .ob-checkout-row.is-total {
   font-weight: 700;
   font-size: 15px;
-  background: #f6f6f8;
+  background: #f9f8f5;
 }
 .ob-checkout-row span:last-child {
   color: var(--ap-muted);
@@ -390,10 +390,10 @@ a.ob-primary {
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid #ececf0;
+  border: 1px solid #f3f0e9;
   border-radius: 10px;
   padding: 10px 12px;
-  background: #fbfbfd;
+  background: #fdfcfb;
 }
 .ob-key-row span:first-child {
   font-size: 10px;
@@ -434,7 +434,7 @@ a.ob-primary {
 }
 
 .ob-connect {
-  border: 1px solid #ececf0;
+  border: 1px solid #f3f0e9;
   border-radius: 16px;
   padding: 20px;
   display: flex;
@@ -446,7 +446,7 @@ a.ob-primary {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: #f1f1f4;
+  background: #f6f4ef;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -457,11 +457,11 @@ a.ob-primary {
   letter-spacing: 0.05em;
   padding: 4px 9px;
   border-radius: 999px;
-  background: #f1f1f4;
+  background: #f6f4ef;
   color: var(--ap-muted);
 }
 .ob-connect-status.is-connected {
-  background: #eaf7f1;
+  background: #f5f2ec;
   color: var(--green);
 }
 .ob-connect-status.is-connecting {
@@ -478,7 +478,7 @@ a.ob-primary {
 .ob-stacks button {
   display: block;
   text-align: left;
-  border: 1px solid #e4e4e8;
+  border: 1px solid #ede8df;
   background: #fff;
   border-radius: 12px;
   padding: 12px 16px;
@@ -487,11 +487,11 @@ a.ob-primary {
 }
 .ob-stacks button[aria-pressed="true"] {
   border-color: var(--ap-ink);
-  background: #f6f6f8;
+  background: #f9f8f5;
   font-weight: 600;
 }
 .ob-stacks button:disabled {
-  color: #c4c4cc;
+  color: #cec9c3;
   cursor: not-allowed;
 }
 .ob-stacks button small {
@@ -502,15 +502,15 @@ a.ob-primary {
   color: var(--ap-muted);
 }
 .ob-stacks button:disabled small {
-  color: #d2d2d8;
+  color: #e1d9c9;
 }
 
 .ob-arch {
-  border: 1px solid #ececf0;
+  border: 1px solid #f3f0e9;
   border-radius: 14px;
   padding: 16px 18px;
   margin-bottom: 20px;
-  background: #fbfbfd;
+  background: #fdfcfb;
 }
 .ob-arch-row {
   display: flex;
@@ -531,19 +531,19 @@ a.ob-primary {
 }
 
 .ob-term {
-  border: 1px solid #2c2d34;
+  border: 1px solid #1a2b46;
   border-radius: 14px;
   overflow: hidden;
   margin-bottom: 18px;
-  background: #14151a;
+  background: #0d1521;
 }
 .ob-term-top {
   display: flex;
   align-items: center;
   gap: 7px;
   padding: 9px 14px;
-  border-bottom: 1px solid #2c2d34;
-  color: #8b8c99;
+  border-bottom: 1px solid #1a2b46;
+  color: #9d9487;
   font-size: 10px;
   letter-spacing: 0.03em;
 }
@@ -562,7 +562,7 @@ a.ob-primary {
     SFMono-Regular,
     Consolas,
     monospace;
-  color: #d6d3e6;
+  color: #cad1ef;
 }
 .ob-term-line svg {
   flex-shrink: 0;
@@ -572,17 +572,17 @@ a.ob-primary {
   color: var(--green);
 }
 .ob-term-line.is-active {
-  color: #a9abba;
+  color: #b9b3aa;
 }
 .ob-term-line.is-active svg {
-  color: #8b8c99;
+  color: #9d9487;
 }
 .ob-term-line.is-prompt {
-  color: #8dbcfb;
+  color: #8ba2fd;
   font-weight: 600;
 }
 .ob-term-line.is-muted {
-  color: #6b6c78;
+  color: #7d7366;
 }
 
 .ob-ships {
@@ -616,7 +616,7 @@ a.ob-primary {
 
 .ob-code {
   position: relative;
-  background: #1d1e25;
+  background: #121e30;
   border-radius: 14px;
   margin-bottom: 16px;
   overflow: hidden;
@@ -626,17 +626,17 @@ a.ob-primary {
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px;
-  border-bottom: 1px solid #32333d;
+  border-bottom: 1px solid #1f3250;
 }
 .ob-code-top span {
   font-size: 10px;
-  color: #9fa0ac;
+  color: #aea79d;
   letter-spacing: 0.04em;
 }
 .ob-code-top button {
   border: 0;
   background: none;
-  color: #b9b5ef;
+  color: #abbbf9;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -646,7 +646,7 @@ a.ob-primary {
 .ob-code pre {
   margin: 0;
   padding: 16px;
-  color: #d6d3f6;
+  color: #d6dcf3;
   font:
     12.5px/1.7 ui-monospace,
     SFMono-Regular,
@@ -664,11 +664,11 @@ a.ob-primary {
 }
 
 .ob-launcher {
-  border: 1px solid #ececf0;
+  border: 1px solid #f3f0e9;
   border-radius: 16px;
   padding: 18px 20px;
   margin-bottom: 18px;
-  background: #fbfbfd;
+  background: #fdfcfb;
 }
 .ob-launcher-legend {
   display: flex;
@@ -678,7 +678,7 @@ a.ob-primary {
   color: var(--ap-muted);
   padding-bottom: 12px;
   margin-bottom: 12px;
-  border-bottom: 1px solid #ececf0;
+  border-bottom: 1px solid #f3f0e9;
 }
 .ob-launcher-legend span {
   display: inline-flex;
@@ -690,7 +690,7 @@ a.ob-primary {
   display: inline-block;
   width: 14px;
   text-align: center;
-  color: #c4c4cc;
+  color: #cec9c3;
 }
 .ob-glyph.is-done {
   color: var(--green);
@@ -716,7 +716,7 @@ a.ob-primary {
   padding: 7px 6px;
   border-radius: 8px;
   font-size: 13px;
-  color: #b7b7bf;
+  color: #c2bcb4;
   transition: color 0.2s;
 }
 .ob-stage.is-running {
@@ -768,7 +768,7 @@ a.ob-primary {
   color: var(--ap-ink);
 }
 .ob-checklist li button:hover:not(:disabled) {
-  background: #f6f6f8;
+  background: #f9f8f5;
 }
 .ob-checklist li button:disabled {
   cursor: default;
@@ -779,7 +779,7 @@ a.ob-primary {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 1.5px solid #d6d6dd;
+  border: 1.5px solid #e4ddcf;
   flex-shrink: 0;
   display: grid;
   place-items: center;
@@ -803,7 +803,7 @@ a.ob-primary {
 .ob-progress-track {
   height: 6px;
   border-radius: 999px;
-  background: #ececf0;
+  background: #f3f0e9;
   overflow: hidden;
   margin-bottom: 22px;
 }
@@ -817,14 +817,14 @@ a.ob-primary {
 .ob-mini {
   margin-top: 22px;
   padding: 22px 0 0;
-  border-top: 1px solid #ececf0;
+  border-top: 1px solid #f3f0e9;
 }
 .ob-mini img {
   display: block;
   width: 100%;
   height: auto;
   border-radius: 12px;
-  border: 1px solid #ececf0;
+  border: 1px solid #f3f0e9;
   margin-top: 12px;
 }
 .ob-note {
@@ -854,7 +854,7 @@ a.ob-primary {
     display: block;
     position: sticky;
     top: 0;
-    background: #fafafa;
+    background: #fbfaf9;
     padding: 10px 0 14px;
     z-index: 5;
   }
@@ -920,7 +920,7 @@ a.ob-primary {
 .ob button:focus-visible,
 .ob a:focus-visible,
 .ob input:focus-visible {
-  outline: 3px solid #1677ea;
+  outline: 3px solid #093af7;
   outline-offset: 3px;
 }
 .ob-primary,

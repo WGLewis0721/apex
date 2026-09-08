@@ -78,7 +78,7 @@ button {
   width: var(--control-h);
   height: var(--control-h);
   border-radius: var(--radius-md);
-  background: #2876e8;
+  background: #315bff;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -221,10 +221,10 @@ button {
 .nav-item.active {
   background: #193351;
   color: #fff;
-  box-shadow: inset 2px 0 #52b8ff;
+  box-shadow: inset 2px 0 #7b96fe;
 }
 .nav-item.active svg {
-  color: #5cc6ff;
+  color: #8ba2fd;
 }
 .nav-count {
   flex: 0 0 auto;
@@ -386,7 +386,7 @@ button {
 }
 .primary {
   border: 0;
-  background: #276fe5;
+  background: #315bff;
   color: #fff;
   padding: var(--sp-2) var(--sp-4);
   border-radius: var(--radius-sm);
@@ -400,7 +400,7 @@ button {
   box-shadow: 0 2px 3px rgba(39, 111, 229, 0.1);
 }
 .primary:hover {
-  background: #1e5cca;
+  background: #2447d6;
 }
 .primary:disabled {
   opacity: 0.45;
@@ -580,6 +580,14 @@ button {
 .panel.compact > .select-label {
   margin-left: var(--panel-pad);
   margin-right: var(--panel-pad);
+}
+/* A .muted paragraph placed directly in a (non-.compact) panel, right after
+   .panel-title, needs its own spacing -- .select-label/.button-stack/
+   .activity-list already carry their own margin/padding, but .muted alone
+   does not, which left it flush against the panel edges (e.g. Billing Sync's
+   "Webhook simulator" panel). */
+.panel > .muted {
+  margin: var(--sp-3) var(--panel-pad) 0;
 }
 .panel-title {
   min-height: 56px;
@@ -1436,7 +1444,11 @@ tbody tr.selected-row {
     grid-template-columns: minmax(0, 1fr);
   }
   .sidebar {
-    position: fixed;
+    /* Absolute (not fixed) and positioned against .ap-console-page (see
+       product.css), which wraps this whole route and sits above .app-shell.
+       A fixed-position drawer would only cover .app-shell's own box, leaving
+       the .ap-console-return strip above it uncovered when open. */
+    position: absolute;
     inset: 0 auto 0 0;
     height: 100%;
     transform: translateX(-100%);
@@ -1459,7 +1471,7 @@ tbody tr.selected-row {
   }
   .scrim {
     display: block;
-    position: fixed;
+    position: absolute;
     inset: 0;
     border: 0;
     background: rgba(4, 13, 25, 0.45);
@@ -1616,11 +1628,11 @@ code {
   font-size: 14px;
   padding: 10px 15px;
   border-radius: 7px;
-  background: #276fe5;
-  box-shadow: 0 2px 3px #276fe51a;
+  background: #315bff;
+  box-shadow: 0 2px 3px #315bff1a;
 }
 .primary:hover {
-  background: #1e5cca;
+  background: #2447d6;
 }
 .secondary {
   font-size: 14px;
@@ -3355,8 +3367,11 @@ td {
   }
 }
 
-/* Keep the working surface readable and stable at narrow widths. */
-.app-shell {
+/* Keep the working surface readable and stable at narrow widths. Scoped to
+   .main (not .app-shell) so it doesn't establish a containing block for the
+   mobile drawer/scrim's position:fixed, which would misplace them below any
+   content rendered above .app-shell (see .ap-console-return). */
+.main {
   overflow-x: clip;
 }
 .content,

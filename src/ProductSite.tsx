@@ -1,5 +1,5 @@
 import { CSSProperties, lazy, Suspense, useEffect, useReducer, useRef, useState } from 'react';
-import { ArrowRight, Check, CheckCircle2, ChevronRight, CirclePlay, Code2, Copy, CreditCard, ExternalLink, Gauge, Layers, Maximize2, Pause, Play, Plus, RotateCcw, Sparkles, X } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, ChevronRight, Code2, Copy, CreditCard, ExternalLink, Gauge, Layers, Maximize2, Pause, Play, Plus, RotateCcw, Sparkles, X } from 'lucide-react';
 import { allowance, embeddedReducer, initialEmbedded, plans } from './lib/embeddedDemo';
 import './product.css';
 import './plain-language.css';
@@ -98,13 +98,20 @@ export default function ProductSite() {
     <main id="main">
       <section className="ap-hero">
         <p className="ap-eyebrow"><span/> SELL IT. DELIVER IT. KEEP THEM IN SYNC.</p>
-        <h1>Make sure what you sell<br/><span>is what customers get.</span></h1>
-        <p className="ap-hero-copy"><strong>APEX keeps plans, payments, usage limits, credits, and product access in sync.</strong><br/>When a customer pays, upgrades, cancels, misses a payment, or reaches their limit, what they can use stays correct.</p>
-        <div className="ap-hero-actions">
-          <a className="ap-button" href="#start">Get APEX <ArrowRight size={17}/></a>
-          <button ref={watchButton} className="ap-text-button" onClick={() => setFilmOpen(true)}>Watch the film <CirclePlay size={21}/></button>
+        <div className="ap-hero-grid">
+          <div className="ap-hero-copy-col">
+            <h1>They pay.<br/>Your product follows.</h1>
+            <p className="ap-hero-copy">Keep subscriptions, credits, and customer access in sync—inside your app.</p>
+            <div className="ap-hero-actions">
+              <a className="ap-button" href="#forma">Try the demo <ArrowRight size={17}/></a>
+              <a className="ap-text-button" href="#start">Explore setup <ArrowRight size={15}/></a>
+            </div>
+            <p className="ap-plain-cta">Choose your plan. Create your workspace. Connect Stripe. Install APEX. Go live.</p>
+          </div>
+          <div className="ap-hero-art-col">
+            <img className="ap-hero-art" src={asset('brand-v1/apex-access-sculpture.png')} alt="A sculptural still life: a cobalt ribbon threading an ivory arch, tangerine credit discs, a lilac sphere, and a checked access pass." width={1536} height={1024} loading="eager"/>
+          </div>
         </div>
-        <p className="ap-plain-cta">Choose your plan. Create your workspace. Connect Stripe. Install APEX. Go live.</p>
 
         <div className="ap-film-wrap">
           <div className="ap-film-frame">
@@ -119,7 +126,7 @@ export default function ProductSite() {
               if (!el) return;
               if (el.paused) { manuallyPaused.current = false; void el.play().catch(() => setVideoFailed(true)); }
               else { manuallyPaused.current = true; el.pause(); }
-            }}>{playing ? <Pause size={17}/> : <Play size={17}/>}</button><button aria-label="Open full product film" onClick={() => setFilmOpen(true)}><Maximize2 size={17}/></button></div></div>
+            }}>{playing ? <Pause size={17}/> : <Play size={17}/>}</button><button ref={watchButton} aria-label="Open full product film" onClick={() => setFilmOpen(true)}><Maximize2 size={17}/></button></div></div>
           </div>
           {videoFailed && <p className="ap-video-fallback">Video unavailable in this browser. <a href={asset('apex-product-film.mp4')}>Open the MP4 film</a> or try the interactive demo below.</p>}
           <div className="ap-chapters" aria-label="Video chapters">{chapters.map(([name, time], i) => <button key={name} aria-current={chapter === i ? 'step' : undefined} className={chapter === i ? 'is-active' : ''} onClick={() => {
@@ -129,25 +136,53 @@ export default function ProductSite() {
         <p className="ap-underfilm"><strong>Stripe handles the payment.</strong> <span className="ap-rust">APEX helps make sure your product responds correctly.</span></p>
       </section>
 
-      <section className="ap-launch-preview ap-container" aria-label="How you get APEX">
-        <img src={asset('launch/apex-customer-funnel.svg')} alt="Discover APEX, choose a plan, pay, create a workspace, connect and install, then go live."/>
+      <section className="ap-story" id="what-it-does" aria-label="How payment becomes product access">
+        <div className="ap-story-head">
+          <p className="ap-eyebrow">HOW IT WORKS.</p>
+          <h2>Customer pays.<br/><span>Credits appear. Your app is ready.</span></h2>
+          <p>Stripe handles the payment. APEX turns that event into credits, plan rights, and product access — automatically.</p>
+        </div>
+        <div className="ap-story-row">
+          <figure className="ap-story-step">
+            <img src={asset('brand-v1/connection.svg')} alt="A payment connects to product access"/>
+            <figcaption><b>Customer pays.</b><span>Stripe, Link, or another provider confirms the charge.</span></figcaption>
+          </figure>
+          <ArrowRight className="ap-story-arrow" size={22}/>
+          <figure className="ap-story-step">
+            <img src={asset('brand-v1/credits.svg')} alt="Usage credits appear"/>
+            <figcaption><b>Credits appear.</b><span>APEX knows what the plan includes and activates it.</span></figcaption>
+          </figure>
+          <ArrowRight className="ap-story-arrow" size={22}/>
+          <figure className="ap-story-step">
+            <img src={asset('brand-v1/access-pass.svg')} alt="Customer access is enabled"/>
+            <figcaption><b>Your app is ready.</b><span>Access updates itself as they use, upgrade, or cancel.</span></figcaption>
+          </figure>
+        </div>
         <a className="ap-button" href="#start">Start with APEX <ArrowRight size={16}/></a>
       </section>
 
-      <section className="ap-simple" id="what-it-does">
-        <div className="ap-simple-inner">
-          <div className="ap-simple-head">
-            <p className="ap-eyebrow">HOW APEX WORKS.</p>
-            <h2>Customer buys something.<br/><span>Their access stays correct.</span></h2>
-            <p><b>Customer buys something</b><br/>→ APEX knows what they bought<br/>→ APEX tracks what they use<br/>→ APEX keeps their product access in sync</p>
-            <p><strong>Stripe handles the payment. APEX helps make sure your product responds correctly.</strong></p>
-          </div>
-          <div className="ap-simple-flow">
-            <article className="ap-simple-card"><span className="ap-num">01</span><h3>They buy a plan.</h3><p>Stripe, Link, Apple Pay, Google Pay or another payment provider confirms: <b>“Payment successful.”</b></p></article>
-            <article className="ap-simple-card"><span className="ap-num">02</span><h3>APEX knows what that means.</h3><p><b>$29 Starter</b> might mean 1,000 credits, three premium features, and one active seat.</p></article>
-            <article className="ap-simple-card"><span className="ap-num">03</span><h3>Your product stays in sync.</h3><p>They use 250 credits? APEX tracks it. They reach the limit, cancel, or miss a payment? Access updates with them.</p></article>
-          </div>
-          <div className="ap-simple-eq"><span className="money">WHAT THEY BOUGHT</span><span>→</span><span className="apex">APEX</span><span>→</span><span>WHAT THEY CAN USE</span></div>
+      <Playground/>
+
+      <section className="ap-yourlook" aria-label="Your app. Your look.">
+        <div className="ap-yourlook-head">
+          <p className="ap-eyebrow">MAKE IT YOURS.</p>
+          <h2>Your app.<br/><span>Your look.</span></h2>
+          <p>The same billing interface, restyled to match different products. Illustrative examples — not separate apps.</p>
+        </div>
+        <div className="ap-yourlook-row">
+          {[
+            { name: 'Studio', label: 'Creator tool · illustrative example', accent: 'var(--brand-tangerine)', text: 'var(--brand-ink)', plan: 'Creator plan', credits: 620, total: 1000 },
+            { name: 'Northwind', label: 'Reporting app · illustrative example', accent: 'var(--brand-cobalt)', text: '#fff', plan: 'Team plan', credits: 340, total: 500 },
+            { name: 'Circle', label: 'Membership product · illustrative example', accent: 'var(--brand-lilac)', text: 'var(--brand-ink)', plan: 'Member plan', credits: 90, total: 250 },
+          ].map((ex) => (
+            <article className="ap-yourlook-card" key={ex.name} style={{ '--ap-yl-accent': ex.accent, '--ap-yl-text': ex.text } as CSSProperties}>
+              <div className="ap-yourlook-top"><span className="ap-yourlook-dot"/><b>{ex.name}</b></div>
+              <div className="ap-yourlook-plan"><span>{ex.plan}</span><b>{ex.credits.toLocaleString()} <small>/ {ex.total.toLocaleString()} credits</small></b></div>
+              <div className="ap-track"><span style={{ width: `${(ex.credits / ex.total) * 100}%`, background: 'var(--ap-yl-accent)' }}/></div>
+              <button className="ap-yourlook-btn">Manage plan <ArrowRight size={13}/></button>
+              <small>{ex.label}</small>
+            </article>
+          ))}
         </div>
       </section>
 
@@ -171,11 +206,9 @@ export default function ProductSite() {
         <div className="ap-feature-grid">
           <article className="ap-feature-card"><div className="ap-feature-icon"><CreditCard/></div><h3>Know who is paying.</h3><p>Subscriptions, renewals, failed payments, upgrades, and cancellations stay tied to the right customer.</p><div className="ap-payment-example"><span className="ap-avatar-small">AC</span><div><b>Acme Studio</b><small>Pro subscription</small></div><div><b>$79.00</b><small className="ap-green">● Paid</small></div></div><div className="ap-mini-note"><CheckCircle2 size={14}/> Customer access updated</div></article>
           <article className="ap-feature-card"><div className="ap-feature-icon"><Gauge/></div><h3>Know what is left.</h3><p>Credits, tokens, API calls, seats, or another allowance. The balance and the rules that govern it stay together.</p><div className="ap-mini-meter"><div><span>AI tokens</span><b>750 <small>/ 1,000</small></b></div><div className="ap-track"><span style={{ width: '75%' }}/></div><small>250 tokens left before an upgrade is needed.</small></div></article>
-          <article className="ap-feature-card"><div className="ap-feature-icon"><Layers/></div><h3>Keep it inside your product.</h3><p>Show plans, balances, and upgrades without making customers feel like they left your product to deal with billing.</p><div className="ap-mini-themes"><div style={{ '--embed-accent': '#006fe8' } as CSSProperties}>Forma<span>Upgrade plan <ArrowRight size={12}/></span></div><div style={{ '--embed-accent': '#a94f38' } as CSSProperties}>studio<span>Add credits <ArrowRight size={12}/></span></div></div></article>
+          <article className="ap-feature-card"><div className="ap-feature-icon"><Layers/></div><h3>Keep it inside your product.</h3><p>Show plans, balances, and upgrades without making customers feel like they left your product to deal with billing.</p><div className="ap-mini-themes"><div style={{ '--embed-accent': '#315BFF' } as CSSProperties}>Forma<span>Upgrade plan <ArrowRight size={12}/></span></div><div style={{ '--embed-accent': '#F27649' } as CSSProperties}>studio<span>Add credits <ArrowRight size={12}/></span></div></div></article>
         </div>
       </section>
-
-      <Playground/>
 
       <section className="ap-how ap-container" id="how-it-works"><p className="ap-eyebrow">THREE STEPS.</p><h2>You build the product.<br/><span>APEX keeps the offer and the product connected.</span></h2><div className="ap-steps"><article><span>01</span><h3>Connect how you get paid.</h3><p>Connect Stripe or another payment system. APEX follows purchases, renewals, upgrades, cancellations, and failures.</p></article><article><span>02</span><h3>Say what each plan includes.</h3><p>Example: Pro means 5,000 credits, 10 seats, and premium reports.</p></article><article><span>03</span><h3>Let the product check APEX.</h3><p>Before an action happens, your product can ask: is this customer allowed, and do they have enough left?</p></article></div></section>
 
