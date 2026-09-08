@@ -31,6 +31,7 @@ import {
   checklistProgress,
   furthestUnlockedStep,
   loadOnboarding,
+  initialOnboarding,
   onboardingReducer,
   resetOnboarding,
   saveOnboarding,
@@ -44,7 +45,8 @@ import {
   createSimulatedVerification,
 } from '../lib/launchProviders';
 import { backendConfigured } from '../lib/supabaseClient';
-import { getCurrentAccount, signIn, signUpOrSignIn } from '../lib/backend';
+import { getCurrentAccount, signIn, signUpOrSignIn, startCheckout, getProvisionedWorkspace, type ProvisionedWorkspace } from '../lib/backend';
+import { supabase } from '../lib/supabaseClient';
 import '../onboarding.css';
 
 const billingProvider = createSimulatedBillingProvider();
@@ -157,17 +159,23 @@ function ShipsStrip() {
 }
 
 export default function Onboarding() {
-  const [state, setState] = useState<OnboardingState>(() => loadOnboarding());
+  const [state, setState] = useState<OnboardingState>(() => backendConfigured ? initialOnboarding() : loadOnboarding());
   const [accountForm, setAccountForm] = useState(() => ({ ...(state.account ?? { name: '', email: '', company: '' }), password: '' }));
   const [accountError, setAccountError] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [authBusy, setAuthBusy] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
+  const authGeneration = useRef(0);
+  const activeUserId = useRef<string | null>(null);
+  const [workspace, setWorkspace] = useState<ProvisionedWorkspace | null>(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(backendConfigured);
+  const [waitingForPayment, setWaitingForPayment] = useState(new URLSearchParams(window.location.search).get('checkout') === 'success');
   const [connecting, setConnecting] = useState(false);
 
   function apply(next: OnboardingState) {
     setState(next);
-    saveOnboarding(next);
+    if (!backendConfigured) saveOnboarding(next);
   }
 
   function dispatch(action: Parameters<typeof onboardingReducer>[1]) {
@@ -183,36 +191,69 @@ export default function Onboarding() {
     setState((prev) => {
       const merged: OnboardingState = { ...prev, ...patch };
       if (landOn && stepIndex(landOn) > stepIndex(merged.step)) merged.step = landOn;
-      saveOnboarding(merged);
+      if (!backendConfigured) saveOnboarding(merged);
       return merged;
     });
   }
 
-  // On mount: restore a real signed-in session so a returning customer
-  // doesn't have to log in again. Everything after "Create account" in the
-  // funnel (purchase, workspace, install, verify) remains simulated for
-  // this phase, so this only ever fast-forwards past the account step —
-  // and only when a plan was already selected locally.
+  async function refreshWorkspace() {
+    const generation = authGeneration.current;
+    const result = await getProvisionedWorkspace();
+    if (generation !== authGeneration.current) return;
+    if (result.status === 'ready') {
+      setWorkspace(result);
+      setWaitingForPayment(false);
+      hydrateFromServer({ selectedPlan: 'founding', accountCreated: true, purchaseStatus: 'paid',
+        workspaceCreated: true, workspaceId: result.workspace.id, demoKeys: null, step: 'workspace' });
+    }
+  }
+
   useEffect(() => {
     if (!backendConfigured) return;
-    (async () => {
-      const account = await getCurrentAccount();
-      if (!account) return;
-      setAccountForm((f) => ({ ...f, name: account.fullName ?? f.name, email: account.email, company: account.companyName ?? f.company }));
-      if (state.accountCreated) return;
-      hydrateFromServer(
-        { account: { name: account.fullName ?? '', email: account.email, company: account.companyName ?? '' }, accountCreated: true },
-        state.selectedPlan ? 'purchase' : undefined,
-      );
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let active = true;
+    const generation = authGeneration.current;
+    const restore = async () => {
+      try {
+        const account = await getCurrentAccount();
+        if (!active || !account || generation !== authGeneration.current) return;
+        setAccountForm({ name: account.fullName ?? '', email: account.email, company: account.companyName ?? '', password: '' });
+        hydrateFromServer({ account: { name: account.fullName ?? '', email: account.email, company: account.companyName ?? '' },
+          accountCreated: true, selectedPlan: 'founding', step: 'purchase' });
+        await refreshWorkspace();
+      } catch (error) { if (active) setBillingError(error instanceof Error ? error.message : 'Could not restore your account.'); }
+      finally { if (active) setChecking(false); }
+    };
+    void restore();
+    const { data } = supabase!.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || (activeUserId.current && session?.user && activeUserId.current !== session.user.id)) {
+        authGeneration.current++;
+        setBillingError(null);
+        setWorkspace(null); setState(initialOnboarding()); setWaitingForPayment(false);
+        setAccountForm({ name: '', email: '', company: '', password: '' });
+      }
+      activeUserId.current = session?.user.id ?? null;
+    });
+    return () => { active = false; data.subscription.unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!backendConfigured || !waitingForPayment || !state.accountCreated) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try { await refreshWorkspace(); } catch { /* Keep waiting; allow manual retry. */ }
+      if (!cancelled) timer = setTimeout(poll, 3000);
+    };
+    void poll();
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [waitingForPayment, state.accountCreated]);
 
   const furthest = furthestUnlockedStep(state);
   const items = checklist(state);
   const progress = checklistProgress(state);
 
   function goto(step: OnboardingStep) {
+    if (backendConfigured && stepIndex(step) > stepIndex('workspace')) return;
     if (stepIndex(step) > stepIndex(furthest)) return;
     dispatch({ type: 'goto', step });
   }
@@ -234,10 +275,12 @@ export default function Onboarding() {
         const account = authMode === 'signup'
           ? await signUpOrSignIn({ name: accountForm.name.trim(), email: accountForm.email.trim(), company: accountForm.company.trim(), password: accountForm.password })
           : await signIn({ email: accountForm.email.trim(), password: accountForm.password });
-        dispatch({
-          type: 'submit_account',
-          account: { name: account.fullName ?? accountForm.name.trim(), email: account.email, company: account.companyName ?? accountForm.company.trim() },
-        });
+        authGeneration.current++;
+        setAccountForm((f) => ({ ...f, password: '' }));
+        setWorkspace(null);
+        setState({ ...initialOnboarding(), account: { name: account.fullName ?? '', email: account.email, company: account.companyName ?? '' }, accountCreated: true, selectedPlan: 'founding', step: 'purchase' });
+        try { await refreshWorkspace(); } catch (error) { setBillingError(error instanceof Error ? error.message : 'Could not load workspace status.'); }
+        return;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Something went wrong.';
         setAccountError(message === 'Failed to fetch' ? 'Could not reach APEX. Check your connection and try again.' : message);
@@ -263,6 +306,17 @@ export default function Onboarding() {
   async function runPurchase() {
     if (purchasing || !state.selectedPlan) return;
     setPurchasing(true);
+    if (backendConfigured) {
+      setBillingError(null);
+      try {
+        const result = await startCheckout();
+        if (result.url) { window.location.assign(result.url); return; }
+        setWaitingForPayment(true);
+        await refreshWorkspace();
+      } catch (error) { setBillingError(error instanceof Error ? error.message : 'Could not start checkout.'); }
+      finally { setPurchasing(false); }
+      return;
+    }
     dispatch({ type: 'purchase_pending' });
     const offer = OFFERS[state.selectedPlan];
     const result = await billingProvider.checkout({ planId: offer.id, setupFee: offer.setupFee, monthly: offer.monthly });
@@ -285,9 +339,9 @@ export default function Onboarding() {
       <header className="ap-nav ob-nav">
         <a className="ap-logo" href="#" aria-label="APEX home">APEX</a>
         <span className="ob-nav-mark"><Sparkles size={14} /> Start with APEX</span>
-        <button className="ob-reset" onClick={() => { if (window.confirm('Reset this onboarding demo? Nothing you entered is a real account.')) { apply(resetOnboarding()); setAccountForm({ name: '', email: '', company: '', password: '' }); } }}>
+        {backendConfigured ? <button className="ob-reset" onClick={() => void supabase!.auth.signOut()}>Sign out</button> : <button className="ob-reset" onClick={() => { if (window.confirm('Reset this onboarding demo? Nothing you entered is a real account.')) { apply(resetOnboarding()); setAccountForm({ name: '', email: '', company: '', password: '' }); } }}>
           <RotateCcw size={13} /> Reset onboarding demo
-        </button>
+        </button>}
         <a className="ob-nav-back" href="#"><ArrowLeft size={14} /> Back to APEX</a>
       </header>
 
@@ -300,7 +354,7 @@ export default function Onboarding() {
         <nav className="ob-rail" aria-label="Onboarding progress">
           {STEP_ORDER.map((step, i) => {
             const done = stepIndex(furthest) > i || (step === 'complete' && state.step === 'complete');
-            const reachable = stepIndex(step) <= stepIndex(furthest);
+            const reachable = stepIndex(step) <= stepIndex(furthest) && (!backendConfigured || stepIndex(step) <= stepIndex('workspace'));
             return (
               <button
                 key={step}
@@ -317,7 +371,11 @@ export default function Onboarding() {
         </nav>
 
         <section className="ob-panel" aria-live="polite">
-          {state.step === 'plan' && (
+          {checking && <p>Checking your account…</p>}
+          {billingError && <p className="ob-form-error" role="alert">{billingError}</p>}
+          {waitingForPayment && !workspace && <div className="ob-preview-note"><Info size={15} /><span>Waiting for Stripe to confirm payment. Your workspace appears here after verification. You can return later without paying again.</span></div>}
+
+          {!checking && state.step === 'plan' && (
             <PlanStep selected={state.selectedPlan} onSelect={(plan) => dispatch({ type: 'select_plan', plan })} />
           )}
 
@@ -334,12 +392,29 @@ export default function Onboarding() {
             />
           )}
 
-          {state.step === 'purchase' && state.selectedPlan && (
+          {!checking && state.step === 'purchase' && state.selectedPlan && (
             <PurchaseStep offer={OFFERS[state.selectedPlan]} purchasing={purchasing} onPurchase={runPurchase} onBack={() => goto('account')} />
           )}
 
           {state.step === 'workspace' && (
-            <WorkspaceStep workspaceId={state.workspaceId} keys={state.demoKeys} onContinue={() => goto('stack')} />
+            backendConfigured && workspace ? <>
+              <p className="ob-eyebrow">WORKSPACE READY · STRIPE TEST MODE</p>
+              <div className="ob-celebrate"><CheckCircle2 size={20} /> Payment verified. Your workspace is ready.</div>
+              <h1>{workspace.workspace.name}</h1>
+              <div className="ob-workspace-meta"><div><span>Environment</span><b>Sandbox</b></div><div><span>Workspace ID</span><code>{workspace.workspace.id}</code></div></div>
+              <p className="ob-note">Subscription: {workspace.subscriptionStatus}. These are real Sandbox credentials. Keep the secret key on your server.</p>
+              <div className="ob-keys">
+                <div className="ob-key-row"><span>PUBLISHABLE</span><code>{workspace.publishable}</code><CopyButton text={workspace.publishable} /></div>
+                {workspace.secret && <div className="ob-key-row"><span>SECRET</span><code>{workspace.secret}</code><CopyButton text={workspace.secret} /></div>}
+              </div>
+              <button className="ob-ghost" onClick={async () => {
+                if (workspace.secret) { setWorkspace({ ...workspace, secret: undefined }); return; }
+                const generation = authGeneration.current;
+                try { const result = await getProvisionedWorkspace(true); if (result.status === 'ready' && generation === authGeneration.current) setWorkspace(result); }
+                catch (error) { setBillingError(error instanceof Error ? error.message : 'Could not reveal credentials.'); }
+              }}>{workspace.secret ? 'Hide secret key' : 'Reveal secret key'}</button>
+              <p className="ob-preview-note">Stripe connection, installation, and API access are coming in later phases. Your workspace and credentials are saved; the APEX API is not available yet.</p>
+            </> : <WorkspaceStep workspaceId={state.workspaceId} keys={state.demoKeys} onContinue={() => goto('stack')} />
           )}
 
           {state.step === 'stack' && (
@@ -391,10 +466,10 @@ function PlanStep({ selected, onSelect }: { selected: PlanId | null; onSelect: (
           <div className="ob-offer-price"><b>$0</b><span>/ month</span></div>
           <p className="ob-offer-setup">No setup fee</p>
           <ul>{OFFERS.sandbox.features.map((f) => <li key={f}><CheckCircle2 size={15} />{f}</li>)}</ul>
-          <button className="ob-ghost" style={{ width: '100%' }} onClick={() => onSelect('sandbox')} aria-pressed={selected === 'sandbox'}>Start free in the sandbox</button>
+          <button className="ob-ghost" style={{ width: '100%' }} onClick={() => { if (backendConfigured) window.location.hash = 'forma'; else onSelect('sandbox'); }} aria-pressed={selected === 'sandbox'}>{backendConfigured ? 'Explore the free demo' : 'Start free in the sandbox'}</button>
         </article>
       </div>
-      <p className="ob-note">Prices shown are launch-strategy examples for this preview and are easy to change later.</p>
+      <p className="ob-note">{backendConfigured ? 'Checkout is in Stripe test mode. No real money is collected.' : 'Prices shown are launch-strategy examples for this preview.'}</p>
       <div className="ob-mini">
         <p className="ob-eyebrow">WHY APEX</p>
         <img src={asset('launch/apex-payment-to-access.svg')} alt="Stripe answers whether money moved. APEX turns that event into credits, plan rights, usage state, and allow, warn, or block behavior inside the product." />
@@ -447,7 +522,7 @@ function AccountStep({ form, error, busy, mode, onToggleMode, onChange, onSubmit
         <div style={{ display: 'flex', gap: 12 }}>
           <button type="button" className="ob-ghost" onClick={onBack} disabled={busy}><ArrowLeft size={14} /> Back</button>
           <button type="submit" className="ob-primary" disabled={busy}>
-            {busy ? <><Loader2 size={16} className="ob-spin" /> {isLogin ? 'Logging in…' : 'Creating…'}</> : <>{isLogin ? 'Log in' : 'Create workspace'} <ArrowRight size={15} /></>}
+            {busy ? <><Loader2 size={16} className="ob-spin" /> {isLogin ? 'Logging in…' : 'Creating…'}</> : <>{isLogin ? 'Log in' : 'Create account'} <ArrowRight size={15} /></>}
           </button>
         </div>
         {backendConfigured && (
@@ -466,7 +541,7 @@ function PurchaseStep({ offer, purchasing, onPurchase, onBack }: { offer: (typeo
     <>
       <p className="ob-eyebrow">{stepEyebrow('purchase', 'PURCHASE')}</p>
       <h1>Review your order.</h1>
-      <span className="ob-sim-badge">SIMULATED CHECKOUT · NO CARD COLLECTED</span>
+      <span className="ob-sim-badge">{backendConfigured ? 'STRIPE TEST CHECKOUT · NO REAL CHARGE' : 'SIMULATED CHECKOUT · NO CARD COLLECTED'}</span>
       <div className="ob-checkout">
         <div className="ob-checkout-row"><span>{offer.name}</span><span>{offer.tagline}</span></div>
         {offer.setupFee > 0 && <div className="ob-checkout-row"><span>Setup fee</span><span>${offer.setupFee.toLocaleString()}</span></div>}
@@ -475,7 +550,7 @@ function PurchaseStep({ offer, purchasing, onPurchase, onBack }: { offer: (typeo
         <div className="ob-checkout-row is-total"><span>Total due today</span><span>${totalToday.toLocaleString()}</span></div>
         <div className="ob-checkout-row"><span>Renews at</span><span>${offer.monthly}/mo</span></div>
       </div>
-      <div className="ob-preview-note"><CreditCard size={15} /><span>A real build would redirect here to a Stripe Checkout session. This demo simulates a successful payment and never asks for a card number.</span></div>
+      <div className="ob-preview-note"><CreditCard size={15} /><span>{backendConfigured ? 'Continue to Stripe to pay securely in test mode. APEX prepares your workspace only after Stripe confirms payment.' : 'This demo simulates a successful payment and never asks for a card number.'}</span></div>
       <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
         <button type="button" className="ob-ghost" onClick={onBack} disabled={purchasing}><ArrowLeft size={14} /> Back</button>
         <button className="ob-primary" onClick={onPurchase} disabled={purchasing}>

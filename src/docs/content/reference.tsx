@@ -20,8 +20,8 @@ function ApiOverview() {
         Each workspace has one or more <code>environments</code> (e.g. sandbox, live), and each environment
         has its own <code>api_keys</code>: a <code>publishable_key</code> safe to use client-side, and a
         secret key intended for server-side requests only. The secret key's hash is stored in{' '}
-        <code>secret_key_hash</code>; the plaintext value is only ever readable once, at creation
-        (<code>secret_key_once</code>), and both columns are already locked down at the database level —
+        <code>secret_key_hash</code>; an encrypted copy is stored in <code>secret_key_ciphertext</code>
+        for authenticated owner retrieval. Both columns are locked down at the database level —
         revoked from normal client access via column-level <code>GRANT</code>/<code>REVOKE</code>.
       </p>
       <CodeBlock language="http" code={`Authorization: Bearer sk_live_...`} caption="Illustrative request header — no server validates this today." />
@@ -289,7 +289,7 @@ const GROUPS: Group[] = [
           { name: 'workspace_id / environment_id', type: 'uuid →' },
           { name: 'publishable_key', type: 'text, unique' },
           { name: 'secret_key_hash', type: 'text', notes: 'Never granted to authenticated/anon clients.' },
-          { name: 'secret_key_once', type: 'text, nullable', notes: 'Readable once, at creation, by trusted server code only.' },
+          { name: 'secret_key_ciphertext', type: 'text, nullable', notes: 'AES-256-GCM encrypted secret; trusted server code only.' },
           { name: 'status', type: "text, check: 'active' | 'revoked'" },
           { name: 'revoked_at', type: 'timestamptz, nullable' },
         ],
