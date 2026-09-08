@@ -89,6 +89,13 @@ and dashboard/sandbox UI exist and clearly label simulations.
 
 **Status:** Complete.
 
+### Visual design handoff — September 8, 2026
+
+Original brand board, hero artwork, SVG motifs, and implementation brief are provided
+in `docs/design/` and `public/assets/brand-v1/`. This is a design asset delivery;
+the proposed redesign has not been implemented or deployed. Backend phase status
+is unchanged. Start implementation with `docs/design/CLAUDE_HANDOFF.md`.
+
 ## Phase 2 — Accounts + backend foundation
 
 **Systems:** Accounts + Workspaces.

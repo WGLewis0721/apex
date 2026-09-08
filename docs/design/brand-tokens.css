@@ -1,0 +1,16 @@
+/* Reference tokens: merge into existing tokens.css; do not blindly add global overrides. */
+:root {
+  --brand-canvas: #F7F2E8;
+  --brand-ink: #16243A;
+  --brand-action: #315BFF;
+  --brand-orange: #F27649;
+  --brand-lilac: #C8BCF6;
+  --brand-display: 'Fraunces', Georgia, serif;
+  --brand-body: 'Manrope', system-ui, sans-serif;
+  --brand-hero-size: clamp(2.5rem, 6vw, 5.5rem);
+  --brand-section-size: clamp(2rem, 4vw, 3.25rem);
+  --brand-copy-size: clamp(1rem, 1.2vw, 1.125rem);
+  --brand-content-max: 74rem;
+  --brand-gutter: clamp(1rem, 4vw, 3rem);
+  --brand-section-gap: clamp(3rem, 7vw, 7rem);
+}
