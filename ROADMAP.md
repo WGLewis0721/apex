@@ -9,6 +9,63 @@ starting any work. Update it after any meaningful change.
 
 Every phase below exists to make one more step of that funnel real.
 
+## What APEX is
+
+APEX is a hosted SaaS product. Its job is to **keep what a SaaS company sells aligned
+with what its customers can actually use.**
+
+---
+
+## APEX Production Infrastructure
+
+This is the canonical production model. Every phase below builds part of it.
+
+### 1. APEX Dashboard
+The existing customer-facing React web application: workspaces, plans, customers,
+usage, credits, access state, settings, and integration health.
+
+### 2. Accounts + Workspaces
+Supabase Auth and Supabase Postgres. Workspace-based tenancy, Postgres Row-Level
+Security, and the core workspace-owned data.
+
+### 3. Stripe Connection
+The customer connects their own Stripe account. Stripe payment and subscription
+events update APEX commercial and access state. Includes Stripe webhooks, event
+storage, reconciliation, and idempotency.
+
+### 4. APEX API
+The hosted API used by customer SaaS applications: customer identification, usage
+reporting, access checking, and usage reservation/finalization.
+Hosting/runtime: **TBD — architecture/technology not yet selected.**
+
+### 5. APEX SDK
+Initial SDK is TypeScript/Node. A thin client for the hosted APEX API, distributed
+as `@apex/sdk`.
+
+### 6. Usage + Credits
+Usage events, usage counters, credit grants and consumption, and idempotent event
+IDs. v1 keeps limits simple; it is not a financial wallet.
+
+### 7. Access Decision Engine
+Combines Stripe state, plan, features, usage, and credits, returns `ALLOW` or `DENY`
+with a reason, and records each decision.
+
+### 8. Background Processing
+Stripe webhook processing, retries, reconciliation, usage forwarding, and async jobs.
+Queue/worker technology: **TBD — architecture/technology not yet selected.**
+
+### 9. Audit + Dashboard Data
+Access-decision history, Stripe sync status, usage history, and clear
+“why was this customer blocked?” visibility.
+
+### Approved technologies
+
+Existing React APEX frontend · Supabase Auth · Supabase Postgres · Postgres RLS ·
+Stripe · TypeScript/Node `@apex/sdk`. Anything else is **TBD — architecture/technology
+not yet selected**.
+
+---
+
 ## Technology rule
 
 Do **not** invent technologies, vendors, frameworks, hosting platforms, queues,
@@ -19,6 +76,8 @@ approved. If a phase requires a technology that has not been chosen, write
 ---
 
 ## Phase 1 — Product/demo foundation
+
+**Systems:** APEX Dashboard (simulated data only).
 
 **Infra:** Existing React/Vite frontend, GitHub Pages, simulated localStorage product flows.
 
@@ -31,6 +90,8 @@ and dashboard/sandbox UI exist and clearly label simulations.
 **Status:** Complete.
 
 ## Phase 2 — Accounts + backend foundation
+
+**Systems:** Accounts + Workspaces.
 
 **Tech:** Supabase Auth + Supabase Postgres.
 
@@ -48,6 +109,8 @@ are configured. Not yet verified against a deployed project.
 
 ## Phase 3 — APEX billing
 
+**Systems:** Stripe Connection (APEX's own billing only — the customer's Stripe account arrives in Phase 5).
+
 **Tech:** Stripe Checkout + Stripe webhooks.
 
 **Build:** APEX's own paid plan checkout, setup fee + recurring subscription,
@@ -61,6 +124,8 @@ session server-side and `supabase/functions/stripe-webhook` is the only path tha
 marks a subscription active. Not yet verified end to end against live Stripe.
 
 ## Phase 4 — Workspace provisioning
+
+**Systems:** Accounts + Workspaces.
 
 **Tech:** The Supabase/Postgres backend created in Phase 2.
 
@@ -76,6 +141,8 @@ Stripe's event id. Not yet verified end to end.
 
 ## Phase 5 — Connect customer Stripe
 
+**Systems:** Stripe Connection.
+
 **Tech:** Stripe Connect.
 
 **Build:** Authorize and link the customer's own Stripe account, and persist that
@@ -88,17 +155,73 @@ connection behind `PaymentConnectionProvider` in `src/lib/launchProviders.ts`.
 
 ## Phase 6 — APEX Cloud
 
-**Tech:** **TBD — architecture/technology not yet selected.**
+APEX Cloud is not one deliverable. Build it in the order below; each step must work
+before the next begins.
 
-**Build:** Hosted customers, subscriptions, usage, credits, entitlements, access
-decisions, and Stripe-event processing.
+**Tech:** Supabase Postgres holds the data. Hosting/runtime for the API and the
+queue/worker technology for background processing are
+**TBD — architecture/technology not yet selected.**
 
-**Done when:** A server-side APEX system can persist usage and return real
-ALLOW/DENY decisions.
+### Phase 6.1 — APEX API foundation
+
+**Systems:** APEX API.
+
+**Build:** Hosted API surface used by customer SaaS applications: workspace/API-key
+authentication and customer identification.
+
+**Done when:** A customer application can authenticate to APEX and identify one of
+its own customers.
+
+**Status:** Not started.
+
+### Phase 6.2 — Usage + credits
+
+**Systems:** Usage + Credits.
+
+**Build:** Usage events, usage counters, credit grants and consumption, idempotent
+event IDs, and usage reservation/finalization. Simple v1 limits, not a financial
+wallet.
+
+**Done when:** Reported usage and granted credits persist server-side and are
+idempotent against retried event IDs.
+
+**Status:** Not started.
+
+### Phase 6.3 — Access decision engine
+
+**Systems:** Access Decision Engine.
+
+**Build:** Combine Stripe state, plan, features, usage, and credits into an
+`ALLOW`/`DENY` result with a reason, and record every decision.
+
+**Done when:** The server-side APEX system returns real ALLOW/DENY decisions with a
+reason and a stored decision record.
+
+**Status:** Not started.
+
+### Phase 6.4 — Background processing
+
+**Systems:** Background Processing.
+
+**Build:** Stripe webhook processing, retries, reconciliation, usage forwarding, and
+async jobs. Queue/worker technology: **TBD — architecture/technology not yet
+selected.**
+
+**Done when:** Stripe events and usage forwarding survive failures and retries
+without duplicating or losing state.
+
+**Status:** Not started.
+
+### Phase 6 done when
+
+The server-side APEX system can persist usage and return real ALLOW/DENY decisions
+for a hosted customer, with Stripe events processed reliably in the background.
 
 **Status:** Not started.
 
 ## Phase 7 — Install
+
+**Systems:** APEX SDK.
 
 **Tech:** Node/TypeScript `@apex/sdk`. CLI implementation technology is
 **TBD — architecture/technology not yet selected.**
@@ -113,6 +236,8 @@ the current site and onboarding copy.
 
 ## Phase 8 — Verify
 
+**Systems:** APEX API + Usage + Credits + Access Decision Engine, exercised end to end.
+
 **Build:** A real test customer → credits → usage event → access check.
 
 **Done when:** A customer receives a real APEX Cloud ALLOW/DENY result.
@@ -121,7 +246,9 @@ the current site and onboarding copy.
 
 ## Phase 9 — Live dashboard
 
-**Build:** Replace dashboard demo/localStorage data with real backend data.
+**Systems:** APEX Dashboard + Audit + Dashboard Data.
+
+**Build:** Replace dashboard demo/localStorage data with real backend data, including access-decision history, Stripe sync status, usage history, and “why was this customer blocked?” visibility.
 
 **Done when:** The dashboard reflects actual workspace customers, payments, usage,
 and access state.
@@ -129,6 +256,8 @@ and access state.
 **Status:** Not started. The `#console` dashboard/sandbox uses localStorage demo data.
 
 ## Phase 10 — Market launch
+
+**Systems:** All nine production systems above, running together.
 
 **Infra:** **TBD — architecture/technology not yet selected**, only where not
 previously selected in an earlier phase.
@@ -144,8 +273,9 @@ systems.
 
 Every Claude Code, Copilot, Cursor, or Codex session must:
 
-1. Read this roadmap first.
-2. Work only within the requested phase.
+1. Read this roadmap first, including the APEX Production Infrastructure section.
+2. Work only within the requested phase, and build the nine production systems
+   progressively — never all at once.
 3. Update this roadmap after meaningful changes.
 4. Never mark a simulation complete as production infrastructure.
 5. Never select an unapproved technology; record unresolved choices as

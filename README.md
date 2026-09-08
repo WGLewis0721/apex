@@ -1,10 +1,16 @@
-# APEX — Embedded payments & usage infrastructure
+# APEX — Make sure what you sell is what customers get.
 
 **Live app: https://wglewis0721.github.io/apex/**
 
-Payments, subscriptions, credits, and token tracking. One service, built into your app.
+APEX keeps plans, payments, usage limits, credits, and product access in sync. When a customer pays, upgrades, cancels, misses a payment, or reaches their limit, what they can use stays correct.
 
-APEX's product direction is a configurable service that connects a payment provider to product plans, customer access, and usage, with components developers can style to match their SaaS. The provider processes money; APEX tracks payment state and connects it to the product experience.
+**Customer buys something → APEX knows what they bought → APEX tracks what they use → APEX keeps their product access in sync.**
+
+Stripe handles the payment. APEX helps make sure your product responds correctly.
+
+**Stripe → APEX → Your product.** APEX connects plans, payment state, usage, credits, access decisions, and audit history, so finance, product, and support can all see why a customer gained or lost access.
+
+`ROADMAP.md` in this repository is the implementation source of truth: read it first, and keep it synchronized with what actually exists.
 
 ## Version 0.3 experience
 
