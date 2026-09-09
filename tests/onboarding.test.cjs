@@ -5,18 +5,18 @@ const ob = require('../.test-build/onboarding.js');
 
 const account = { name: 'Jamie Rivera', email: 'jamie@acme.dev', company: 'Acme Studio' };
 
-function toStack(state) {
+function toWorkspace(state) {
   state = ob.onboardingReducer(state, { type: 'select_plan', plan: 'founding' });
   state = ob.onboardingReducer(state, { type: 'submit_account', account });
   state = ob.onboardingReducer(state, { type: 'purchase_succeeded', receiptId: 'rcpt_1' });
   return state;
 }
 
-function toLauncher(state) {
-  state = toStack(state);
+function toLauncher(state, real = false) {
+  state = toWorkspace(state);
   state = ob.onboardingReducer(state, { type: 'choose_stack', stack: 'javascript' });
   state = ob.onboardingReducer(state, { type: 'connect_payments_pending' });
-  state = ob.onboardingReducer(state, { type: 'connect_payments_succeeded' });
+  state = ob.onboardingReducer(state, { type: 'connect_payments_succeeded', real });
   return ob.onboardingReducer(state, { type: 'goto', step: 'launcher' });
 }
 
@@ -28,7 +28,11 @@ test('a fresh funnel starts on the plan step with nothing unlocked', () => {
   assert.equal(ob.checklistProgress(state).done, 0);
 });
 
-test('full lifecycle: plan -> account -> purchase -> workspace -> stack -> payments -> launcher -> complete', () => {
+test('numbered funnel is plan -> account -> purchase -> workspace -> payments -> launcher -> complete', () => {
+  assert.deepEqual(ob.STEP_ORDER, ['plan', 'account', 'purchase', 'workspace', 'payments', 'launcher', 'complete']);
+});
+
+test('full lifecycle: plan -> account -> purchase -> workspace -> payments -> launcher -> complete', () => {
   let s = ob.initialOnboarding();
   s = ob.onboardingReducer(s, { type: 'select_plan', plan: 'founding' });
   assert.equal(s.step, 'account');
@@ -42,7 +46,6 @@ test('full lifecycle: plan -> account -> purchase -> workspace -> stack -> payme
   assert.equal(s.step, 'workspace');
   assert.ok(s.workspaceId);
 
-  s = ob.onboardingReducer(s, { type: 'goto', step: 'stack' });
   s = ob.onboardingReducer(s, { type: 'choose_stack', stack: 'javascript' });
   assert.equal(s.stack, 'javascript');
   assert.equal(s.step, 'payments');
@@ -73,6 +76,16 @@ test('full lifecycle: plan -> account -> purchase -> workspace -> stack -> payme
   assert.equal(ob.checklistProgress(s).done, ob.checklistProgress(s).total);
 });
 
+test('real Stripe connection unlocks launcher exactly like the demo connection', () => {
+  let s = toWorkspace(ob.initialOnboarding());
+  s = ob.onboardingReducer(s, { type: 'choose_stack', stack: 'javascript' });
+  s = ob.onboardingReducer(s, { type: 'connect_payments_pending' });
+  s = ob.onboardingReducer(s, { type: 'connect_payments_succeeded', real: true });
+  assert.equal(s.paymentProviderStatus, 'connected');
+  assert.equal(ob.furthestUnlockedStep(s), 'launcher');
+  assert.equal(ob.checklist(s).find((i) => i.id === 'payments').done, true);
+});
+
 test('launcher progress flips sdkInstalled/environmentConfigured/verificationPassed at the documented stage thresholds', () => {
   let s = toLauncher(ob.initialOnboarding());
   s = ob.onboardingReducer(s, { type: 'launcher_progress', stage: 3 });
@@ -92,12 +105,10 @@ test('launcher progress flips sdkInstalled/environmentConfigured/verificationPas
 });
 
 test('launcher progress cannot regress, cannot exceed the stage count, and requires stack + connected payments', () => {
-  let s = toStack(ob.initialOnboarding());
-  // No stack chosen yet, no payment connected: progress is refused.
+  let s = toWorkspace(ob.initialOnboarding());
   assert.equal(ob.onboardingReducer(s, { type: 'launcher_progress', stage: 1 }), s);
 
   s = ob.onboardingReducer(s, { type: 'choose_stack', stack: 'javascript' });
-  // Stack chosen but Stripe not connected yet: still refused.
   assert.equal(ob.onboardingReducer(s, { type: 'launcher_progress', stage: 1 }), s);
 
   s = toLauncher(ob.initialOnboarding());
@@ -118,18 +129,17 @@ test('resuming after a refresh only re-plays stages after the persisted launcher
   assert.equal(serialized.launcherStage, 6);
   assert.equal(serialized.sdkInstalled, true);
   assert.equal(serialized.environmentConfigured, false);
-  // Continuing from a "reloaded" copy behaves identically to continuing live.
   let resumed = ob.onboardingReducer(serialized, { type: 'launcher_progress', stage: 7 });
   assert.equal(resumed.launcherStage, 7);
 });
 
-test('cannot enter the complete step, connect payments, or choose a stack out of order', () => {
+test('cannot enter complete or connect payments out of order', () => {
   const fresh = ob.initialOnboarding();
   assert.equal(ob.onboardingReducer(fresh, { type: 'choose_stack', stack: 'javascript' }), fresh);
   assert.equal(ob.onboardingReducer(fresh, { type: 'connect_payments_pending' }), fresh);
   assert.equal(ob.onboardingReducer(fresh, { type: 'enter_complete' }), fresh);
 
-  let s = toStack(fresh);
+  let s = toWorkspace(fresh);
   const beforeStack = s;
   assert.equal(ob.onboardingReducer(beforeStack, { type: 'connect_payments_pending' }), beforeStack);
 
@@ -151,12 +161,14 @@ test('invalid account submissions and duplicate purchases are rejected', () => {
   assert.equal(s.receiptId, 'rcpt_a');
 });
 
-test('goto cannot jump ahead of the furthest unlocked step', () => {
+test('goto cannot jump ahead of the furthest unlocked step or enter retired stack screen', () => {
   let s = ob.initialOnboarding();
   s = ob.onboardingReducer(s, { type: 'goto', step: 'launcher' });
   assert.equal(s.step, 'plan');
   s = ob.onboardingReducer(s, { type: 'select_plan', plan: 'founding' });
   s = ob.onboardingReducer(s, { type: 'goto', step: 'payments' });
+  assert.equal(s.step, 'account');
+  s = ob.onboardingReducer(s, { type: 'goto', step: 'stack' });
   assert.equal(s.step, 'account');
 });
 
@@ -179,10 +191,8 @@ test('malformed or missing saved onboarding state recovers to a fresh funnel', (
   global.localStorage = original;
 });
 
-test('a state saved before the launcher stage model existed still loads with launcher progress defaulted to zero', () => {
+test('legacy state loads only when its numbered step still exists', () => {
   const original = global.localStorage;
-  // No launcherStage/sdkInstalled/environmentConfigured field at all, as a
-  // pre-launcher save would have looked, but 'payments' is still a valid step.
   const legacy = { version: 1, step: 'payments', selectedPlan: 'founding', accountCreated: true, purchaseStatus: 'paid', workspaceCreated: true, stack: 'javascript', paymentProviderStatus: 'connecting', productionRequested: false };
   global.localStorage = { getItem: () => JSON.stringify(legacy), setItem: () => {} };
   const loaded = ob.loadOnboarding();
@@ -190,9 +200,7 @@ test('a state saved before the launcher stage model existed still loads with lau
   assert.equal(loaded.environmentConfigured, false);
   assert.equal(ob.furthestUnlockedStep(loaded), 'payments');
 
-  // A saved step name removed by this refactor ('install') can no longer be
-  // trusted and falls back to a fresh funnel rather than guessing a mapping.
-  global.localStorage = { getItem: () => JSON.stringify({ ...legacy, step: 'install' }), setItem: () => {} };
+  global.localStorage = { getItem: () => JSON.stringify({ ...legacy, step: 'stack' }), setItem: () => {} };
   assert.deepEqual(ob.loadOnboarding(), ob.initialOnboarding());
   global.localStorage = original;
 });
