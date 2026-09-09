@@ -17,16 +17,16 @@ port = 54323
 
 [auth]
 enabled = true
-site_url = "http://localhost:5173"
-additional_redirect_urls = ["http://localhost:5173", "https://wglewis0721.github.io"]
+site_url = "https://wglewis0721.github.io/apex/"
+additional_redirect_urls = ["https://wglewis0721.github.io/apex/", "https://wglewis0721.github.io/apex/**", "http://localhost:5173", "http://localhost:5173/**"]
 jwt_expiry = 3600
 enable_signup = true
 
 [auth.email]
 enable_signup = true
-# Auto-confirm on sign-up so the existing linear onboarding UI (which has
-# no "check your email" interstitial) can continue immediately. Turn this
-# on before real customers sign up with addresses they don't control.
+# Hosted production keeps email confirmation enabled. Local development can
+# still use the project's normal Supabase auth settings; signup code always
+# supplies an explicit redirect URL for the current app origin.
 enable_confirmations = false
 
 [functions.apex-checkout]
