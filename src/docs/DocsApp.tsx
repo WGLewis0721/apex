@@ -70,11 +70,24 @@ function DocsHome() {
         today from what is still on the production roadmap.
       </p>
 
+      <section className="docs-business-model" aria-label="APEX business model">
+        <p className="ap-eyebrow">THE BUSINESS NORTH STAR</p>
+        <h2>Your customers pay you. You pay APEX to keep what they bought usable.</h2>
+        <p>
+          APEX is recurring infrastructure SaaS for software companies that sell digital value through Stripe.
+          The SaaS company remains the seller; APEX turns commercial events into accurate credits, usage,
+          entitlements, balances, renewals, refund adjustments, and product access.
+        </p>
+        <p><b>Why a company keeps paying APEX:</b> monetize faster, reduce custom billing logic, keep balances and access dependable, and make every commercial state change explainable.</p>
+        <p className="docs-business-model-tldr"><b>TL;DR:</b> Stripe moves the money. APEX knows what the money unlocks.</p>
+        <a href="#docs/learn/what-is-apex">See the product model <ArrowRight size={14} /></a>
+      </section>
+
       <div className="docs-home-note">
         <b>Current production status · September 9, 2026</b><br />
         Real today: Supabase accounts, the multi-tenant schema, APEX's own Stripe test Checkout /
         verified webhook path, and paid workspace provisioning. Phase 5 customer Stripe connection
-        is implemented in PR #16 but still needs Stripe App External-test registration and one real
+        code is merged to <code>main</code> but still needs Stripe App External-test registration and one real
         OAuth acceptance run. Hosted API, production credit ledger/usage, purchase packs, renewals,
         refunds, entitlement enforcement, SDK, customer balance UI, and live operator data remain
         planned phases.
@@ -110,9 +123,8 @@ function DocsHome() {
       <p className="docs-home-note">
         <b>Status language matters.</b> Schema/demo/UI existence does not prove production behavior.
         Anything beyond the current accepted phases should be read as <em>planned</em>, <em>design preview</em>,
-        or <em>implemented but not yet accepted</em>. See <a href="#docs/reference/data-model">the data model</a>
-        for the real schema foundation and the Build section for the planned Stripe → ledger → usage →
-        balance → access path.
+        or <em>implemented but not yet accepted</em>. The business model is the commercial compass;
+        <code>ROADMAP.md</code> is the implementation compass.
       </p>
     </div>
   );
