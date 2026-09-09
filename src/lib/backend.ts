@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 
-// Account, billing, workspace, and Stripe Connect calls for the real onboarding flow.
+// Account, billing, workspace, and Stripe Apps OAuth calls for the real onboarding flow.
 
 export type BackendAccount = { userId: string; email: string; fullName: string | null; companyName: string | null };
 
