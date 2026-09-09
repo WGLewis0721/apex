@@ -2,39 +2,27 @@
 
 **Live app:** https://wglewis0721.github.io/apex/
 
-APEX is a hosted payment-and-access layer for SaaS products that use Stripe. It turns commercial events into usable product state: credits, tokens, coins, usage allowance, plan rights, feature access, balances, and access decisions.
+APEX is a hosted payment-to-product-state layer for SaaS products that use Stripe. It turns commercial events into usable product state: credits, tokens, coins, usage allowance, plan rights, feature entitlements, balances, refunds, and product access.
 
 **Stripe moves the money. APEX knows what the money unlocks.**
 
 ## Business model — the North Star
 
-The commercial model is the decision filter for APEX product, roadmap, pricing, docs, and UX.
-
-### TL;DR
-
 **Your customers pay you through Stripe. You pay APEX for the infrastructure that makes those purchases usable inside your product.**
 
-### One sentence
+APEX is recurring infrastructure SaaS for software companies that sell digital value through Stripe. The SaaS company remains the seller; APEX maps verified commercial events to correct product state.
 
-**APEX is recurring infrastructure SaaS for software companies that sell digital value through Stripe: the company pays APEX to turn successful payments into accurate credits, usage, entitlements, balances, and product access.**
+APEX earns recurring value when it helps a SaaS company:
 
-### Standard explanation
+- monetize faster
+- deliver exactly what customers bought
+- meter usage/balances reliably
+- replenish credits cleanly
+- protect product access safely
+- explain purchases, usage, refunds, and denials
+- reduce repeated custom engineering
 
-APEX sells a recurring software service to SaaS companies that already monetize through Stripe. Their end customers continue paying them through their own Stripe account; APEX sits alongside that flow and turns commercial events into reliable product behavior.
-
-The SaaS company pays APEX for the infrastructure that grants credits, tracks usage, enforces plan rights, replenishes balances, handles renewals and refund adjustments, and explains why access changed. The core revenue model is a recurring APEX platform subscription. Early or complex deployments may also include a one-time guided implementation fee. Future plans can scale with real platform capacity such as active customers, metered events, environments, or advanced operational capabilities.
-
-### Long-form explanation
-
-APEX is a B2B infrastructure SaaS product built for software companies whose customers buy digital value. That value might be a subscription tier, 1,000 AI credits, 5,000 tokens, 10,000 game gold, 100 report generations, premium features, add-ons, or another measurable right inside a product.
-
-The SaaS company's customer pays the SaaS company through its existing Stripe account. Stripe remains the system that moves money and reports commercial events. APEX uses those events to maintain the corresponding product state: what was purchased, how much remains, what has been consumed, what renews, what was refunded, and whether the next protected action should be allowed.
-
-The SaaS company is the APEX customer. It pays APEX a recurring platform subscription because the payment-to-product-state layer is ongoing infrastructure, not a one-time code snippet. APEX must keep working through retries, renewals, top-ups, usage, failed payments, refunds, plan changes, concurrency, support questions, and scale. Founding or high-touch implementations may add a one-time guided setup fee.
-
-The value equation is straightforward: APEX should help a SaaS company monetize faster, support more flexible product packaging, reduce custom billing-and-entitlement logic, keep usage and balances dependable, and make every purchase/usage/access change explainable. Those outcomes are why APEX earns recurring revenue.
-
-See [`docs/BUSINESS_MODEL.md`](docs/BUSINESS_MODEL.md) for the canonical commercial model and roadmap filter.
+See [`docs/BUSINESS_MODEL.md`](docs/BUSINESS_MODEL.md) for the canonical commercial model and value filter.
 
 ## Who pays who
 
@@ -47,104 +35,187 @@ SaaS company ← Stripe processes payment
    │ recurring APEX platform subscription
    ↓
 APEX
-   ├─ purchase → credits / rights
+   ├─ payment → product value
    ├─ usage → balance
-   ├─ renewal → replenishment
-   ├─ refund → adjustment
-   ├─ state → ALLOW / DENY
-   └─ lifecycle → audit history
+   ├─ refund → source-aware adjustment
+   └─ lifecycle → durable explanation
 ```
 
-APEX is valuable when it makes that loop easier, safer, more flexible, or more explainable for the SaaS company.
+## Frozen v1 architecture
 
-## Production promise
+The current architecture decision is closed:
 
-The production product is being built as one coherent subsystem:
+**hosted authoritative Postgres ledger + hosted authoritative spend + snapshot-shaped entitlements read.**
 
-- Stripe integration for the SaaS company's own Stripe account
-- credit ledger and balance calculation
-- usage metering
-- plan and feature entitlements
-- one-time purchase packs / top-ups
-- subscription renewals and recurring allowance grants
-- refund-aware credit adjustments
-- audit history and reconciliation
-- hosted API
-- TypeScript/Node SDK (`@apex/sdk`)
-- customer-facing balance data/UI
-- operator dashboard showing customers, payments, credits, usage, access, and why a decision happened
+```text
+Customer SaaS server
+        ↓
+     APEX API
+        ↓
+Supabase Edge Functions
+        ↓
+Supabase Postgres
+  ├─ credit_accounts projection
+  ├─ source-attributed credit_grants
+  ├─ append-only credit_ledger
+  └─ credit_operations idempotency
 
-`ROADMAP.md` is the implementation source of truth for that promise. A UI, schema, demo, or documentation page does not make a production capability complete by itself.
+Connected Stripe events
+        ↓
+verified + persisted
+        ↓
+transactional grant/refund processing (next ingress step)
+```
+
+Frozen v1 does **not** include public `/check`, reservations/finalize/cancel, signed snapshots, local SDK evaluation, Redis, Kafka, ClickHouse, AWS runtime migration, a dedicated worker service, or a new queue product.
+
+See [`docs/architecture/APEX_V1_LEDGER.md`](docs/architecture/APEX_V1_LEDGER.md).
 
 ## Current implementation status — September 9, 2026
 
 | Capability | Status |
 | --- | --- |
-| Marketing site, Forma demo, onboarding preview, docs, console preview | ✅ Built |
-| Supabase Auth accounts | ✅ Real |
-| Multi-tenant Supabase/Postgres schema + RLS | ✅ Real |
-| APEX test Checkout + verified webhook processing | ✅ Real |
+| Marketing/demo/onboarding/docs/console previews | ✅ Built |
+| Supabase Auth + workspace tenancy/RLS | ✅ Real |
+| APEX test Checkout + verified own-billing webhook | ✅ Real |
 | Paid workspace/environment/API credential provisioning | ✅ Real |
-| Customer Stripe connection implementation | 🟡 Merged to `main`; External-test Stripe App OAuth acceptance still required |
-| Hosted APEX API | ⏳ Planned — Phase 6.1 |
-| Production credit ledger + usage metering | ⏳ Planned — Phase 6.2 |
-| Purchase packs, renewals, refunds | ⏳ Planned — Phase 6.2/6.4 |
-| Production entitlement/access engine | ⏳ Planned — Phase 6.3 |
-| Background retries/reconciliation | ⏳ Planned — Phase 6.4 |
-| Audit/support timeline | ⏳ Planned — Phase 6.5 |
-| `@apex/sdk` + customer balance UI | ⏳ Planned — Phase 7 |
-| End-to-end real credit purchase verification | ⏳ Planned — Phase 8 |
-| Real operator dashboard data | ⏳ Planned — Phase 9 |
+| Customer Stripe Connect implementation | 🟡 Merged; External-test OAuth acceptance still required |
+| Hosted balance API | ✅ Deployed |
+| Hosted entitlements API | ✅ Deployed |
+| Hosted atomic consume API | ✅ Deployed |
+| Per-grant credit attribution + append-only ledger | ✅ Deployed |
+| Source-aware non-negative refund RPC | ✅ Deployed; connected Stripe refund ingress not wired |
+| Hosted concurrency proof | ✅ Passed — parallel 750/750 against 1000 produced one ALLOW, one DENY, remaining 250 |
+| Connected Stripe payment → grant ingress | ⏳ Not wired |
+| Connected Stripe refund → clawback ingress | ⏳ Not wired |
+| First public `@apex/sdk` | ⏳ Planned |
+| Signed/local entitlement evaluation | ⏳ v1.1+ only if customer need justifies it |
+| Reservations | ⏳ Not v1; only if start-now/finish-later workload requires them |
+| Expiring grants | ⏳ Not production-supported until projection reconciliation exists |
+| End-to-end connected Stripe proof | ⏳ Pending Phase 5 + ingress |
+| Live operator dashboard | ⏳ Planned |
 
-## Immediate acceptance gate
+## What is proven now
 
-Phase 5 code is merged, but the real Stripe Apps connection is not yet accepted. Before production work moves into APEX Cloud/SDK/Verify, complete the External-test Stripe App setup, configure the OAuth client ID, complete one real test authorization from APEX onboarding, and confirm the paid workspace persists a connected Stripe account.
-
-## The proof APEX must demonstrate
+The hosted wallet/concurrency contract is real:
 
 ```text
-Customer clicks "Buy 1,000 credits"
-        ↓
-APEX uses the SaaS company's configured pack
-        ↓
-Customer's Stripe test payment succeeds
-        ↓
-Verified Stripe event reaches APEX
-        ↓
-credit ledger +1,000
-        ↓
-balance = 1,000
-        ↓
-record usage 250
-        ↓
-balance = 750
-        ↓
-access = ALLOW
-        ↓
-consume remaining credits
-        ↓
-access = DENY
-        ↓
-refund purchase
-        ↓
-ledger adjustment + auditable explanation
+grant 1000
+parallel consume 750 / consume 750
+→ one succeeds
+→ one DENY / INSUFFICIENT_CREDITS
+→ remaining 250
+
+replay both idempotency keys
+→ same results
+→ remaining still 250
 ```
 
-That flow must use hosted APEX infrastructure and persisted data, not the Forma reducer/localStorage simulation.
+The first hosted attempt exposed a legacy Supabase service-role JWT clock error. PR #19 changed server clients to prefer Supabase's current server secret-key model; a fresh hosted race then passed.
+
+This proves the wallet does not double-spend. It does **not** yet prove money automatically becomes product value from a customer's connected Stripe account.
+
+## Immediate acceptance gates
+
+### 1. Finish Phase 5 Connect Stripe
+
+- `stripe apps upload`
+- register External test
+- configure `STRIPE_APP_CLIENT_ID`
+- complete one live test OAuth authorization from APEX onboarding
+- confirm `stripe_connections.status = 'connected'` for the expected connected account
+
+### 2. Wire connected Stripe ingress
+
+```text
+verified connected payment event
+→ persist event once
+→ configured source mapping
+→ grant_credits exactly once
+
+verified connected refund event
+→ persist event once
+→ refund_unspent_credits for the originating purchase
+→ replay-safe result
+```
+
+Only after that connected lifecycle passes should frozen Phase 6 v1 be called accepted.
+
+## Frozen refund policy
+
+Balance never goes negative. There is no v1 debt ledger.
+
+```text
+grant A +1000
+consume   750
+refund A 1000
+→ clawed_back 250
+→ unrecoverable_spent 750
+→ remaining 0
+```
+
+Refunding A cannot steal credits from grant B. Already-consumed product work remains consumed.
+
+## v1 API
+
+```text
+GET  /v1/customers/:id/balance
+GET  /v1/customers/:id/entitlements
+POST /v1/customers/:id/consume
+```
+
+`GET /entitlements` is read-only and includes `remaining`, `version`, and `as_of`. It may inform UI/preflight behavior but does not authorize scarce-credit spend.
+
+`POST /consume` is the current authoritative spend boundary.
+
+## The connected Stripe proof APEX must demonstrate
+
+```text
+connected SaaS Stripe account
+        ↓
+end customer buys configured 1,000-credit pack
+        ↓
+verified event persisted once
+        ↓
+source-attributed grant +1000
+        ↓
+balance / entitlements = 1000
+        ↓
+consume 250 → 750
+        ↓
+consume 750 → 0
+        ↓
+next consume 1 → DENY
+        ↓
+payment replay → no duplicate grant
+        ↓
+refund → source-aware clawback + unrecoverable accounting
+        ↓
+refund replay → no duplicate adjustment
+```
+
+That flow must use hosted persisted APEX state, not the Forma reducer/localStorage simulation.
 
 ## Existing data foundation
 
-The Supabase schema already contains the core production structures:
+The schema includes the core tenancy/product tables plus the deployed v1 wallet structures:
 
-`profiles`, `workspaces`, `workspace_members`, `plans`, `features`, `plan_features`, `customers`, `subscriptions`, `environments`, `api_keys`, `stripe_connections`, `usage_events`, `usage_counters`, `credit_grants`, `credit_consumptions`, `access_decisions`, `stripe_webhook_events`, `audit_logs`.
+- `profiles`, `workspaces`, `workspace_members`
+- `plans`, `features`, `plan_features`
+- `customers`, `subscriptions`, `environments`, `api_keys`
+- `stripe_connections`, `stripe_webhook_events`
+- `usage_events`, `usage_counters`
+- `credit_grants`, `credit_consumptions`
+- `credit_accounts`, `credit_ledger`, `credit_operations`
+- `access_decisions`, `audit_logs`
 
-Every customer-owned table is workspace-scoped and protected by Postgres RLS. Usage/credit/access tables are real schema but their production processing logic remains roadmap work.
+The existence of a table does not mean the corresponding product capability is accepted.
 
-## Forma: executable product model
+## Forma and assurance experiences
 
-The Forma experience demonstrates the intended behavior: subscribe, receive an allowance, consume usage, hit a hard limit, upgrade without losing prior usage, buy a top-up, simulate renewal failure/recovery, and inspect activity.
+The demo experiences remain executable product models. They may demonstrate later behaviors such as richer access logic or reservation/settlement flows.
 
-Forma is a working model of APEX behavior, not production infrastructure. Phase 6+ must reproduce those outcomes using connected Stripe events, the hosted APEX API, Postgres, idempotent ledger writes, and server-side access checks.
+Those simulations do **not** redefine frozen v1. Production v1 follows the ledger/API contract in `docs/architecture/APEX_V1_LEDGER.md`.
 
 ## Canonical onboarding
 
@@ -160,31 +231,14 @@ See APEX
   → Dashboard
 ```
 
-## Architecture
-
-```text
-SaaS app
-   ↓
-@apex/sdk / APEX API
-   ↓
-APEX Cloud
-   ├─ customer identity
-   ├─ plans + entitlements
-   ├─ credit ledger
-   ├─ usage metering
-   ├─ balance
-   ├─ ALLOW / DENY
-   ├─ audit history
-   └─ Stripe reconciliation
-   ↓
-SaaS company's connected Stripe account
-```
+Real paid onboarding currently stops at Connect Stripe until Phase 5 External-test OAuth acceptance passes.
 
 ## Documentation map
 
-- `docs/BUSINESS_MODEL.md` — commercial North Star: who pays, why, and how APEX creates recurring value
-- `ROADMAP.md` — permanent implementation source of truth
-- `docs/PRODUCT_CONTRACT.md` — canonical technical product promise and invariants
+- `docs/BUSINESS_MODEL.md` — commercial North Star, value-addition filter, architecture discipline
+- `ROADMAP.md` — implementation source of truth and acceptance status
+- `docs/PRODUCT_CONTRACT.md` — canonical technical/product promise and invariants
+- `docs/architecture/APEX_V1_LEDGER.md` — frozen v1 ledger/evaluation architecture
 - `docs/CLAUDE_CUSTOMER_FUNNEL.md` — onboarding/customer journey
 - `docs/APEX_LAUNCH_DISTRIBUTION.md` — how APEX is sold, shipped, and explained
 - `docs/implementation/APEX_BILLING.md` — APEX's own billing/provisioning versus customer Stripe
@@ -203,12 +257,12 @@ Vite uses the `/apex/` base path. GitHub Pages deploys from the existing workflo
 
 ## Decision rule
 
-Before adding a meaningful feature, ask:
+Before adding a meaningful feature or new technology, ask:
 
 > **Does this make it easier, safer, or more scalable for a SaaS company to sell digital value and keep that value correct inside the product?**
 
-If yes, it belongs near the APEX nucleus. If not, it needs a strong reason to exist.
+Then ask whether the existing approved stack can solve the proven problem more simply.
 
 ## Honesty boundary
 
-Do not use the existence of UI, schema, docs, or simulations as proof that a production capability is live. Planned, implemented-but-not-accepted, and production-accepted are separate states.
+Planned, implemented/deployed, and production-accepted are separate states. UI, schema, docs, simulations, or a successful isolated proof must never be presented as a complete connected-customer lifecycle when the required ingress is still missing.
