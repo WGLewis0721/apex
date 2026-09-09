@@ -1,8 +1,26 @@
 # APEX Product Contract
 
-This document defines what APEX promises to a SaaS builder and the invariants the implementation must preserve. `ROADMAP.md` defines build order and acceptance status. The README explains the product at repository level.
+This document defines what APEX promises to a SaaS builder and the invariants the implementation must preserve. `docs/BUSINESS_MODEL.md` defines why the business exists and how it earns money. `ROADMAP.md` defines build order and acceptance status.
 
-## One-line definition
+## Business North Star
+
+**APEX makes money when SaaS companies make digital value easier to sell, deliver, meter, replenish, and explain.**
+
+That business model is the product compass. APEX should become more valuable as a SaaS company monetizes more digital value through its own product—not by changing who owns the customer relationship, but by making the commercial-to-product-state layer dependable and easy to operate.
+
+Canonical commercial relationship:
+
+```text
+End customer pays the SaaS company through Stripe
+                     ↓
+          APEX interprets what it unlocks
+                     ↓
+ SaaS company pays APEX a recurring platform subscription
+```
+
+Early or complex deployments may also include a one-time guided implementation fee. Longer-term packaging may scale with meaningful platform capacity such as active customers, usage events, environments, or advanced operational capabilities.
+
+## One-line product definition
 
 **APEX is the payment-and-access layer between a SaaS product and Stripe: Stripe moves the money; APEX knows what the money unlocks.**
 
@@ -27,6 +45,20 @@ SaaS app asks APEX whether the next action is allowed
 ```
 
 The SaaS company should not need to independently rebuild the payment-to-product-state subsystem for each app.
+
+## Value contract
+
+Every major production capability should strengthen at least one of these business outcomes:
+
+1. **Monetize faster** — launch a new plan, paid unit, or add-on with less custom infrastructure.
+2. **Deliver accurately** — make sure customers receive exactly what they bought.
+3. **Meter reliably** — keep usage and balances correct under retries and concurrency.
+4. **Replenish cleanly** — make top-ups and recurring allowances predictable.
+5. **Protect access** — turn commercial state into deterministic product decisions.
+6. **Explain the lifecycle** — show why payment, balance, and access changed.
+7. **Reduce custom engineering** — remove repeated billing/entitlement work from the SaaS team's backlog.
+
+A feature that does not materially improve one of those outcomes needs a strong reason to exist.
 
 ## v1 capability contract
 
@@ -88,11 +120,26 @@ That SaaS company connects its own Stripe account. Its end customers pay that ac
 
 Never mix the two in code, docs, environment variables, webhooks, or product copy.
 
+## Communication identity
+
+APEX should communicate as a useful, intelligent layer in an existing SaaS stack.
+
+Prefer concise cause-and-effect language:
+
+- Customer paid → credits granted.
+- Customer used 250 → 750 remain.
+- Renewal succeeded → allowance replenished.
+- Refund posted → balance adjusted.
+- Limit reached → access denied with a reason.
+
+Lead with the customer or operator value; reveal technical detail when the reader needs it.
+
+Do not define APEX primarily by opposing another company, category, or product. Explain what APEX adds to the stack.
+
 ## Non-goals
 
 APEX v1 is not:
 
-- a replacement for Stripe
 - a card processor
 - a bank account or stored-value wallet
 - cryptocurrency infrastructure
@@ -133,12 +180,14 @@ That acceptance flow is Phase 8 in `ROADMAP.md`.
 
 ## Documentation rule
 
-When implementation status changes, update together:
+When implementation or commercial positioning changes, update together:
 
+- `docs/BUSINESS_MODEL.md`
 - `ROADMAP.md`
 - root `README.md`
 - this file
 - relevant files under `docs/`
 - relevant live documentation under `src/docs/`
+- customer-facing website copy when the change affects product identity
 
 A capability may be described as **planned**, **implemented but not accepted**, or **production-accepted**. Do not collapse those states.
