@@ -1,49 +1,59 @@
 import { Callout, CodeBlock, DangerNote, DataTable, H2, PageHeader, SeeAlso, Steps } from '../primitives';
 
-const PLANNED = { kind: 'planned' as const, label: 'Design preview — this API does not exist yet' };
+const PLANNED = { kind: 'planned' as const, label: 'Design preview — this capability is not production-accepted yet' };
+const PENDING_ACCEPTANCE = { kind: 'planned' as const, label: 'Implemented — acceptance pending' };
 
 /* ================================================================ quickstart */
 
 function Quickstart() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Quickstart" lede="The shortest real path from zero to a working setup — using what's actually built today, with the rest clearly marked as design preview." />
+      <PageHeader eyebrow="BUILD" title="Quickstart" lede="The shortest honest path through what APEX has actually built, what is deployed, and what still needs acceptance." />
 
-      <Callout kind="note" title="What you can actually do right now">
+      <Callout kind="note" title="What is real today">
         <p>
-          Account sign-up runs on real Supabase Auth. Workspace creation, payment, and API keys in the{' '}
-          <a href="#start">onboarding flow</a> are simulated — they demonstrate the intended shape of the
-          flow without a real backend behind them yet. This page walks through both halves honestly.
+          Supabase account creation, APEX test Checkout, paid workspace provisioning, API credentials,
+          the hosted credit ledger, balance/entitlements reads, and atomic consume are real. Stripe Connect
+          is implemented but still needs one External-test OAuth acceptance run. Connected Stripe
+          payment/refund events are not yet wired into the ledger.
         </p>
       </Callout>
 
       <H2>1. Create an account</H2>
-      <p>Open <a href="#start">Start with APEX</a> and sign up. This creates a real row in Supabase's <code>auth.users</code> table and a matching <code>profiles</code> row via a database trigger.</p>
+      <p>Open <a href="#start">Start with APEX</a> and sign up. This uses real Supabase Auth.</p>
 
-      <H2>2. Create a workspace</H2>
+      <H2>2. Pay APEX and get a workspace</H2>
       <p>
-        The onboarding flow shows a workspace being created and assigned an ID. This step is simulated —
-        no row is written to the real <code>workspaces</code> table yet, because workspace provisioning is
-        explicitly deferred (see <a href="#docs/reference/data-model">Reference → Data model</a>).
+        APEX's own Stripe test Checkout and verified webhook provision the paid workspace, owner membership,
+        Sandbox environment, and APEX credentials. This is APEX billing — separate from the Stripe account
+        your end customers use to pay your SaaS.
       </p>
 
-      <H2>3. Connect a payment provider</H2>
-      <p>See <a href="#docs/build/connect-payment-provider">Connect a payment provider</a> for the intended flow. No real Stripe Connect integration exists yet.</p>
-
-      <H2>4. Define plans and entitlements</H2>
-      <p>See <a href="#docs/build/create-plans">Create plans</a> and <a href="#docs/build/define-entitlements">Define entitlements</a>. The tables these write to are real and live; there's no API to write them through yet.</p>
-
-      <H2>5. Try the real thing</H2>
+      <H2>3. Connect your Stripe account</H2>
       <p>
-        For hands-on logic you can actually run today, open the <a href="#forma">Forma demo app</a>. It's a
-        complete, working example of exactly what a finished APEX integration would feel like — plan
-        limits, credits, upgrades, grace periods, and an audit trail — built with the same rules this
-        documentation describes, running entirely client-side.
+        See <a href="#docs/build/connect-payment-provider">Connect Stripe</a>. The OAuth implementation is
+        merged; External-test registration and one real onboarding authorization still have to pass before
+        the customer funnel advances.
+      </p>
+
+      <H2>4. Understand the hosted v1 wallet</H2>
+      <p>
+        APEX now has a real hosted balance/ledger and an atomic <code>consume</code> operation. A fresh
+        1,000-credit hosted wallet survived two parallel 750-credit spends: one succeeded, one returned
+        <code>INSUFFICIENT_CREDITS</code>, and the remaining balance was 250.
+      </p>
+
+      <H2>5. What is still missing</H2>
+      <p>
+        The next core step is connected Stripe ingress: verified payment event → source-attributed grant,
+        and verified refund event → source-aware clawback. Until that is wired and proven, APEX has a real
+        wallet with a controlled grant faucet — not the complete payment-to-product-value lifecycle.
       </p>
 
       <SeeAlso items={[
-        { href: '#docs/build/connect-payment-provider', title: 'Connect a payment provider', description: 'Step two, in depth.' },
-        { href: '#forma', title: 'Open the Forma demo', description: 'Real, runnable commercial logic.' },
+        { href: '#docs/build/connect-payment-provider', title: 'Connect Stripe', description: 'Finish the remaining OAuth acceptance gate.' },
+        { href: '#docs/build/record-usage', title: 'Consume credits', description: 'How the deployed authoritative spend path works.' },
+        { href: '#docs/build/handle-webhooks', title: 'Handle Stripe events', description: 'The next payment/refund ingress milestone.' },
       ]} />
     </>
   );
@@ -54,39 +64,43 @@ function Quickstart() {
 function ConnectPaymentProvider() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Connect a payment provider" lede="Give APEX visibility into a customer's payments so it can keep plans, credits, and access in sync." status={PLANNED} />
+      <PageHeader eyebrow="BUILD" title="Connect Stripe" lede="Authorize the SaaS company's own Stripe account so APEX can later map verified customer payments into product state." status={PENDING_ACCEPTANCE} />
 
-      <H2>Before you start</H2>
+      <H2>Current state</H2>
       <p>
-        This page describes the intended flow. The real, applied piece today is the schema:{' '}
-        <code>stripe_connections</code> holds a workspace's connected account and status (
-        <code>not_connected</code>, <code>pending</code>, <code>connected</code>, <code>disconnected</code>),
-        but no OAuth flow writes to it yet.
+        The Stripe Apps OAuth implementation is merged: manifest, connect/status Edge Function, one-time OAuth
+        state, callback, workspace-scoped <code>stripe_connections</code>, and encrypted refresh-token storage.
+        The remaining gate is Stripe Apps External-test registration plus one real onboarding authorization.
       </p>
 
-      <H2>Steps</H2>
+      <H2>Acceptance steps</H2>
       <Steps items={[
-        { title: 'Start the connection', body: <>From your workspace settings, choose "Connect Stripe." This would begin a Stripe Connect OAuth flow.</> },
-        { title: 'Authorize on Stripe', body: 'You approve the connection on Stripe\'s own hosted page — APEX never sees your Stripe credentials directly.' },
-        { title: 'APEX records the connection', body: <>APEX stores the returned account ID and flips <code>stripe_connections.status</code> to <code>connected</code>.</> },
-        { title: 'Confirm webhooks are live', body: 'APEX would register for the Stripe events it needs — see Handle webhooks.' },
+        { title: 'Upload the Stripe App', body: <><code>stripe apps upload</code> from <code>stripe-app/</code> using the APEX developer sandbox account.</> },
+        { title: 'Register External test', body: 'Open the uploaded APEX app in Stripe and start External test.' },
+        { title: 'Configure the OAuth client ID', body: <><code>STRIPE_APP_CLIENT_ID</code> must be set in Supabase Edge Function secrets.</> },
+        { title: 'Authorize from live APEX onboarding', body: 'Complete the real Stripe-hosted OAuth flow from a paid workspace.' },
+        { title: 'Verify persisted state', body: <><code>stripe_connections.status</code> must be <code>connected</code> with the expected Stripe account ID.</> },
       ]} />
 
       <H2>Expected result</H2>
-      <p>A <code>connected</code> status and a Stripe account ID visible in your workspace settings, with no further action needed for future payments to flow through.</p>
+      <p>
+        A paid APEX workspace has a trusted connected Stripe account and a server-side encrypted OAuth refresh
+        token. That connection becomes the event source for the next grant/refund ingress work.
+      </p>
 
       <H2>Troubleshooting</H2>
       <DataTable
         head={['Symptom', 'Likely cause']}
         rows={[
-          ['Connection stuck at pending', 'The OAuth authorization was never completed on Stripe\'s side.'],
-          ['Payments succeed in Stripe but APEX shows nothing', 'Webhooks aren\'t configured — see Handle webhooks.'],
+          ['Connect cannot start', 'External-test app registration or STRIPE_APP_CLIENT_ID is incomplete.'],
+          ['Callback returns but workspace is not connected', 'OAuth state/account persistence failed; inspect the server path, not the browser redirect alone.'],
+          ['Stripe is connected but credits do not appear', 'Expected today: connected payment → grant ingress is the next Phase 6 step and is not wired yet.'],
         ]}
       />
 
       <SeeAlso items={[
-        { href: '#docs/build/handle-webhooks', title: 'Handle webhooks', description: 'The other half of this connection.' },
-        { href: '#docs/reference/data-model', title: 'Data model', description: 'stripe_connections, exactly as defined.' },
+        { href: '#docs/build/handle-webhooks', title: 'Handle Stripe events', description: 'What the connected account feeds next.' },
+        { href: '#docs/reference/data-model', title: 'Data model', description: 'stripe_connections and the production wallet tables.' },
       ]} />
     </>
   );
@@ -97,36 +111,36 @@ function ConnectPaymentProvider() {
 function CreatePlans() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Create plans" lede="A plan is what a customer subscribes to — a name, a price, and (via entitlements) a set of things it unlocks." status={PLANNED} />
+      <PageHeader eyebrow="BUILD" title="Create plans" lede="A plan describes what a customer buys and the product rights APEX can later expose through entitlements." status={PLANNED} />
 
-      <H2>Before you start</H2>
-      <p>The <code>plans</code> table is real and live. A plan with <code>workspace_id</code> set belongs to your workspace's own catalog; there's no write API for it yet.</p>
+      <H2>Current boundary</H2>
+      <p>
+        The <code>plans</code>, <code>features</code>, and <code>plan_features</code> schema is real. The current
+        v1 work is focused on the payment→credit ledger path; a polished public plan-management API is later.
+      </p>
 
       <H2>Steps</H2>
       <Steps items={[
-        { title: 'Choose a key and a name', body: <>e.g. <code>key: "pro"</code>, <code>name: "Pro"</code>. The key is what your code refers to; the name is what customers see.</> },
-        { title: 'Set a price', body: <>Stored as <code>monthly_price_cents</code> — always an integer, never a float, to avoid rounding errors.</> },
-        { title: 'Link a Stripe price', body: <>Set <code>stripe_price_id_recurring</code> so a subscription created in Stripe maps back to this plan.</> },
-        { title: 'Attach entitlements', body: <>Continue to <a href="#docs/build/define-entitlements">Define entitlements</a> to say what the plan actually includes.</> },
+        { title: 'Choose a key and a name', body: <>e.g. <code>key: "pro"</code>, <code>name: "Pro"</code>.</> },
+        { title: 'Set product pricing metadata', body: <>Use the existing plan fields; authoritative Stripe fulfillment mappings must remain server-side.</> },
+        { title: 'Link Stripe references deliberately', body: <>A configured Stripe product/price can later map a verified commercial event to product value.</> },
+        { title: 'Attach entitlements', body: <>Continue to <a href="#docs/build/define-entitlements">Define entitlements</a>.</> },
       ]} />
 
-      <H2>Example (design preview)</H2>
+      <H2>Example (future SDK shape)</H2>
       <CodeBlock language="ts" code={`await apex.plans.create({
   key: "pro",
   name: "Pro",
   monthlyPriceCents: 2900,
   stripePriceId: "price_1P...",
-});`} caption="Illustrative — this SDK is not published." />
+});`} caption="Illustrative — this plan-management SDK surface is not published." />
 
-      <H2>Expected result</H2>
-      <p>A row in <code>plans</code> scoped to your workspace, ready to have entitlements attached to it.</p>
-
-      <Callout kind="warning" title="Plan keys are unique per workspace">
-        The schema enforces a unique <code>(workspace_id, key)</code> pair — two plans in the same
-        workspace can't share a key, but two different workspaces can each have their own <code>"pro"</code>.
+      <Callout kind="warning" title="Do not trust client-supplied grant quantities">
+        A future purchase-pack flow must map an authoritative Stripe product/price to a configured product
+        grant on the server. The browser cannot decide that a $1 payment grants 1,000 credits.
       </Callout>
 
-      <SeeAlso items={[{ href: '#docs/build/define-entitlements', title: 'Define entitlements', description: 'What a plan actually unlocks.' }]} />
+      <SeeAlso items={[{ href: '#docs/build/define-entitlements', title: 'Define entitlements', description: 'What the plan exposes as product state.' }]} />
     </>
   );
 }
@@ -136,36 +150,34 @@ function CreatePlans() {
 function DefineEntitlements() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Define entitlements" lede="Attach features and limits to a plan so 'Pro' means something specific and checkable." status={PLANNED} />
+      <PageHeader eyebrow="BUILD" title="Define entitlements" lede="Attach product rights to a plan. The hosted read exists; broader/local evaluation is intentionally later." status={PLANNED} />
 
-      <H2>Steps</H2>
+      <H2>What exists now</H2>
+      <p>
+        <code>GET /v1/customers/:id/entitlements</code> is deployed and returns current customer/plan/features
+        where present plus <code>remaining</code>, <code>version</code>, and <code>as_of</code>.
+      </p>
+
+      <Callout kind="warning" title="Entitlements is not a wallet">
+        The document is read-only. It may inform UI or feature/preflight behavior, but it does not authorize
+        scarce-credit spend. The v1 spend authority is <code>POST /consume</code>.
+      </Callout>
+
+      <H2>Plan/feature modeling</H2>
       <Steps items={[
-        { title: 'Define the feature once', body: <>Create a row in <code>features</code> — e.g. <code>key: "report_generation"</code>. Define each feature once, then reuse it across every plan that includes it.</> },
-        { title: 'Attach it to a plan', body: <>Create a <code>plan_features</code> row linking the plan and feature, with an optional <code>limit_value</code>.</> },
-        { title: 'Leave limit_value null for a plain unlock', body: 'Use null when a feature is either fully available or not — no numeric ceiling.' },
-        { title: 'Repeat per plan', body: 'The same feature can carry a different limit on each plan — e.g. 50 on Pro, 3 on Free.' },
+        { title: 'Define the feature once', body: <>Create a <code>features</code> row such as <code>report_generation</code>.</> },
+        { title: 'Attach it to a plan', body: <>Use <code>plan_features</code> with an optional <code>limit_value</code>.</> },
+        { title: 'Use null for a plain unlock', body: 'No numeric ceiling is required for a simple included/not-included right.' },
+        { title: 'Keep spend separate', body: 'A feature being included does not mean cached entitlement state may debit credits.' },
       ]} />
 
-      <H2>Example (design preview)</H2>
-      <CodeBlock language="ts" code={`await apex.entitlements.set({
-  plan: "pro",
-  feature: "report_generation",
-  limit: 50, // per billing period
-});
+      <H2>v1.1 direction</H2>
+      <p>
+        If customer latency needs justify it, the same entitlements document can later be signed and evaluated
+        locally by the server SDK with explicit TTL/invalidation/failure policy. Scarce-value spend still stays authoritative.
+      </p>
 
-await apex.entitlements.set({
-  plan: "free",
-  feature: "report_generation",
-  limit: 3,
-});`} />
-
-      <H2>Expected result</H2>
-      <p>Checking access for a Pro customer on <code>report_generation</code> returns an allowance of 50; a Free customer, 3 — exactly how Forma's <code>FORMA_PLANS</code> models the same idea today, just hard-coded instead of read from these tables.</p>
-
-      <H2>Troubleshooting</H2>
-      <p>A customer reports they can't access something their plan should include? Check that a <code>plan_features</code> row actually exists for that plan/feature pair — a missing row means "not included," not an error.</p>
-
-      <SeeAlso items={[{ href: '#docs/learn/entitlements', title: 'Learn: Entitlements', description: 'The concept behind this page.' }]} />
+      <SeeAlso items={[{ href: '#docs/build/check-access', title: 'Product access', description: 'How v1 separates read-only rights from authoritative spend.' }]} />
     </>
   );
 }
@@ -175,33 +187,36 @@ await apex.entitlements.set({
 function ConfigureCredits() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Configure credits" lede="Set up how many credits a plan grants, and how top-ups add to that balance." status={PLANNED} />
+      <PageHeader eyebrow="BUILD" title="Configure credits" lede="Model durable product grants that can be consumed safely and refunded back to their original source." />
 
-      <H2>Steps</H2>
+      <H2>What the deployed wallet stores</H2>
       <Steps items={[
-        { title: 'Decide what a credit represents', body: 'One unit of the metered thing your product cares about — a generation, an API call, a minute of processing.' },
-        { title: 'Grant credits on subscribe or renew', body: <>Create a <code>credit_grants</code> row with an <code>amount</code> and matching <code>remaining_amount</code> when a billing period starts.</> },
-        { title: 'Allow top-ups', body: <>A top-up is just another grant — a separate <code>credit_grants</code> row with its own <code>reason</code> (e.g. <code>"top_up"</code>).</> },
-        { title: 'Set expiry if needed', body: <><code>credit_grants.expires_at</code> is optional — leave it null for credits that roll over indefinitely.</> },
+        { title: 'Create a source-attributed grant', body: <>A grant records original <code>amount</code>, <code>consumed_amount</code>, <code>remaining_amount</code>, status, and optional Stripe source references.</> },
+        { title: 'Maintain the hot balance projection', body: <><code>credit_accounts.remaining</code> is the non-negative concurrency boundary, not the audit history.</> },
+        { title: 'Append ledger history', body: <><code>credit_ledger</code> records grant, consume, refund, and unrecoverable entries.</> },
+        { title: 'Replay operation outcomes', body: <><code>credit_operations</code> remembers idempotent ALLOW/DENY outcomes.</> },
       ]} />
 
-      <H2>Example (design preview)</H2>
-      <CodeBlock language="ts" code={`await apex.credits.grant({
+      <H2>Grant example</H2>
+      <CodeBlock language="ts" code={`// Internal/server-side concept; public grant API is not exposed.
+grant_credits({
   customer: "cus_jordan",
-  feature: "report_generation",
-  amount: 10,
-  reason: "plan_renewal",
+  amount: 1000,
+  stripeEventId: "evt_purchase_A",
+  sourcePaymentId: "pi_purchase_A",
+  idempotencyKey: "grant:evt_purchase_A",
 });`} />
 
-      <Callout kind="tip" title="See it running today">
-        Forma's top-up button calls <code>topUpForma(store, 10)</code>, which is the same idea implemented
-        directly against local demo state instead of these tables. Open the <a href="#forma">Forma demo</a>{' '}
-        and buy a top-up to watch the balance change.
-      </Callout>
+      <H2>Expiry is not production-supported yet</H2>
+      <p>
+        <code>credit_grants.expires_at</code> already exists and consume skips expired grants, but the projected
+        account balance is not yet reconciled when a grant expires. Frozen v1 grants should therefore be
+        non-expiring until expiry reconciliation is implemented and tested.
+      </p>
 
       <SeeAlso items={[
-        { href: '#docs/learn/credits-and-usage', title: 'Learn: Credits and usage', description: 'The full worked example.' },
-        { href: '#docs/build/record-usage', title: 'Record usage', description: 'How credits actually get spent.' },
+        { href: '#docs/learn/credits-and-usage', title: 'Learn: Credits and usage', description: 'The product model behind the wallet.' },
+        { href: '#docs/build/record-usage', title: 'Consume credits', description: 'The deployed authoritative spend path.' },
       ]} />
     </>
   );
@@ -212,33 +227,37 @@ function ConfigureCredits() {
 function RecordUsage() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Record usage" lede="Tell APEX what a customer actually did, so credits and limits stay accurate." status={PLANNED} />
+      <PageHeader eyebrow="BUILD" title="Consume credits" lede="Spend scarce product value through the one v1 operation that is authoritative under concurrency." />
 
-      <H2>Steps</H2>
+      <H2>Frozen v1 API</H2>
+      <CodeBlock language="ts" code={`POST /v1/customers/:customerId/consume
+{
+  "amount": 250,
+  "idempotency_key": "job_8f21ac"
+}`} />
+
+      <H2>What happens atomically</H2>
       <Steps items={[
-        { title: 'Perform the action in your product', body: 'Generate the report, run the job, serve the API call — the actual work.' },
-        { title: 'Report the usage event', body: <>Send a <code>usage_events</code> record with a unique <code>event_id</code> so retries don't double-count.</> },
-        { title: 'APEX consumes a matching grant', body: <>A <code>credit_consumptions</code> row is created against the customer's oldest active <code>credit_grants</code> row, reducing its <code>remaining_amount</code>.</> },
+        { title: 'Claim the idempotency key', body: 'The same workspace/key must replay the original outcome instead of spending again.' },
+        { title: 'Try the balance decrement', body: <>Postgres updates <code>credit_accounts.remaining</code> only when enough credits exist.</> },
+        { title: 'Burn source grants FIFO', body: <>A successful spend reduces the oldest open grant rows by <code>created_at</code>, then <code>id</code>.</> },
+        { title: 'Append ledger entries', body: 'The per-grant consume history and projection change commit in the same transaction.' },
+        { title: 'Return ALLOW or DENY', body: <>Success returns the new balance. Insufficient credits returns <code>INSUFFICIENT_CREDITS</code> without changing the wallet.</> },
       ]} />
 
-      <H2>Example (design preview)</H2>
-      <CodeBlock language="ts" code={`await apex.usage.record({
-  customer: "cus_jordan",
-  feature: "report_generation",
-  quantity: 1,
-  eventId: "gen_8f21ac", // idempotency key
-});`} />
-
       <DangerNote>
-        Always send a unique <code>eventId</code> per action. The schema enforces a unique{' '}
-        <code>(workspace_id, event_id)</code> pair specifically so a retried request can't be double-billed
-        against a customer's balance.
+        Do not read the balance first and then perform work assuming it is still available. Two servers can read
+        the same balance. The atomic <code>consume</code> call is the scarce-value authorization boundary.
       </DangerNote>
 
-      <H2>Expected result</H2>
-      <p>The customer's remaining balance for that feature drops by the reported quantity, and a matching event is available in <a href="#docs/operate/event-history">event history</a>.</p>
+      <H2>Hosted proof</H2>
+      <p>
+        A fresh balance of 1,000 received two concurrent 750-credit consumes. One succeeded, one returned
+        DENY, and the final balance was 250. Replaying both idempotency keys returned the same outcomes with
+        no second spend.
+      </p>
 
-      <SeeAlso items={[{ href: '#docs/build/check-access', title: 'Check access', description: 'Ask before you record — not after.' }]} />
+      <SeeAlso items={[{ href: '#docs/build/check-access', title: 'Product access', description: 'Why entitlements reads do not authorize credit spend.' }]} />
     </>
   );
 }
@@ -248,38 +267,50 @@ function RecordUsage() {
 function CheckAccess() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Check access" lede="Ask APEX whether an action is allowed before it happens — this is the one call every gated feature should make." status={PLANNED} />
+      <PageHeader eyebrow="BUILD" title="Product access" lede="v1 separates read-only product state from authoritative scarce-value spend instead of exposing a public /check call." />
 
-      <H2>Steps</H2>
-      <Steps items={[
-        { title: 'Call the access check before the action', body: 'Not after — the whole point is to prevent the action from happening if it isn\'t allowed.' },
-        { title: 'Read the decision', body: <>An <code>allow</code> or <code>deny</code>, plus a human-readable <code>reason</code> your product can show directly to the customer.</> },
-        { title: 'Act on it', body: 'If allowed, proceed and then record usage. If denied, show the reason and, where relevant, an upgrade or top-up path.' },
-      ]} />
+      <H2>Read product state</H2>
+      <CodeBlock language="ts" code={`GET /v1/customers/:customerId/entitlements
 
-      <H2>Example (design preview)</H2>
-      <CodeBlock language="ts" code={`const decision = await apex.access.check({
-  customer: "cus_jordan",
-  feature: "report_generation",
+// returns plan/features when present plus:
+{
+  "remaining": 750,
+  "version": 2,
+  "as_of": "..."
+}`} />
+
+      <p>
+        Use this document to render UI or understand current state. It is intentionally shaped so a future
+        signed snapshot can use the same contract.
+      </p>
+
+      <H2>Authorize a scarce-credit action</H2>
+      <CodeBlock language="ts" code={`const result = await apex.credits.consume({
+  customerId: "cus_jordan",
+  amount: 1,
+  idempotencyKey: "generation_8f21ac",
 });
 
-if (!decision.allow) {
-  return showUpgradePrompt(decision.reason);
+if (!result.allowed) {
+  return showTopUpPrompt(result.reason);
 }
-// proceed, then record usage`} />
 
-      <Callout kind="tip" title="This is real logic, just not this API">
-        Forma's <code>canGenerate(account)</code> is this exact check, implemented directly against local
-        demo state. Its shape — <code>{'{ allow, reason }'}</code> — is what this design-preview API is
-        modeled on.
+// scarce value was atomically consumed; perform the credit-gated work`} caption="Illustrative first-SDK shape; the hosted consume API exists, the public SDK does not yet." />
+
+      <Callout kind="warning" title="No public /check in frozen v1">
+        A separate check endpoint teaches clients to treat a read-time ALLOW as a spend right. Frozen v1 uses
+        entitlements for read/preflight state and <code>consume</code> for authoritative scarce-value decisions.
       </Callout>
 
-      <H2>Expected result</H2>
-      <p>A fast, synchronous-feeling answer your UI can act on immediately — never a silent failure.</p>
+      <H2>Later feature gates</H2>
+      <p>
+        v1.1 may sign the same entitlements document and let the server SDK evaluate eligible feature gates
+        locally. That optimization must not let cached state authorize credit spend.
+      </p>
 
       <SeeAlso items={[
-        { href: '#docs/reference/requests-and-responses', title: 'Requests & responses', description: 'The exact response shape.' },
-        { href: '#docs/build/record-usage', title: 'Record usage', description: 'What happens right after an allow.' },
+        { href: '#docs/reference/requests-and-responses', title: 'Requests & responses', description: 'Current and future response contracts.' },
+        { href: '#docs/build/record-usage', title: 'Consume credits', description: 'The authoritative spend operation.' },
       ]} />
     </>
   );
@@ -290,26 +321,36 @@ if (!decision.allow) {
 function HandleWebhooks() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Handle webhooks" lede="React to payment and subscription events from your payment provider as they happen." status={PLANNED} />
+      <PageHeader eyebrow="BUILD" title="Handle Stripe events" lede="The next core milestone is turning verified connected-account payment/refund events into replay-safe ledger changes." status={PLANNED} />
 
-      <H2>Steps</H2>
+      <H2>What already exists</H2>
+      <p>
+        APEX's own billing webhook is real, and <code>stripe_webhook_events</code> exists. The v1 wallet RPCs
+        <code>grant_credits</code> and <code>refund_unspent_credits</code> are deployed. The missing link is the
+        connected-customer event processor between them.
+      </p>
+
+      <H2>Frozen processing sequence</H2>
       <Steps items={[
-        { title: 'Register an endpoint', body: 'A URL your payment provider can POST events to.' },
-        { title: 'Verify the signature', body: 'Every incoming event must be verified before it\'s trusted — never process an unverified webhook body.' },
-        { title: 'Check for duplicates', body: <>Look up the event's ID in <code>stripe_webhook_events</code> before processing — webhooks can and do arrive more than once.</> },
-        { title: 'Apply the change', body: 'Update the subscription status, grant credits, or record the failure, depending on the event type.' },
-        { title: 'Record that you handled it', body: <>Mark the <code>stripe_webhook_events</code> row <code>processed</code> so a duplicate delivery is a safe no-op.</> },
+        { title: 'Verify the Stripe signature', body: 'Verification happens outside Postgres before the event is trusted.' },
+        { title: 'Persist the event uniquely', body: <>Connected event identity is scoped by <code>(stripe_connection_id, stripe_event_id)</code>.</> },
+        { title: 'Map authoritative Stripe configuration', body: 'The server decides what product value the Stripe product/price represents — never the browser.' },
+        { title: 'Apply the transactional ledger mutation', body: <>Successful purchase → <code>grant_credits</code>; refund → <code>refund_unspent_credits</code> for the original source.</> },
+        { title: 'Keep failures replayable', body: 'Pending/failed rows can be retried; idempotency makes repeated processing safe.' },
       ]} />
 
-      <H2>Expected result</H2>
-      <p>APEX's view of a customer's subscription stays correct within moments of anything changing in the payment provider — without your product polling for changes.</p>
-
       <DangerNote>
-        Never trust an unverified webhook body as-is. Signature verification is what stops someone from
-        POSTing a fake "payment succeeded" event to grant themselves access.
+        A browser redirect or unverified webhook body is never proof that money moved. Stripe event verification
+        and persisted idempotent processing are the trust boundary.
       </DangerNote>
 
-      <SeeAlso items={[{ href: '#docs/reference/events-and-webhooks', title: 'Events & webhooks', description: 'Every event type and payload shape.' }]} />
+      <H2>Do not add a queue product first</H2>
+      <p>
+        Frozen v1 starts with persisted event rows plus existing Supabase/Postgres replay scheduling. Add a new
+        queue/worker system only after this simpler mechanism proves insufficient under real workload evidence.
+      </p>
+
+      <SeeAlso items={[{ href: '#docs/reference/events-and-webhooks', title: 'Events & webhooks', description: 'Money-event versus product-state responsibilities.' }]} />
     </>
   );
 }
@@ -319,26 +360,20 @@ function HandleWebhooks() {
 function UpgradesDowngrades() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Upgrades and downgrades" lede="Change a customer's plan without breaking access they already have, or silently granting access they haven't paid for." status={PLANNED} />
+      <PageHeader eyebrow="BUILD" title="Upgrades and downgrades" lede="Plan changes are a later entitlement lifecycle capability; they must never corrupt already-audited credit usage." status={PLANNED} />
 
-      <H2>Steps</H2>
-      <Steps items={[
-        { title: 'Change the subscription\'s plan', body: <>Update <code>subscriptions.plan_id</code> — this alone doesn't move any credits or usage counters.</> },
-        { title: 'Decide how existing usage carries over', body: 'A common default: keep usage already recorded this period, but apply the new plan\'s limit going forward.' },
-        { title: 'Grant or adjust credits if the new plan changes them', body: 'An upgrade typically grants the difference immediately rather than waiting for the next period.' },
-        { title: 'Re-check access', body: 'The next access check reflects the new plan automatically — nothing else in your product needs to change.' },
-      ]} />
+      <H2>Invariant</H2>
+      <p>
+        A plan change can alter future product rights, but it must not rewrite past grants/consumes to make
+        history look clean. Durable credit history remains durable.
+      </p>
 
-      <Callout kind="tip" title="This is real logic, just not this API">
-        Forma's <code>upgradeForma()</code> preserves <code>generationsUsed</code> across the upgrade and
-        raises the allowance from 3 to 50 — the same "keep usage, raise the ceiling" pattern described
-        above, running today against local demo state.
+      <Callout kind="tip" title="Forma remains a product model">
+        Forma demonstrates upgrade/downgrade behavior in local demo state. That behavior is useful design input,
+        but it is not part of frozen v1 until a hosted entitlement lifecycle is deliberately implemented.
       </Callout>
 
-      <H2>Edge cases</H2>
-      <p>A downgrade can leave a customer already over the new, lower limit. APEX doesn't retroactively revoke anything they've already used — it just means their next access check for that feature returns deny until the next period.</p>
-
-      <SeeAlso items={[{ href: '#docs/learn/entitlements', title: 'Learn: Entitlements', description: 'What actually changes on a plan switch.' }]} />
+      <SeeAlso items={[{ href: '#docs/learn/entitlements', title: 'Learn: Entitlements', description: 'The product-right concept behind later plan changes.' }]} />
     </>
   );
 }
@@ -348,23 +383,30 @@ function UpgradesDowngrades() {
 function Testing() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Testing" lede="Verify billing and access logic before it ever touches a real customer." status={PLANNED} />
+      <PageHeader eyebrow="BUILD" title="Testing" lede="Separate isolated wallet proof from the connected payment-to-product-value acceptance proof." />
 
-      <H2>Steps</H2>
+      <H2>Wallet proof — already passed</H2>
+      <p>
+        Hosted Postgres/Edge execution proved a 1,000-credit wallet cannot double-spend under parallel 750-credit consumes and that replay returns the original outcomes.
+      </p>
+
+      <H2>Connected Stripe proof — still required</H2>
       <Steps items={[
-        { title: 'Use a sandbox environment', body: <>Each workspace has separate <code>environments</code> rows (e.g. sandbox and live) with their own API keys, so test traffic never touches live customer data.</> },
-        { title: 'Use your payment provider\'s test mode', body: 'Stripe\'s test cards let you simulate successful charges, declines, and disputes without moving real money.' },
-        { title: 'Walk every state, not just the happy path', body: 'Subscribe, use up the allowance, fail a payment, recover it, upgrade, downgrade, cancel — each one is a real, distinct state your product needs to handle correctly.' },
-        { title: 'Check the audit trail', body: 'Every state change should leave a readable record — if you can\'t explain why access changed, the test isn\'t done.' },
+        { title: 'Finish External-test Stripe OAuth', body: 'The SaaS company’s test Stripe account must be connected through the real Phase 5 path.' },
+        { title: 'Buy a configured 1,000-credit pack', body: 'Use the connected Stripe test account.' },
+        { title: 'Verify one event → one grant', body: 'Persist the verified event and grant exactly once.' },
+        { title: 'Spend to zero', body: 'Consume 250, then 750; the next consume must return insufficient credits.' },
+        { title: 'Replay payment', body: 'No duplicate grant.' },
+        { title: 'Refund the source purchase', body: 'Claw back only unspent source credits, record already-spent value as unrecoverable, never go negative.' },
+        { title: 'Replay refund', body: 'No duplicate adjustment.' },
       ]} />
 
-      <Callout kind="tip" title="Practice this today">
-        The Forma demo's "Reset demo" button and its billing-simulation buttons (fail renewal, recover
-        payment, start next period) exist specifically so you can walk this exact set of states by hand —
-        it's the closest thing to a sandbox APEX has right now.
+      <Callout kind="warning" title="SQL contract tests are not the whole acceptance test">
+        Unit/SQL tests protect invariants, but the product is not accepted until the connected Stripe event path
+        drives the hosted database and produces the expected ledger state.
       </Callout>
 
-      <SeeAlso items={[{ href: '#docs/build/going-live', title: 'Going live', description: 'What changes once testing is done.' }]} />
+      <SeeAlso items={[{ href: '#docs/build/going-live', title: 'Going live', description: 'What must be true before a real customer advances.' }]} />
     </>
   );
 }
@@ -374,22 +416,22 @@ function Testing() {
 function GoingLive() {
   return (
     <>
-      <PageHeader eyebrow="BUILD" title="Going live" lede="What actually changes between a test setup and production." status={PLANNED} />
+      <PageHeader eyebrow="BUILD" title="Going live" lede="APEX goes live by evidence: connection accepted, connected events mapped correctly, spend safe, retries harmless, refunds explainable." status={PLANNED} />
 
-      <H2>Steps</H2>
+      <H2>Required gates</H2>
       <Steps items={[
-        { title: 'Switch environments', body: <>Move from your sandbox <code>environments</code> row to a live one, with its own API keys.</> },
-        { title: 'Switch your payment provider out of test mode', body: 'Confirm live webhook endpoints are registered and verified separately from test ones.' },
-        { title: 'Re-check your plans and entitlements', body: 'Confirm prices, limits, and Stripe price IDs in the live environment match what you tested in sandbox — nothing carries over automatically.' },
-        { title: 'Watch the first real customers closely', body: <>Use <a href="#docs/operate/event-history">event history</a> and <a href="#docs/operate/debugging">debugging</a> to confirm the first few real subscriptions behave exactly as tested.</> },
+        { title: 'Accept Stripe Connect', body: 'Complete External-test OAuth and verify the connected account is persisted.' },
+        { title: 'Accept connected payment ingress', body: 'Verified configured purchase creates exactly one source-attributed grant.' },
+        { title: 'Accept spend behavior', body: 'Hosted consume remains concurrency-safe and replay-safe.' },
+        { title: 'Accept refund ingress', body: 'Source-aware refund behavior matches the frozen non-negative policy and replays safely.' },
+        { title: 'Publish the server SDK only after its underlying API contract is stable', body: 'The SDK is a client, not a second product-state system.' },
       ]} />
 
-      <Callout kind="warning" title="Sandbox and live data never mix">
-        Environments exist specifically to keep test data from ever touching real customer records —
-        there's no step that migrates sandbox data into a live environment, by design.
+      <Callout kind="warning" title="Do not confuse deployment with acceptance">
+        A migration, Edge Function, docs page, or UI can be deployed while the full connected lifecycle is still incomplete.
       </Callout>
 
-      <SeeAlso items={[{ href: '#docs/operate/debugging', title: 'Debugging', description: 'What to check once real customers are in the system.' }]} />
+      <SeeAlso items={[{ href: '#docs/operate/debugging', title: 'Debugging', description: 'How the eventual operator path should explain ledger state.' }]} />
     </>
   );
 }
