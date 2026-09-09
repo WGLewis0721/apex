@@ -46,3 +46,8 @@ verify_jwt = true
 # Stripe redirects the browser here after OAuth. The callback authenticates
 # the request with a single-use, server-stored state value instead of a JWT.
 verify_jwt = false
+
+[functions.apex-api]
+# The v1 server API authenticates APEX secret keys itself. Browser JWTs are not
+# accepted as authority for balance-changing operations.
+verify_jwt = false
