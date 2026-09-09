@@ -61,7 +61,8 @@ Access-decision history, Stripe sync status, usage history, and clear
 ### Approved technologies
 
 Existing React APEX frontend · Supabase Auth · Supabase Postgres · Postgres RLS ·
-Stripe · TypeScript/Node `@apex/sdk`. Anything else is **TBD — architecture/technology
+Stripe · TypeScript/Node `@apex/sdk` · Supabase Edge Functions for Phase 3/4
+billing and provisioning (explicitly approved September 8, 2026). Anything else is **TBD — architecture/technology
 not yet selected**.
 
 ---
@@ -314,9 +315,8 @@ call real `supabase.auth` (sign up, log in, session restore), active only when
 `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` are set; otherwise the original
 simulated account step runs unchanged. Verified: `npm test` (36/36) and `npm run
 build` pass, tables/RLS confirmed live via Supabase's own advisors (no unresolved
-security lints). Not yet done: nothing writes to `workspaces`/`workspace_members`/
-`environments`/`api_keys` yet — that is workspace provisioning, explicitly deferred
-to Phase 4. `plan_features` cross-workspace consistency (a plan and its features
+security lints). Phase 3/4 now adds transactional workspace provisioning; see its implementation
+and verification status below. `plan_features` cross-workspace consistency (a plan and its features
 belonging to the same workspace) is not enforced by a trigger, only by convention.
 
 ## Phase 3 — APEX billing
@@ -331,9 +331,30 @@ server-side Checkout Session creation, verified payment webhook.
 **Done when:** A real confirmed Stripe payment activates the APEX subscription, and
 browser redirects cannot mark accounts paid.
 
-**Status:** Not started. The onboarding funnel's Purchase step uses the simulated
-`BillingProvider` in `src/lib/launchProviders.ts` regardless of backend
-configuration.
+**Status:** Implemented; deployment configuration and real Checkout verification
+pending. Supabase Edge Functions were explicitly approved for this milestone.
+The migration is applied and the three functions are deployed to the existing
+Supabase project. APEX's Stripe test webhook is registered; function secrets still
+need configuration. The frontend changes are on the implementation branch, not
+merged/deployed. Do not mark this phase complete until the real flow passes.
+
+`apex-checkout` authenticates with Supabase, resolves the existing Founding lookup
+keys ($2,000 setup + $299/month), and creates/reuses a server-side Checkout Session.
+No duplicate products/prices were created. `apex-stripe-webhook` verifies the raw
+Stripe signature, validates paid Checkout and line items, and invokes an atomic,
+service-role-only activation transaction. Browser redirects only trigger status
+polling. Subscription events persist current Stripe state with event idempotency
+and stale-event protection. This implementation rejects live Stripe keys.
+
+**Verified:** existing 36 tests and production build; four Edge tests covering
+signatures, auth, payment validation, retryable failure, owner-only reveal, and
+credential encryption; rollback SQL tests on Supabase covering idempotency,
+transaction rollback, subscription ordering, and cross-account isolation.
+**Not verified:** actual signup/login → hosted Checkout → Stripe delivery →
+workspace/credentials in the browser. Function secrets are not available through
+the connected deployment tools, and the CLI is not authenticated. The browser
+also blocked the local preview. See `docs/implementation/APEX_BILLING.md` for
+configuration, exact deployed resources, and the remaining acceptance run.
 
 ## Phase 4 — Workspace provisioning
 
@@ -347,9 +368,21 @@ configuration.
 **Done when:** A paying customer receives one real persisted workspace/environment
 and credentials, without duplicate provisioning.
 
-**Status:** Not started. The Phase 2 schema and RLS are ready to receive
-workspace/environment/api_key rows, but no provisioning function exists yet — the
-onboarding funnel's Workspace step still shows locally generated demo keys.
+**Status:** Implemented and database-tested; end-to-end acceptance pending with
+Phase 3. Verified payment atomically creates one workspace, owner membership,
+Sandbox environment, APEX subscription, and random `apex_pk_test_...` /
+`apex_sk_test_...` credentials. Retries return the existing workspace. Secrets are
+stored as SHA-256 hashes plus AES-256-GCM ciphertext; the encryption key lives in
+Edge Function secrets. Authenticated owners can reveal their key through
+`apex-workspace`; no plaintext credential or payment authority is kept in
+localStorage. The recursive membership SELECT policy was fixed because it blocked
+reading a provisioned workspace. The existing Workspace screen displays real
+persisted state and stops at the Phase 4 boundary; free exploration remains a demo.
+The API, Connect, install, and dashboard phases remain unimplemented.
+
+The live migration is `20260908212241_apex_billing_provisioning.sql`. SQL tests
+left no persisted test workspaces. Frontend release and real test payment are
+still pending, so this phase is not yet complete.
 
 ## Phase 5 — Connect customer Stripe
 

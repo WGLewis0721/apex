@@ -1,13 +1,6 @@
 import { supabase } from './supabaseClient';
 
-// Thin data-access layer between the onboarding UI and real Supabase Auth.
-// Keeping every Supabase call in this one file means Onboarding.tsx only
-// ever calls plain async functions — it doesn't know or care that the
-// underlying store used to be entirely local.
-//
-// Scope: account signup/login only. Purchase, workspace provisioning,
-// Stripe Checkout, and everything after "Create account" in the canonical
-// funnel remain simulated until a later phase (see ROADMAP.md).
+// Account, billing, and workspace calls for the real onboarding flow.
 
 export type BackendAccount = { userId: string; email: string; fullName: string | null; companyName: string | null };
 
@@ -47,6 +40,7 @@ export async function signUpOrSignIn(input: { name: string; email: string; compa
     throw new Error(error.message);
   }
 
+  if (!data.session) throw new Error('Check your email to confirm your account, then log in here.');
   const user = data.user!;
   return { userId: user.id, email: user.email ?? '', fullName: input.name, companyName: input.company };
 }
@@ -58,3 +52,21 @@ export async function signIn(input: { email: string; password: string }): Promis
   const user = data.user;
   return { userId: user.id, email: user.email ?? '', fullName: (user.user_metadata?.full_name as string) ?? null, companyName: (user.user_metadata?.company_name as string) ?? null };
 }
+
+export type ProvisionedWorkspace = {
+  status: 'ready'; workspace: { id: string; name: string }; environment: { id: string; name: string };
+  subscriptionStatus: string; publishable: string; secret?: string;
+};
+async function invoke<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  const client = requireClient();
+  const { data: session } = await client.auth.getSession();
+  if (!session.session) throw new Error('Sign in and confirm your email before continuing.');
+  const { data, error } = await client.functions.invoke(name, { body });
+  if (error) {
+    const detail = await error.context?.json?.().catch(() => null);
+    throw new Error(detail?.error ?? 'Could not reach APEX. Please try again.');
+  }
+  return data as T;
+}
+export const startCheckout = () => invoke<{ url?: string; pending?: boolean; provisioned?: boolean }>('apex-checkout', { planId: 'founding' });
+export const getProvisionedWorkspace = (reveal = false) => invoke<ProvisionedWorkspace | { status: 'pending' }>('apex-workspace', { reveal });

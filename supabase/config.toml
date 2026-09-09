@@ -28,3 +28,13 @@ enable_signup = true
 # no "check your email" interstitial) can continue immediately. Turn this
 # on before real customers sign up with addresses they don't control.
 enable_confirmations = false
+
+[functions.apex-checkout]
+verify_jwt = true
+
+[functions.apex-workspace]
+verify_jwt = true
+
+[functions.apex-stripe-webhook]
+# Stripe signature verification is performed against the raw body in the handler.
+verify_jwt = false
