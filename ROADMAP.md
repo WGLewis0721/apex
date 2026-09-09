@@ -2,6 +2,26 @@
 
 This file is the permanent implementation source of truth for APEX. Read it before starting work and update it after every meaningful implementation change.
 
+## Business North Star
+
+**APEX makes money when SaaS companies make digital value easier to sell, deliver, meter, replenish, and explain.**
+
+The commercial model is the roadmap compass:
+
+- the SaaS company is the APEX customer
+- its end customers continue paying it through its own Stripe account
+- the SaaS company pays APEX a recurring platform subscription for the infrastructure that turns commercial events into correct product state
+- early or complex deployments may also carry a one-time guided implementation fee
+- future pricing tiers may scale with validated platform capacity such as active customers, metered events, environments, or advanced operational capabilities
+
+Before approving meaningful roadmap work, ask:
+
+> **Does this make it easier, safer, or more scalable for a SaaS company to sell digital value and keep that value correct inside the product?**
+
+If not, it is not core APEX work without a strong reason.
+
+See `docs/BUSINESS_MODEL.md` for the canonical commercial model.
+
 ## Canonical product statement
 
 APEX is a hosted payment-and-access layer for SaaS products that use Stripe.
@@ -10,7 +30,7 @@ APEX is a hosted payment-and-access layer for SaaS products that use Stripe.
 
 APEX is responsible for turning paid product state into the thing a customer can actually use: credits, tokens, coins, plan rights, usage allowance, feature access, and the decision to allow or deny an action.
 
-APEX does **not** replace Stripe, process raw card data, or act as a financial wallet.
+APEX should be understood by the value it adds to an existing SaaS stack, not by opposition to another product or category.
 
 ## Production promise
 
@@ -84,13 +104,13 @@ Do not invent a queue vendor, new database, new cloud runtime, framework, worker
 | 2 | Accounts + backend foundation | ✅ Complete |
 | 3 | APEX's own Stripe billing | ✅ Real in test mode |
 | 4 | Paid workspace provisioning | ✅ Real |
-| 5 | Connect customer's Stripe | 🟡 Implementation built; external-test Stripe App registration/OAuth acceptance remains |
+| 5 | Connect customer's Stripe | 🟡 Implementation merged to `main`; External-test Stripe App registration/OAuth acceptance remains |
 | 6 | APEX Cloud: API, credits, usage, entitlements, fulfillment | ⏳ Not started |
 | 7 | SDK + customer balance integration | ⏳ Not started |
 | 8 | End-to-end production proof | ⏳ Not started |
 | 9 | Live operator dashboard | ⏳ Not started |
 
-Current production work must remain focused on **Phase 5 only** until the acceptance gate below passes.
+Current production work must remain focused on completing the **Phase 5 acceptance gate** before Phase 6 begins.
 
 ---
 
@@ -99,6 +119,8 @@ Current production work must remain focused on **Phase 5 only** until the accept
 **Systems:** marketing site, Forma demonstration, onboarding preview, console preview, docs.
 
 **Build:** show the product story and model the intended lifecycle: subscription, allowance, usage, top-up, upgrade, renewal failure/recovery, audit events, and access decisions.
+
+**Business purpose:** make the recurring value proposition obvious: SaaS companies pay APEX because this lifecycle is ongoing infrastructure that should not need to be rebuilt for every product.
 
 **Important:** Forma/localStorage logic is an executable product model, not production infrastructure.
 
@@ -128,13 +150,15 @@ Current production work must remain focused on **Phase 5 only** until the accept
 
 **Build:** authenticated Stripe Checkout, verified webhooks, subscription lifecycle, idempotency, current-state reconciliation, and failure-safe processing.
 
+**Business purpose:** establish the recurring B2B SaaS relationship: the software company pays APEX for hosted infrastructure.
+
 **Security:** never trust client-provided amount, user ID, price ID, or payment status. A verified server-side Stripe event must drive fulfillment.
 
 **Done when:** an authenticated user can complete a Stripe test payment and APEX can prove the payment server-side without double-processing retries.
 
 **Status:** ✅ Real in test mode.
 
-The current Founding Partner Stripe catalog is test/launch configuration, not a permanent product-pricing commitment.
+The current Founding Partner Stripe catalog is a launch configuration, not a permanent pricing architecture.
 
 ---
 
@@ -156,11 +180,9 @@ The current Founding Partner Stripe catalog is test/launch configuration, not a 
 
 **Tech:** Stripe Apps OAuth + existing Supabase Edge Functions/Postgres.
 
-**Branch:** `implementation/phase5-stripe-connect`
+**Implementation history:** merged through PR #16, `Phase 5: real Stripe Apps OAuth connection`.
 
-**PR:** #16 — `Phase 5: real Stripe Apps OAuth connection`
-
-**Built:**
+**Built and merged:**
 
 - Stripe App v2 manifest under `stripe-app/`
 - authenticated connect/status Edge Function
@@ -183,7 +205,7 @@ The current Founding Partner Stripe catalog is test/launch configuration, not a 
 
 **Done when:** all six checks pass.
 
-**Status:** 🟡 Implementation built; acceptance not complete.
+**Status:** 🟡 Implementation merged; acceptance not complete.
 
 **Hard gate:** do not begin production Install, SDK, Verify, Dashboard, or APEX Cloud work until Phase 5 passes.
 
@@ -191,13 +213,15 @@ The current Founding Partner Stripe catalog is test/launch configuration, not a 
 
 # Phase 6 — APEX Cloud
 
-APEX Cloud is where the product promise becomes real. Build in the order below. Each subphase must pass before later layers depend on it.
+APEX Cloud is where the business model earns its recurring value. Build in the order below. Each subphase must pass before later layers depend on it.
 
 ## Phase 6.1 — Hosted API foundation
 
 **Systems:** APEX API.
 
 **Purpose:** give a customer's SaaS server a stable authenticated way to talk to APEX.
+
+**Business value:** make APEX reusable infrastructure rather than project-specific code.
 
 **Minimum responsibilities:**
 
@@ -229,6 +253,8 @@ Exact route names may be finalized during implementation; the responsibilities a
 ## Phase 6.2 — Credit ledger, usage metering, purchase packs, renewals
 
 **Systems:** Usage + Credits.
+
+**Business value:** let SaaS companies package, sell, replenish, and meter digital value without rebuilding ledger logic for each product.
 
 Use the existing `usage_events`, `usage_counters`, `credit_grants`, and `credit_consumptions` foundation. Add only the schema necessary to durably map Stripe purchases/renewals/refunds to credit changes.
 
@@ -294,6 +320,8 @@ The exact schema for durable purchase-pack configuration and compensating adjust
 
 **Systems:** plans, features, subscriptions, usage, credits, `access_decisions`.
 
+**Business value:** ensure a SaaS company's pricing and product behavior stay synchronized as customers buy and use value.
+
 **Build:** combine:
 
 - connected Stripe payment/subscription state
@@ -325,6 +353,8 @@ Examples: `ALLOW`, `NO_ACTIVE_PLAN`, `PAYMENT_PAST_DUE`, `FEATURE_NOT_INCLUDED`,
 
 **Systems:** connected Stripe webhooks + background processing.
 
+**Business value:** make the payment-to-product-value lifecycle dependable enough to be infrastructure a SaaS company can pay for every month.
+
 **Build:**
 
 - receive and verify connected-account events
@@ -348,6 +378,8 @@ Queue/worker technology, if required beyond approved Edge Function behavior: **T
 ## Phase 6.5 — Audit + support data
 
 **Systems:** `audit_logs`, Stripe event history, access decisions, usage/credit history.
+
+**Business value:** make the commercial lifecycle explainable to product, finance, engineering, and support teams.
 
 Record at least:
 
@@ -380,6 +412,8 @@ A hosted customer can pay through the SaaS company's connected Stripe account, r
 
 **Tech:** `@apex/sdk`.
 
+**Business value:** reduce integration friction so APEX can be adopted without a large custom implementation project.
+
 The SDK is a thin server-side client over the hosted APEX API; business state remains in APEX Cloud.
 
 Initial SDK responsibilities should cover:
@@ -398,7 +432,7 @@ Do not put secrets in browser-only code.
 
 ## 7.2 Customer balance UI
 
-The SaaS end customer needs a simple way to see what they have left.
+**Business value:** help a SaaS company's own customers understand what they have, what they used, and how to buy more—without APEX taking over the merchant's brand relationship.
 
 Minimum data contract:
 
@@ -422,7 +456,7 @@ The merchant remains free to build its own UI against the same API.
 
 # Phase 8 — End-to-end production proof
 
-This is the first non-negotiable proof that APEX can do what the homepage promises.
+This is the first non-negotiable proof that APEX can do what the homepage promises and justify the recurring business model.
 
 Use a hosted sample SaaS/Forma test flow and a connected Stripe test account.
 
@@ -458,6 +492,8 @@ Also verify one subscription-renewal case: a recurring allowance is granted/rese
 # Phase 9 — Live operator dashboard
 
 **Systems:** APEX Dashboard + real backend data.
+
+**Business value:** give the SaaS company the operational visibility that turns infrastructure into an ongoing service rather than an opaque black box.
 
 Replace demo/localStorage operator data with live APEX data.
 
@@ -499,13 +535,15 @@ These apply across all later phases.
 10. Every material state change is auditable.
 11. Simulations stay labeled simulations.
 12. README, docs, live Docs, and this roadmap must not claim a feature is live before its acceptance gate passes.
+13. Major features must map back to the business North Star and a concrete customer value addition.
+14. APEX should communicate by explaining what it adds to the stack, not by defining itself through opposition to another product.
 
 ---
 
 # Immediate next action
 
-Finish **Phase 5 only**:
+Finish **Phase 5 acceptance only**:
 
 `stripe apps upload` → External test registration → configure `STRIPE_APP_CLIENT_ID` → complete one real test OAuth connection → confirm persisted connected account.
 
-After Phase 5 passes and PR #16 is merge-ready, begin Phase 6.1. Do not skip directly to SDK/UI work; the API/ledger must become authoritative first.
+After Phase 5 passes, begin Phase 6.1. Do not skip directly to SDK/UI work; the API/ledger must become authoritative first.
