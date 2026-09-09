@@ -26,11 +26,9 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          # Public by design (see .env.example) — safe as repo secrets or
-          # plain repo variables. Left unset, the app falls back to the
-          # fully-simulated onboarding flow instead of failing the build.
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          # These are browser-safe Supabase values. Access is enforced by RLS.
+          VITE_SUPABASE_URL: https://fnmxlmjrkgojowpzrcwa.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_RmzipVOORKfFPlpdi3zheg_EQQth-xl
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
