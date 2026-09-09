@@ -1,0 +1,14 @@
+id: com.graymatter.apex
+name: APEX
+version: 0.1.0
+declarations:
+  distribution_type: public
+  sandbox_install_compatible: true
+  stripe_api_access_type: oauth
+  allowed_redirect_uris:
+    - https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-stripe-connect-callback
+  stripe_api_access:
+    permissions:
+      - permission: connected_account_read
+        purpose: Confirm which Stripe account is linked to this APEX workspace.
+extensions: []
