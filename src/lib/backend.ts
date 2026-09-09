@@ -24,10 +24,14 @@ export async function getCurrentAccount(): Promise<BackendAccount | null> {
 
 export async function signUpOrSignIn(input: { name: string; email: string; company: string; password: string }): Promise<BackendAccount> {
   const client = requireClient();
+  const emailRedirectTo = `${window.location.origin}${window.location.pathname}#start`;
   const { data, error } = await client.auth.signUp({
     email: input.email,
     password: input.password,
-    options: { data: { full_name: input.name, company_name: input.company } },
+    options: {
+      data: { full_name: input.name, company_name: input.company },
+      emailRedirectTo,
+    },
   });
 
   if (error) {
