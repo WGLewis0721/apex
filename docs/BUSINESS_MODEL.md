@@ -114,6 +114,25 @@ A feature that does not materially improve one of these outcomes needs a strong 
 
 ---
 
+## Architecture and implementation discipline
+
+The technology stack serves the business model; it is not the product identity.
+
+For every proposed runtime, cache, queue, database, SDK behavior, or distributed-systems feature, ask:
+
+1. Which buyer-visible value outcome does this improve?
+2. What current failure, latency, scale, or adoption problem proves it is needed?
+3. Can the approved stack solve that problem more simply?
+4. Does the change preserve APEX's core responsibility: correct product state after commercial events?
+
+For frozen v1, the most valuable proof is a correct hosted ledger and payment-to-product-value lifecycle. That is why authoritative Postgres spend, idempotent event handling, source-aware refunds, and a thin API come before signed local evaluation, reservation systems, caches, extra queues, or cloud migrations.
+
+Latency features are valuable only when they reduce adoption/integration friction without weakening correctness. In particular, cached or locally evaluated state may inform UI or feature gates later, but it must not become an unsafe authorization mechanism for scarce product value.
+
+This discipline keeps APEX aligned with the commercial promise: **reduce the custom engineering burden while making monetized product state more reliable and explainable.**
+
+---
+
 ## Communication identity
 
 APEX should communicate as a useful, intelligent layer in an existing SaaS stack.
@@ -148,4 +167,4 @@ If yes, it belongs near the nucleus of APEX.
 
 If not, it should remain secondary, optional, or outside the product.
 
-`ROADMAP.md` defines implementation order. `docs/PRODUCT_CONTRACT.md` defines the technical promise. This document defines why the business exists and how it earns money.
+`ROADMAP.md` defines implementation order. `docs/PRODUCT_CONTRACT.md` defines the technical promise. `docs/architecture/APEX_V1_LEDGER.md` freezes the current v1 architecture. This document defines why the business exists and how it earns money.
