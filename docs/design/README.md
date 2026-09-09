@@ -1,5 +1,16 @@
 # APEX design kit
 
-Start with [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md). This branch includes the original brand board, hero artwork, three editable SVG motifs, brand specification, and reference tokens.
+Start here before visual work:
 
-Implement from this branch so the assets remain available; bring in current main before coding. The website has not yet been redesigned or deployed by this asset-only change.
+1. `../../ROADMAP.md` — implementation source of truth
+2. `../PRODUCT_CONTRACT.md` — canonical product promise
+3. `BRAND_SPEC.md` — visual/message system
+4. `CLAUDE_HANDOFF.md` — implementation guidance
+
+This folder contains the original brand board, artwork, editable motifs, tokens, and design guidance. It governs presentation, not backend truth.
+
+Canonical positioning:
+
+> **Stripe moves the money. APEX knows what the money unlocks.**
+
+Any visual showing credits, usage, refunds, renewals, SDK/API behavior, or customer balance must match the roadmap's actual status and be labeled demo/planned when production acceptance has not passed.
