@@ -1,534 +1,511 @@
 # APEX Implementation Roadmap
 
-This file is the permanent implementation source of truth for APEX. Read it before
-starting any work. Update it after any meaningful change.
+This file is the permanent implementation source of truth for APEX. Read it before starting work and update it after every meaningful implementation change.
 
-## Canonical funnel
+## Canonical product statement
 
-**See it → Choose plan → Create account → Pay → Get workspace → Connect Stripe → Install → Verify → Enter dashboard**
+APEX is a hosted payment-and-access layer for SaaS products that use Stripe.
 
-Every phase below exists to make one more step of that funnel real.
+**Stripe moves the money. APEX knows what the money unlocks.**
 
-## What APEX is
+APEX is responsible for turning paid product state into the thing a customer can actually use: credits, tokens, coins, plan rights, usage allowance, feature access, and the decision to allow or deny an action.
 
-APEX is a hosted SaaS product. Its job is to **keep what a SaaS company sells aligned
-with what its customers can actually use.**
+APEX does **not** replace Stripe, process raw card data, or act as a financial wallet.
 
----
+## Production promise
 
-## APEX Production Infrastructure
+The v1 production product must provide:
 
-This is the canonical production model. Every phase below builds part of it.
+1. Stripe connection for the SaaS company's own Stripe account.
+2. Credit ledger and balance calculation.
+3. Usage metering.
+4. Plan and feature entitlements.
+5. One-time purchase packs / top-ups.
+6. Subscription renewals and recurring allowance grants.
+7. Refund-aware credit adjustments.
+8. Audit logs and reconciliation history.
+9. Hosted APEX API.
+10. TypeScript/Node SDK (`@apex/sdk`).
+11. Customer-facing balance data/UI.
+12. Operator dashboard showing customer, payment, credit, usage, access, and sync state.
 
-### 1. APEX Dashboard
-The existing customer-facing React web application: workspaces, plans, customers,
-usage, credits, access state, settings, and integration health.
-
-### 2. Accounts + Workspaces
-Supabase Auth and Supabase Postgres. Workspace-based tenancy, Postgres Row-Level
-Security, and the core workspace-owned data.
-
-### 3. Stripe Connection
-The customer connects their own Stripe account. Stripe payment and subscription
-events update APEX commercial and access state. Includes Stripe webhooks, event
-storage, reconciliation, and idempotency.
-
-### 4. APEX API
-The hosted API used by customer SaaS applications: customer identification, usage
-reporting, access checking, and usage reservation/finalization.
-Hosting/runtime: **TBD — architecture/technology not yet selected.**
-
-### 5. APEX SDK
-Initial SDK is TypeScript/Node. A thin client for the hosted APEX API, distributed
-as `@apex/sdk`.
-
-### 6. Usage + Credits
-Usage events, usage counters, credit grants and consumption, and idempotent event
-IDs. v1 keeps limits simple; it is not a financial wallet.
-
-### 7. Access Decision Engine
-Combines Stripe state, plan, features, usage, and credits, returns `ALLOW` or `DENY`
-with a reason, and records each decision.
-
-### 8. Background Processing
-Stripe webhook processing, retries, reconciliation, usage forwarding, and async jobs.
-Queue/worker technology: **TBD — architecture/technology not yet selected.**
-
-### 9. Audit + Dashboard Data
-Access-decision history, Stripe sync status, usage history, and clear
-“why was this customer blocked?” visibility.
-
-### Approved technologies
-
-Existing React APEX frontend · Supabase Auth · Supabase Postgres · Postgres RLS ·
-Stripe · TypeScript/Node `@apex/sdk` · Supabase Edge Functions for Phase 3/4
-billing and provisioning (explicitly approved September 8, 2026). Anything else is **TBD — architecture/technology
-not yet selected**.
+No marketing page, docs page, simulation, schema, or UI preview counts as production completion by itself. Each phase below has an acceptance gate.
 
 ---
 
-## Technology rule
+## Two Stripe relationships
 
-Do **not** invent technologies, vendors, frameworks, hosting platforms, queues,
-databases, or services. Only the technology explicitly named in a phase below is
-approved. If a phase requires a technology that has not been chosen, write
-**TBD — architecture/technology not yet selected** instead of choosing one.
+Keep these separate everywhere in code and documentation.
+
+### A. APEX's own Stripe billing
+A business pays APEX for APEX. This is the Phase 3/4 test-mode Checkout, webhook, subscription, workspace, environment, and APEX credential provisioning path.
+
+### B. A customer's connected Stripe account
+The SaaS business connects its own Stripe account to APEX. Its end customers can then buy subscriptions, credits, tokens, add-ons, or other product value through that Stripe account. APEX observes/coordinates those purchases and updates product state.
+
+Phase 5 establishes relationship B. Phase 6+ makes it useful.
 
 ---
 
-## Phase 1 — Product/demo foundation
+## Canonical customer funnel
 
-**Systems:** APEX Dashboard (simulated data only).
+**See APEX → Choose plan → Create account → Pay APEX → Get workspace → Connect Stripe → Install → Verify / Go live → Dashboard**
 
-**Infra:** Existing React/Vite frontend, GitHub Pages, simulated localStorage product flows.
+The visible UI may combine these into seven screens, but implementation gates stay separate.
 
-**Build:** Marketing site, Forma demo, onboarding funnel, launcher simulation,
-dashboard/sandbox UI.
+---
 
-**Done when:** Marketing site, Forma demo, onboarding funnel, launcher simulation,
-and dashboard/sandbox UI exist and clearly label simulations.
+## Approved production technology
 
-**Status:** Complete.
+Approved today:
 
-### Visual redesign — September 8, 2026
+- Existing React/Vite frontend
+- GitHub Pages for the current public frontend
+- Supabase Auth
+- Supabase Postgres
+- Postgres Row-Level Security
+- Supabase Edge Functions where already approved for billing, provisioning, and Stripe connection
+- Stripe
+- TypeScript/Node for the first SDK (`@apex/sdk`)
 
-Original brand board, hero artwork, SVG motifs, and implementation brief were provided
-in `docs/design/` and `public/assets/brand-v1/` (`docs/design/CLAUDE_HANDOFF.md`), then
-implemented across the marketing site, Forma demo, onboarding, and console chrome.
-Backend phase status is unchanged — this is a visual/frontend change only.
+Anything else is **TBD — architecture/technology not yet selected**.
 
-**Done:**
-- Brand palette (warm ivory canvas, ink navy, cobalt, tangerine, lilac) and Fraunces
-  (display) / Manrope (body) typography wired into `src/tokens.css` and `.ap-site`,
-  loaded via Google Fonts with Georgia/system-ui fallbacks. Marketing, Forma, and
-  onboarding surfaces (`product.css`, `plain-language.css`, `forma.css`,
-  `onboarding.css`) recolored from the prior cool-gray/blue palette to the brand
-  palette; the console (`styles.css`) got chrome-level brand accents (primary
-  buttons, active nav state, brand mark) without a full page-by-page reskin of its
-  15 operator pages.
-- Homepage hero rebuilt: headline beside the supplied sculpture artwork (stacked
-  above it on phones), new copy/buttons ("Try the demo" / "Explore setup"), hero
-  video kept prominent and playable and unchanged as an asset.
-- The old funnel-graphic + three-text-card explainer replaced with an open visual
-  story using the three supplied SVG motifs (`connection.svg`, `credits.svg`,
-  `access-pass.svg`): "Customer pays → Credits appear → Your app is ready."
-  The interactive Playground demo was moved earlier on the page, directly after
-  the visual story, and a new "Your app. Your look." section shows three labeled,
-  static illustrative examples (not real separate apps).
-- Forma demo: primary actions (Generate, Upgrade, credits remaining) restyled to
-  the brand palette and given more visual weight; billing simulation and the
-  activity feed moved behind a "For developers" disclosure; a navy explainer band
-  ("Stripe takes the payment. APEX connects it to access.") added.
-- Bug fixes found during verification: two CSS grid `1fr` tracks (`.ap-developer-grid`,
-  `.ap-house-card`) without `minmax(0, ...)` caused real horizontal overflow at
-  320px width (long code lines / a 300px-minimum grid track forcing overflow);
-  the console's mobile nav drawer was a `position: fixed` overlay inside an
-  `overflow: hidden` ancestor with a stray `z-index: 50` on the bar above it,
-  which visually clipped/outranked the open drawer — fixed by repositioning the
-  drawer relative to its actual page wrapper and lowering that bar's z-index;
-  the Billing Sync page's intro paragraph was missing the panel's standard
-  horizontal padding (`<p className="muted">` outside a `.panel.compact`); Forma's
-  reset button was missing the confirm-before-reset step present in onboarding
-  and the console.
-- Verified: `npm test` (36/36) and `npm run build` pass. Rechecked at 320/390/768/1024px
-  widths across the homepage, Forma, onboarding (all 8 steps), and all 8
-  mobile-visible console pages — zero horizontal overflow. Keyboard tab order,
-  `prefers-reduced-motion` (video stays paused), the film modal's open/Escape-close,
-  and both Forma's and the console's reset flows (now both confirm first) verified
-  interactively. Contrast-checked every new text/background pairing against WCAG AA
-  (4.5:1) — two failures found and fixed: white-on-tangerine and an invented
-  off-palette purple both under 4.5:1, per `docs/design/BRAND_SPEC.md`'s own
-  warning not to assume white passes on orange; the "Your app. Your look." example
-  cards now use the exact 5-color brand palette with ink text on tangerine/lilac.
+### Technology rule
 
-**Known limitation:** this sandbox's headless-browser screenshots could not reach
-`fonts.googleapis.com` (network policy), so they render the Georgia/system-ui
-fallback stack, not actual Fraunces/Manrope — the font `<link>` and CSS
-`font-family` stack are correct and will render the real typefaces in a normal
-browser with internet access (confirmed via computed-style inspection).
+Do not invent a queue vendor, new database, new cloud runtime, framework, worker platform, or external service just to finish a phase. If a capability requires technology that is not approved, write **TBD — architecture/technology not yet selected** and stop at that architecture decision.
 
-**Not done:** the pre-existing illustrative SVG assets outside this design kit
-(e.g. the old customer-funnel and payment-to-access diagrams) were left as-is,
-not re-illustrated; the console's 15 operator pages were not individually
-redesigned beyond shared chrome accents, consistent with Phase 4's "finish the
-implementation without introducing unnecessary infrastructure."
+---
 
-### Homepage story recomposition — September 8, 2026
+# Current status — September 9, 2026
 
-Same brand (palette, typography, existing assets) — no new visual direction. Turned
-the homepage from a sequence of explained sections into one unfolding story told
-through a single recurring customer, "Jordan," per Typeform/Pitch/Dropbox-style
-execution principles (simple staged actions, large product imagery over
-explanation, one consistent visual family). Homepage-only change; routes, the
-account/backend flow, the product film, the Forma/console demos, and accessibility
-behavior are unchanged.
+| Phase | Capability | Status |
+| --- | --- | --- |
+| 1 | Product/demo foundation | ✅ Complete |
+| 2 | Accounts + backend foundation | ✅ Complete |
+| 3 | APEX's own Stripe billing | ✅ Real in test mode |
+| 4 | Paid workspace provisioning | ✅ Real |
+| 5 | Connect customer's Stripe | 🟡 Implementation built; external-test Stripe App registration/OAuth acceptance remains |
+| 6 | APEX Cloud: API, credits, usage, entitlements, fulfillment | ⏳ Not started |
+| 7 | SDK + customer balance integration | ⏳ Not started |
+| 8 | End-to-end production proof | ⏳ Not started |
+| 9 | Live operator dashboard | ⏳ Not started |
 
-**Done:**
-- **Hero**: added a small ambient badge over the sculpture art that cycles through
-  "Payment confirmed → 10 credits added → Access unlocked" (static list, no motion,
-  under `prefers-reduced-motion`).
-- **Jordan story** (new, replaces the old 3-motif "Customer pays → Credits appear
-  → Your app is ready" row): a full-bleed cobalt scene — Jordan buys Pro for
-  $29/mo, an oversized number animates 10 → 7 as credits are spent (scroll-triggered
-  once, "Watch it again" to replay, shows the final "7" immediately with no
-  animation under reduced motion), "Product access stays on the whole time,"
-  then a link into the real Forma demo.
-- **Business payoff** (new, replaces three separate sections — a 3-card "what APEX
-  means for your business" grid, a "why access changed" card, and a 3-card "what
-  APEX keeps in sync" feature grid): one floating product-UI close-up (a small
-  audit-log window: Payment confirmed / Pro activated / 10 credits added / Access
-  changed) beside one headline, one sentence, and a "See what happened" progressive
-  disclosure — instead of three more cards.
-- **"Your app. Your look."**: the three illustrative examples now read as different
-  products, not the same card recolored — distinct shape/corner treatment per
-  example (pill-rounded + slightly rotated, sharp-cornered, soft/rotated the other
-  way), not just a different accent color.
-- **For developers**: the old standalone 3-step "how you build it" section folded
-  into a collapsed `<details>` disclosure inside the existing dark developer
-  section, so the mechanic is still there without being its own card grid.
-- Composition now alternates: quiet ivory hero → dark film → full-bleed cobalt
-  scene → quiet ivory demo → floating cards → quiet lilac-wash payoff → dark
-  developer reveal → quiet ivory close. No two conventional card-grid sections
-  run back to back. Cut roughly 40% of the homepage's explanatory copy by removing
-  the three sections consolidated into the one payoff scene, rather than trimming
-  sentences in place.
-- Contrast-checked every new color pairing against WCAG AA and fixed two failures
-  found this way (light-blue captions on the cobalt scene were under 4.5:1).
-- Verified: `npm test` (36/36), `npm run build`, and `tsc -b` pass. Rechecked for
-  horizontal overflow at 320/390/768/1024/1440px — zero. Verified interactively:
-  keyboard tab order, `prefers-reduced-motion` (both the hero badge and the Jordan
-  countdown skip animation and show final state), the film modal, and that
-  `#forma`/`#start`/`#console` still load correctly.
+Current production work must remain focused on **Phase 5 only** until the acceptance gate below passes.
 
-**Not done:** no new illustration assets were created (the brand kit's existing
-SVG motifs and sculpture PNG remain the only imagery); the "10 → 7" countdown
-lands on a fixed narrative (bought 10, used 3) rather than reflecting live demo
-state, since it's telling one consistent story rather than pulling from the
-Playground's separate simulated account.
+---
 
-### APEX Docs — September 8, 2026
+# Phase 1 — Product/demo foundation
 
-New product surface, not a redesign of an existing one: a full documentation site at
-`#docs`, lazy-loaded like Console/Forma/Onboarding. Organized around five sections —
-Learn, Build, Explore, Operate, Reference — covering 37 content pages plus a Docs
-home and five section-index pages (43 routes total). Built on the existing brand
-system (`tokens.css`, `.ap-site`, Fraunces/Manrope, the five-color palette); no new
-visual direction.
+**Systems:** marketing site, Forma demonstration, onboarding preview, console preview, docs.
 
-**Done:**
-- **Shell** (`src/docs/`): `DocsApp.tsx` parses `#docs/<section>/<slug>?h=<anchor>`
-  client-side; `DocsShell.tsx` provides a persistent sidebar (all 5 sections, current
-  page highlighted), client-side search (title/description/keyword match over a
-  static index, `/` or `Cmd/Ctrl+K` to focus), breadcrumb, previous/next page links,
-  an auto-generated on-page table of contents (scans rendered `h2[data-toc]`/
-  `h3[data-toc]` elements, scrollspy-highlighted), and a reading-progress bar.
-  Mobile gets a slide-in sidebar drawer behind a scrim.
-- **Content primitives** (`src/docs/primitives.tsx`): `Callout` (note/tip/warning/
-  planned/simulated, matching the existing "SIMULATED DATA" / "design preview" badge
-  language), `StatusPill`, `Steps` (numbered procedures), `CodeBlock` (copy-to-
-  clipboard, reusing the existing copy-button pattern), `DataTable` (horizontally
-  scrollable, never forces page-level overflow), `ExampleWalkthrough` ("what just
-  happened" staged explanations), `FlowDiagram` (CSS boxes-and-arrows, no image
-  assets), `SeeAlso` (Learn ↔ Reference cross-links), and `H2`/`H3` (stable,
-  deep-linkable ids feeding the TOC).
-- **Learn** (7 pages): what-is-APEX, Stripe→APEX→product, payments vs. plans vs.
-  access, credits and usage, entitlements, customer lifecycle, glossary. Credits and
-  usage carries a real interactive worked example (Jordan generates three reports,
-  10→9→8→7, click-driven, no auto-animation) and follows the requested progressive
-  structure (plain-English → visual model → example → use case → how APEX handles
-  it → implementation → technical details → edge cases) throughout.
-- **Build** (11 pages): quickstart through going-live, each with numbered steps,
-  illustrative code, expected results, and troubleshooting notes.
-- **Explore** (7 pages): one per requested use case (traditional SaaS, AI/token
-  apps, credit-based products, membership platforms, usage-based services, add-ons,
-  team accounts), sharing one data-driven template (customer journey, APEX
-  configuration, architecture, advantages, limitations, implementation
-  considerations) to keep the seven consistent.
-- **Operate** (6 pages): customer lookup, payment failures & cancellations, access
-  changes & credit corrections, event history, support workflows, debugging — each
-  pointing at `#console` as today's closest real analog.
-- **Reference** (6 pages): API overview & auth, requests/responses/errors,
-  events & webhooks, data model, limits, terminology. **Data model is real**: all
-  18 tables, every column, type, and nullability taken directly from
-  `supabase/migrations/20260908030805_core_platform_schema.sql`, including the
-  `current_workspace_ids()` RLS mechanism — nothing paraphrased or invented.
-- **Content honesty**: everything not yet built (the API, SDK, webhooks, access
-  decision engine) is labeled `planned` / "design preview" via `StatusPill`/
-  `Callout`, consistent with this file's own Phase 6/7 status and the "never mark a
-  simulation complete as production infrastructure" rule. No unapproved technology
-  was invented; Reference → Limits explicitly declines to invent rate-limit numbers
-  and says so.
-- Verified: `npm test` (36/36), `tsc -b`, and `npm run build` pass. Swept all 43
-  routes at 320/390/768/1024/1440px (215 checks) — zero horizontal overflow, zero
-  console/page errors. Fixed a real bug found in verification: the on-page TOC and
-  heading-permalink links were resolving `?h=<anchor>` against the page's bare path
-  instead of the current `#docs/...` route, so clicking one dropped the user out of
-  Docs entirely — fixed by composing the anchor link from the live route and
-  updating `window.location.hash` directly (confirmed via an automated click test
-  that the full route now survives). Contrast-audited every new color pairing
-  against WCAG AA; found and fixed three failures the same way the September 8
-  visual-redesign entry above did (white text on tangerine again, at 2.81:1) — the
-  Docs-home stage badges now use ink-on-tangerine (5.54:1), and two low-contrast
-  decorative grays (flow-diagram arrows, heading permalink icons) were darkened to
-  pass. Verified interactively: mobile sidebar drawer open/close, search filtering,
-  code-block copy-to-clipboard, and that `#start`/`#forma`/`#console`/the homepage
-  are unaffected.
+**Build:** show the product story and model the intended lifecycle: subscription, allowance, usage, top-up, upgrade, renewal failure/recovery, audit events, and access decisions.
 
-**Known limitation:** same as the prior two entries — this sandbox cannot reach
-`fonts.googleapis.com`, so screenshots show the Georgia/system-ui fallback stack,
-not Fraunces/Manrope; the font wiring itself is unchanged from the existing site.
+**Important:** Forma/localStorage logic is an executable product model, not production infrastructure.
 
-**Not done:** no full-text search (search matches page titles/descriptions/keywords
-only, not in-page prose — full-text would need a build-time content index this
-project's static Vite/React setup doesn't currently generate); no annotated
-product screenshots (Docs has no new product surface to screenshot beyond what
-Forma/console already show, which are linked from relevant pages instead); Operate
-and Reference describe an operational/API model that doesn't exist as running code
-yet, consistent with Phase 6/7 status — this is Phase 4's documentation of that
-model, not new backend work.
+**Done when:** the demos work, tests/build pass, and simulated behavior is clearly labeled.
 
-## Phase 2 — Accounts + backend foundation
+**Status:** ✅ Complete.
 
-**Systems:** Accounts + Workspaces.
+---
 
-**Tech:** Supabase Auth + Supabase Postgres.
+# Phase 2 — Accounts + backend foundation
 
-**Build:** `profiles`, `workspaces`, `workspace_members`, `plans`, `features`,
-`plan_features`, `customers`, `subscriptions`, `environments`, `api_keys`,
-`stripe_connections`, `usage_events`, `usage_counters`, `credit_grants`,
-`credit_consumptions`, `access_decisions`, `stripe_webhook_events`,
-`audit_logs` — every customer-owned table scoped by `workspace_id`, with
-foreign keys, timestamps, status fields, and workspace-membership RLS.
-Real Supabase Auth signup/login wired into the existing `AccountStep` UI.
+**Systems:** Supabase Auth + workspace-based Postgres tenancy.
 
-**Done when:** Real users can create and log into accounts and securely access only
-their own workspace.
+**Existing schema:**
 
-**Status:** Complete for accounts + schema. Applied live to the connected Supabase
-project (`supabase/migrations/20260908030805_core_platform_schema.sql` and
-`20260908030837_lock_down_handle_new_user_rpc.sql`): all 18 tables exist with RLS
-enabled, workspace-membership policies (via a `current_workspace_ids()` helper, never
-`raw_user_meta_data`/`user_metadata`), and `api_keys` secret columns locked down by
-column-level `REVOKE`/`GRANT`. `src/lib/supabaseClient.ts` uses a publishable key
-(`sb_publishable_...`) only. `src/lib/backend.ts` + `Onboarding.tsx`'s `AccountStep`
-call real `supabase.auth` (sign up, log in, session restore), active only when
-`VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` are set; otherwise the original
-simulated account step runs unchanged. Verified: `npm test` (36/36) and `npm run
-build` pass, tables/RLS confirmed live via Supabase's own advisors (no unresolved
-security lints). Phase 3/4 now adds transactional workspace provisioning; see its implementation
-and verification status below. `plan_features` cross-workspace consistency (a plan and its features
-belonging to the same workspace) is not enforced by a trigger, only by convention.
+`profiles`, `workspaces`, `workspace_members`, `plans`, `features`, `plan_features`, `customers`, `subscriptions`, `environments`, `api_keys`, `stripe_connections`, `usage_events`, `usage_counters`, `credit_grants`, `credit_consumptions`, `access_decisions`, `stripe_webhook_events`, `audit_logs`.
 
-## Phase 3 — APEX billing
+**Requirements:** workspace ownership, RLS isolation, protected credential columns, customer/plan/subscription structure, and schema needed by future usage/credit/access work.
 
-**Systems:** Stripe Connection (APEX's own billing only — the customer's Stripe account arrives in Phase 5).
+**Status:** ✅ Complete as backend foundation. The usage/credit/access tables are structure only until Phase 6.
 
-**Tech:** Stripe Checkout + Stripe webhooks.
+---
 
-**Build:** APEX's own paid plan checkout, setup fee + recurring subscription,
-server-side Checkout Session creation, verified payment webhook.
+# Phase 3 — APEX's own billing
 
-**Done when:** A real confirmed Stripe payment activates the APEX subscription, and
-browser redirects cannot mark accounts paid.
+**Systems:** APEX's own Stripe account only.
 
-**Status:** Implemented; deployment configuration and real Checkout verification
-pending. Supabase Edge Functions were explicitly approved for this milestone.
-The migration is applied and the three functions are deployed to the existing
-Supabase project. APEX's Stripe test webhook is registered; function secrets still
-need configuration. The frontend changes are on the implementation branch, not
-merged/deployed. Do not mark this phase complete until the real flow passes.
+**Build:** authenticated Stripe Checkout, verified webhooks, subscription lifecycle, idempotency, current-state reconciliation, and failure-safe processing.
 
-`apex-checkout` authenticates with Supabase, resolves the existing Founding lookup
-keys ($2,000 setup + $299/month), and creates/reuses a server-side Checkout Session.
-No duplicate products/prices were created. `apex-stripe-webhook` verifies the raw
-Stripe signature, validates paid Checkout and line items, and invokes an atomic,
-service-role-only activation transaction. Browser redirects only trigger status
-polling. Subscription events persist current Stripe state with event idempotency
-and stale-event protection. This implementation rejects live Stripe keys.
+**Security:** never trust client-provided amount, user ID, price ID, or payment status. A verified server-side Stripe event must drive fulfillment.
 
-**Verified:** existing 36 tests and production build; four Edge tests covering
-signatures, auth, payment validation, retryable failure, owner-only reveal, and
-credential encryption; rollback SQL tests on Supabase covering idempotency,
-transaction rollback, subscription ordering, and cross-account isolation.
-**Not verified:** actual signup/login → hosted Checkout → Stripe delivery →
-workspace/credentials in the browser. Function secrets are not available through
-the connected deployment tools, and the CLI is not authenticated. The browser
-also blocked the local preview. See `docs/implementation/APEX_BILLING.md` for
-configuration, exact deployed resources, and the remaining acceptance run.
+**Done when:** an authenticated user can complete a Stripe test payment and APEX can prove the payment server-side without double-processing retries.
 
-## Phase 4 — Workspace provisioning
+**Status:** ✅ Real in test mode.
 
-**Systems:** Accounts + Workspaces.
+The current Founding Partner Stripe catalog is test/launch configuration, not a permanent product-pricing commitment.
 
-**Tech:** The Supabase/Postgres backend created in Phase 2.
+---
 
-**Build:** Automatically create a Sandbox environment and `apex_pk_test_...` /
-`apex_sk_test_...` credentials after verified payment.
+# Phase 4 — Paid workspace provisioning
 
-**Done when:** A paying customer receives one real persisted workspace/environment
-and credentials, without duplicate provisioning.
+**Systems:** Supabase/Postgres + APEX billing webhook.
 
-**Status:** Implemented and database-tested; end-to-end acceptance pending with
-Phase 3. Verified payment atomically creates one workspace, owner membership,
-Sandbox environment, APEX subscription, and random `apex_pk_test_...` /
-`apex_sk_test_...` credentials. Retries return the existing workspace. Secrets are
-stored as SHA-256 hashes plus AES-256-GCM ciphertext; the encryption key lives in
-Edge Function secrets. Authenticated owners can reveal their key through
-`apex-workspace`; no plaintext credential or payment authority is kept in
-localStorage. The recursive membership SELECT policy was fixed because it blocked
-reading a provisioned workspace. The existing Workspace screen displays real
-persisted state and stops at the Phase 4 boundary; free exploration remains a demo.
-The API, Connect, install, and dashboard phases remain unimplemented.
+**Build:** one transaction activates the paid APEX subscription and provisions the workspace, owner membership, Sandbox environment, and APEX API credentials.
 
-The live migration is `20260908212241_apex_billing_provisioning.sql`. SQL tests
-left no persisted test workspaces. Frontend release and real test payment are
-still pending, so this phase is not yet complete.
+**Done when:** a successful APEX test purchase creates exactly one recoverable workspace/environment/credential set, survives refresh/sign-in, and duplicate Stripe delivery cannot provision twice.
 
-## Phase 5 — Connect customer Stripe
+**Status:** ✅ Real.
 
-**Systems:** Stripe Connection.
+---
 
-**Tech:** Stripe Connect.
+# Phase 5 — Connect customer's Stripe
 
-**Build:** Authorize and link the customer's own Stripe account, and persist that
-connection to the workspace.
+**Systems:** Stripe Apps OAuth / customer Stripe connection.
 
-**Done when:** APEX can securely identify the customer's connected Stripe account.
+**Tech:** Stripe Apps OAuth + existing Supabase Edge Functions/Postgres.
 
-**Status:** Not started. The Phase 2 migration created a `stripe_connections` table
-with workspace-scoped RLS, but no OAuth flow writes to it. The onboarding funnel
-currently shows a simulated Stripe connection behind `PaymentConnectionProvider` in
-`src/lib/launchProviders.ts`.
+**Branch:** `implementation/phase5-stripe-connect`
 
-## Phase 6 — APEX Cloud
+**PR:** #16 — `Phase 5: real Stripe Apps OAuth connection`
 
-APEX Cloud is not one deliverable. Build it in the order below; each step must work
-before the next begins.
+**Built:**
 
-**Tech:** Supabase Postgres holds the data. Hosting/runtime for the API and the
-queue/worker technology for background processing are
-**TBD — architecture/technology not yet selected.**
+- Stripe App v2 manifest under `stripe-app/`
+- authenticated connect/status Edge Function
+- one-time OAuth state and callback Edge Function
+- workspace-scoped `stripe_connections` persistence
+- encrypted OAuth refresh-token storage
+- browser cannot read refresh token
+- real users are blocked from entering simulated Install before Stripe connection is accepted
+- relevant security hardening migration
 
-### Phase 6.1 — APEX API foundation
+**Remaining acceptance dependency:**
+
+1. Run `stripe apps upload` from `stripe-app/` using the APEX sandbox/developer Stripe account.
+2. Register the APEX Stripe App for **External test**.
+3. Confirm callback URI:
+   `https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-stripe-connect-callback`
+4. Set the External-test OAuth client ID as `STRIPE_APP_CLIENT_ID` in Supabase Edge Function secrets.
+5. Complete one real test OAuth authorization from live APEX onboarding.
+6. Confirm the paid workspace has `stripe_connections.status = 'connected'` and the expected connected Stripe account ID.
+
+**Done when:** all six checks pass.
+
+**Status:** 🟡 Implementation built; acceptance not complete.
+
+**Hard gate:** do not begin production Install, SDK, Verify, Dashboard, or APEX Cloud work until Phase 5 passes.
+
+---
+
+# Phase 6 — APEX Cloud
+
+APEX Cloud is where the product promise becomes real. Build in the order below. Each subphase must pass before later layers depend on it.
+
+## Phase 6.1 — Hosted API foundation
 
 **Systems:** APEX API.
 
-**Build:** Hosted API surface used by customer SaaS applications: workspace/API-key
-authentication and customer identification.
+**Purpose:** give a customer's SaaS server a stable authenticated way to talk to APEX.
 
-**Done when:** A customer application can authenticate to APEX and identify one of
-its own customers.
+**Minimum responsibilities:**
 
-**Status:** Not started.
+- authenticate workspace/environment API credentials
+- identify/upsert a workspace-owned end customer by external ID
+- read customer product state
+- expose balance/access/usage operations required by later subphases
+- enforce workspace isolation server-side
+- use idempotency keys for all write operations that can be retried
 
-### Phase 6.2 — Usage + credits
+**Initial API contract must support, at minimum:**
 
-**Systems:** Usage + Credits.
+- identify customer
+- get customer balance/state
+- report/reserve/finalize usage
+- request access decision
+- initiate or retrieve a configured purchase-pack checkout path once Phase 6.2/6.4 exists
 
-**Build:** Usage events, usage counters, credit grants and consumption, idempotent
-event IDs, and usage reservation/finalization. Simple v1 limits, not a financial
-wallet.
+Exact route names may be finalized during implementation; the responsibilities above are mandatory.
 
-**Done when:** Reported usage and granted credits persist server-side and are
-idempotent against retried event IDs.
+**Runtime:** **TBD — architecture/technology not yet selected** unless the existing approved Edge Function model is explicitly extended for this phase.
 
-**Status:** Not started. The Phase 2 migration created `usage_events`,
-`usage_counters`, `credit_grants`, and `credit_consumptions` tables with
-workspace-scoped RLS, but no code writes to or reads from them yet.
+**Done when:** a server-side sample app can authenticate to APEX and identify/read one of its own customers without direct browser writes to protected tables.
 
-### Phase 6.3 — Access decision engine
-
-**Systems:** Access Decision Engine.
-
-**Build:** Combine Stripe state, plan, features, usage, and credits into an
-`ALLOW`/`DENY` result with a reason, and record every decision.
-
-**Done when:** The server-side APEX system returns real ALLOW/DENY decisions with a
-reason and a stored decision record.
-
-**Status:** Not started. The Phase 2 migration created `features`, `plan_features`,
-and `access_decisions` tables with workspace-scoped RLS, but no evaluation logic
-exists yet.
-
-### Phase 6.4 — Background processing
-
-**Systems:** Background Processing.
-
-**Build:** Stripe webhook processing, retries, reconciliation, usage forwarding, and
-async jobs. Queue/worker technology: **TBD — architecture/technology not yet
-selected.**
-
-**Done when:** Stripe events and usage forwarding survive failures and retries
-without duplicating or losing state.
-
-**Status:** Not started.
-
-### Phase 6 done when
-
-The server-side APEX system can persist usage and return real ALLOW/DENY decisions
-for a hosted customer, with Stripe events processed reliably in the background.
-
-**Status:** Not started.
-
-## Phase 7 — Install
-
-**Systems:** APEX SDK.
-
-**Tech:** Node/TypeScript `@apex/sdk`. CLI implementation technology is
-**TBD — architecture/technology not yet selected.**
-
-**Build:** A thin SDK that calls APEX Cloud, plus a real install/configuration flow.
-
-**Done when:** An external application can install APEX and authenticate to a
-workspace.
-
-**Status:** Not started. `@apex/sdk` and the CLI are unpublished design previews in
-the current site and onboarding copy.
-
-## Phase 8 — Verify
-
-**Systems:** APEX API + Usage + Credits + Access Decision Engine, exercised end to end.
-
-**Build:** A real test customer → credits → usage event → access check.
-
-**Done when:** A customer receives a real APEX Cloud ALLOW/DENY result.
-
-**Status:** Not started. The launcher's verification step is simulated.
-
-## Phase 9 — Live dashboard
-
-**Systems:** APEX Dashboard + Audit + Dashboard Data.
-
-**Build:** Replace dashboard demo/localStorage data with real backend data, including access-decision history, Stripe sync status, usage history, and “why was this customer blocked?” visibility.
-
-**Done when:** The dashboard reflects actual workspace customers, payments, usage,
-and access state.
-
-**Status:** Not started. The `#console` dashboard/sandbox uses localStorage demo data.
-
-## Phase 10 — Market launch
-
-**Systems:** All nine production systems above, running together.
-
-**Infra:** **TBD — architecture/technology not yet selected**, only where not
-previously selected in an earlier phase.
-
-**Done when:** An outside customer completes the entire canonical funnel with real
-systems.
-
-**Status:** Not started.
+**Status:** ⏳ Not started.
 
 ---
 
-## Instructions for AI coding agents
+## Phase 6.2 — Credit ledger, usage metering, purchase packs, renewals
 
-Every Claude Code, Copilot, Cursor, or Codex session must:
+**Systems:** Usage + Credits.
 
-1. Read this roadmap first, including the APEX Production Infrastructure section.
-2. Work only within the requested phase, and build the nine production systems
-   progressively — never all at once.
-3. Update this roadmap after meaningful changes.
-4. Never mark a simulation complete as production infrastructure.
-5. Never select an unapproved technology; record unresolved choices as
-   **TBD — architecture/technology not yet selected**.
-6. Keep roadmap status synchronized with actual repository functionality.
+Use the existing `usage_events`, `usage_counters`, `credit_grants`, and `credit_consumptions` foundation. Add only the schema necessary to durably map Stripe purchases/renewals/refunds to credit changes.
+
+### Credit ledger invariants
+
+- Grants and consumptions are durable history; do not rewrite history to make a balance look right.
+- Every external purchase/renewal/adjustment must have a durable source reference.
+- Retried requests/events must be idempotent.
+- Balance is derived from durable credit state, not trusted from the client.
+- Concurrent usage cannot spend the same final credits twice.
+- Reservation/finalization must support actions where cost is only known after work completes.
+- Credits are product units, not stored money and not cryptocurrency.
+
+### Usage metering
+
+Build:
+
+- idempotent usage events
+- period counters
+- atomic consumption
+- reservation/finalization/cancel flow
+- per-feature or general-credit usage where configured
+- current balance and remaining allowance calculation
+
+### Purchase packs / top-ups
+
+A workspace must be able to configure a one-time Stripe Price as a product pack such as:
+
+- 1,000 AI credits
+- 5,000 tokens
+- 10,000 game gold
+- 100 report generations
+
+The durable configuration must map the connected Stripe Price/product to the APEX grant amount and optional feature/credit bucket. Never accept a client-supplied dollar amount or grant quantity as authoritative fulfillment data.
+
+A successful verified Stripe payment creates the configured credit grant **exactly once**.
+
+### Renewals
+
+For plans that include recurring credits/allowance, a verified successful subscription renewal creates the new-period grant/reset exactly once. The grant must be keyed to a durable Stripe billing-period/invoice reference so retries cannot duplicate allowance.
+
+Whether unused recurring credits roll over is workspace/product policy. v1 must support an explicit deterministic policy rather than hidden behavior.
+
+### Refunds and reversals
+
+Refund handling must preserve history.
+
+- Link the refund to the original Stripe-funded grant.
+- Post a compensating credit adjustment/reversal instead of deleting the original purchase/grant.
+- Record the Stripe reference and audit event.
+- Recalculate balance/access from the resulting ledger state.
+- If refunded credits have already been consumed, do not silently fabricate history. Apply the documented workspace policy and expose the condition to support/operators.
+
+The exact schema for durable purchase-pack configuration and compensating adjustments must be designed in this phase using the approved Postgres stack and documented before migration.
+
+**Done when:** the server can grant, consume, reserve/finalize, renew, top up, and reverse/refund credits safely under retries and concurrency, with a reproducible balance.
+
+**Status:** ⏳ Not started. Existing tables are schema foundation only.
+
+---
+
+## Phase 6.3 — Entitlements + Access Decision Engine
+
+**Systems:** plans, features, subscriptions, usage, credits, `access_decisions`.
+
+**Build:** combine:
+
+- connected Stripe payment/subscription state
+- workspace plan
+- plan features/limits
+- customer status
+- current period
+- usage counters
+- credit balance
+- refund/reversal state
+
+Return:
+
+- `ALLOW` or `DENY`
+- machine-readable reason code
+- human-readable reason
+- relevant balance/limit context
+- durable `access_decisions` record
+
+Examples: `ALLOW`, `NO_ACTIVE_PLAN`, `PAYMENT_PAST_DUE`, `FEATURE_NOT_INCLUDED`, `CREDIT_LIMIT_REACHED`, `USAGE_LIMIT_REACHED`.
+
+**Done when:** the same request with the same underlying state returns a deterministic decision and support can see why it happened.
+
+**Status:** ⏳ Not started.
+
+---
+
+## Phase 6.4 — Stripe fulfillment, retries, reconciliation, refunds
+
+**Systems:** connected Stripe webhooks + background processing.
+
+**Build:**
+
+- receive and verify connected-account events
+- persist each Stripe event before/while processing with idempotency
+- fulfill configured purchase packs
+- process subscription changes and renewals
+- process payment failures/recovery
+- process refund/reversal events
+- retry safely after transient failures
+- reconcile APEX state against Stripe current state
+- never lose or double-apply a purchase, renewal, or refund
+
+Queue/worker technology, if required beyond approved Edge Function behavior: **TBD — architecture/technology not yet selected**.
+
+**Done when:** killing/retrying processing at any safe point cannot create duplicate credits or permanently lose a valid Stripe event.
+
+**Status:** ⏳ Not started.
+
+---
+
+## Phase 6.5 — Audit + support data
+
+**Systems:** `audit_logs`, Stripe event history, access decisions, usage/credit history.
+
+Record at least:
+
+- Stripe connection changes
+- purchase created/paid/failed
+- credit grant
+- credit consumption
+- usage reservation/finalization/cancel
+- recurring renewal grant/reset
+- refund/reversal adjustment
+- entitlement/access change
+- ALLOW/DENY decision
+- manual operator correction when later supported
+
+Every meaningful state change should answer: **what happened, to whom, why, from which Stripe/APEX event, and when?**
+
+**Done when:** one customer timeline can explain their current balance and access without reading raw database rows.
+
+**Status:** ⏳ Not started.
+
+### Phase 6 complete when
+
+A hosted customer can pay through the SaaS company's connected Stripe account, receive the configured product value, spend it through real usage calls, renew/refund safely, and receive deterministic access decisions with audit history.
+
+---
+
+# Phase 7 — Install, SDK, and customer balance UI
+
+## 7.1 TypeScript/Node SDK
+
+**Tech:** `@apex/sdk`.
+
+The SDK is a thin server-side client over the hosted APEX API; business state remains in APEX Cloud.
+
+Initial SDK responsibilities should cover:
+
+- client initialization with environment credential
+- customer identification
+- balance/state lookup
+- usage record/reserve/finalize
+- access check
+- purchase-pack checkout initiation once supported by API
+- clear typed errors and idempotency support
+
+Do not put secrets in browser-only code.
+
+**Done when:** a sample Node/TypeScript SaaS server can complete the Phase 8 proof using the SDK rather than raw database access.
+
+## 7.2 Customer balance UI
+
+The SaaS end customer needs a simple way to see what they have left.
+
+Minimum data contract:
+
+- display label/unit (`credits`, `tokens`, `gold`, etc.)
+- current spendable balance
+- included/recurring allowance where relevant
+- purchased/top-up balance where relevant
+- next reset/renewal date where relevant
+- low/empty state
+- purchase-more action when the workspace has configured packs
+
+The authoritative data comes from the APEX API. A reference React balance/purchase component may be provided using the existing frontend stack; final package/distribution details beyond the SDK are **TBD — architecture/technology not yet selected**.
+
+The merchant remains free to build its own UI against the same API.
+
+**Done when:** the sample Forma integration renders a real server-backed balance and a purchase-more action without reading demo/localStorage state.
+
+**Status:** ⏳ Not started.
+
+---
+
+# Phase 8 — End-to-end production proof
+
+This is the first non-negotiable proof that APEX can do what the homepage promises.
+
+Use a hosted sample SaaS/Forma test flow and a connected Stripe test account.
+
+## Required acceptance flow
+
+```text
+1. End customer starts with 0 purchased credits.
+2. End customer chooses "Buy 1,000 credits."
+3. APEX uses the workspace's configured pack + connected Stripe account.
+4. Stripe test payment succeeds.
+5. Verified connected-account event reaches APEX.
+6. APEX creates exactly one +1,000 credit grant.
+7. Balance API/SDK returns 1,000.
+8. Sample app records 250 usage.
+9. Balance returns 750.
+10. Access check returns ALLOW.
+11. Remaining credits are consumed.
+12. Next protected action returns DENY with a credit-limit reason.
+13. Retrying the original Stripe event does not grant again.
+14. Refund the purchase in Stripe test mode.
+15. APEX records the compensating adjustment and recalculates balance/access according to the documented refund policy.
+16. Audit history explains purchase → grant → usage → decision → refund.
+```
+
+Also verify one subscription-renewal case: a recurring allowance is granted/reset exactly once for the new billing period.
+
+**Done when:** every step above runs against real hosted APEX infrastructure and persisted data, not a reducer, fixture-only path, or localStorage simulation.
+
+**Status:** ⏳ Not started.
+
+---
+
+# Phase 9 — Live operator dashboard
+
+**Systems:** APEX Dashboard + real backend data.
+
+Replace demo/localStorage operator data with live APEX data.
+
+Minimum views:
+
+- workspaces/environments/integration health
+- connected Stripe status
+- customers
+- subscriptions/plans/features
+- customer balance
+- credit grants/consumptions/adjustments
+- usage history/counters
+- purchase/renewal/refund history
+- access-decision history
+- audit timeline
+- clear "why is this customer allowed/blocked?" explanation
+
+The dashboard is for the SaaS operator. Customer-facing balance UI remains Phase 7.2 and belongs inside/alongside the customer's product experience.
+
+**Done when:** an operator can troubleshoot the entire Phase 8 lifecycle from the dashboard without database-console access.
+
+**Status:** ⏳ Not started.
+
+---
+
+# Product invariants
+
+These apply across all later phases.
+
+1. Stripe is the source of truth for money movement; APEX is the source of truth for mapped product access/usage state.
+2. APEX never trusts browser claims that a payment succeeded.
+3. External events and write APIs must be idempotent.
+4. Credits/usage changes must be concurrency-safe.
+5. Financial/refund corrections preserve history; do not delete past events to make state look clean.
+6. Workspace isolation is enforced server-side.
+7. Secrets never ship in browser bundles or logs.
+8. APEX units are product units, not stored currency.
+9. Every access decision has a reason.
+10. Every material state change is auditable.
+11. Simulations stay labeled simulations.
+12. README, docs, live Docs, and this roadmap must not claim a feature is live before its acceptance gate passes.
+
+---
+
+# Immediate next action
+
+Finish **Phase 5 only**:
+
+`stripe apps upload` → External test registration → configure `STRIPE_APP_CLIENT_ID` → complete one real test OAuth connection → confirm persisted connected account.
+
+After Phase 5 passes and PR #16 is merge-ready, begin Phase 6.1. Do not skip directly to SDK/UI work; the API/ledger must become authoritative first.
