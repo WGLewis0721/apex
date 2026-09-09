@@ -53,22 +53,38 @@ export default function DocsApp() {
 
 const STAGES = [
   { q: 'What is this?', a: 'Learn' },
-  { q: 'I understand it.', a: 'Explore' },
-  { q: 'I can build with it.', a: 'Build' },
-  { q: 'I can troubleshoot it.', a: 'Operate' },
+  { q: 'Does it fit?', a: 'Explore' },
+  { q: 'How will it work?', a: 'Build' },
+  { q: 'How will I run it?', a: 'Operate' },
 ] as const;
 
 function DocsHome() {
   return (
     <div className="docs-home">
       <p className="ap-eyebrow docs-home-eyebrow">APEX DOCS</p>
-      <h1 className="docs-home-title">Go from “what is this?”<br />to a working implementation.</h1>
+      <h1 className="docs-home-title">Stripe moves the money.<br />APEX knows what it unlocks.</h1>
       <p className="docs-home-lede">
-        These docs are built to be read in order or dipped into directly. <b>Learn</b> teaches APEX
-        from first principles with worked examples. <b>Build</b> turns that understanding into
-        implementation steps. <b>Explore</b> is for evaluating whether APEX fits your product.{' '}
-        <b>Operate</b> covers what happens after launch. <b>Reference</b> is precise technical detail
-        for when you already know what you're looking for.
+        APEX is the payment-and-access layer for SaaS products that sell subscriptions, credits,
+        tokens, coins, usage allowance, paid features, or add-ons. These docs explain the product
+        from first principles, show the intended implementation, and clearly separate what is real
+        today from what is still on the production roadmap.
+      </p>
+
+      <div className="docs-home-note">
+        <b>Current production status · September 9, 2026</b><br />
+        Real today: Supabase accounts, the multi-tenant schema, APEX's own Stripe test Checkout /
+        verified webhook path, and paid workspace provisioning. Phase 5 customer Stripe connection
+        is implemented in PR #16 but still needs Stripe App External-test registration and one real
+        OAuth acceptance run. Hosted API, production credit ledger/usage, purchase packs, renewals,
+        refunds, entitlement enforcement, SDK, customer balance UI, and live operator data remain
+        planned phases.
+      </div>
+
+      <p className="docs-home-lede">
+        The production promise is one coherent subsystem: <b>Stripe integration + credit ledger +
+        usage metering + entitlements + purchase packs + renewals + refunds + audit history + API/SDK
+        + customer balance UI.</b> The repository <code>ROADMAP.md</code> is the implementation source
+        of truth and owns every acceptance gate.
       </p>
 
       <ol className="docs-home-stages">
@@ -92,9 +108,11 @@ function DocsHome() {
       </div>
 
       <p className="docs-home-note">
-        Written against the real APEX schema and demo code. Anything not yet built is labeled
-        <em> planned</em> or <em> design preview</em> — see <a href="#docs/reference/data-model">the data model</a> for
-        what's actually live today.
+        <b>Status language matters.</b> Schema/demo/UI existence does not prove production behavior.
+        Anything beyond the current accepted phases should be read as <em>planned</em>, <em>design preview</em>,
+        or <em>implemented but not yet accepted</em>. See <a href="#docs/reference/data-model">the data model</a>
+        for the real schema foundation and the Build section for the planned Stripe → ledger → usage →
+        balance → access path.
       </p>
     </div>
   );
