@@ -94,8 +94,6 @@ export async function handler(req: Request): Promise<Response> {
       });
     }
 
-    // Stripe Apps OAuth uses the client ID from the app's External test OAuth
-    // link. It is not a Stripe Connect platform client ID.
     const clientId = env("STRIPE_APP_CLIENT_ID");
     if (clientId.length < 8 || clientId.length > 200) {
       throw new Error("Invalid Stripe App client ID");
@@ -105,6 +103,15 @@ export async function handler(req: Request): Promise<Response> {
     const stateHash = await sha256Hex(state);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
+
+    // Only the newest authorization attempt for a workspace may finish. This
+    // prevents a stale browser tab from reconnecting the workspace later.
+    checked(
+      await db.from("stripe_connect_oauth_states")
+        .update({ consumed_at: now.toISOString() })
+        .eq("workspace_id", workspaceId)
+        .is("consumed_at", null),
+    );
 
     checked(
       await db.from("stripe_connect_oauth_states").insert({
@@ -125,8 +132,6 @@ export async function handler(req: Request): Promise<Response> {
       }, { onConflict: "workspace_id" }),
     );
 
-    // Current Stripe Apps OAuth install URL. Stripe supplies separate client IDs
-    // for live and external-test links; this milestone uses the test link only.
     const authorize = new URL("https://marketplace.stripe.com/oauth/v2/authorize");
     authorize.searchParams.set("client_id", clientId);
     authorize.searchParams.set("redirect_uri", callbackUrl());
