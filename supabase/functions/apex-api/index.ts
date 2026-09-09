@@ -15,7 +15,7 @@ function fail(error: unknown) {
 
 function routeParts(req: Request) {
   const parts = new URL(req.url).pathname.split("/").filter(Boolean);
-  const v1 = parts.indexOf("v1");
+  const v1 = parts.lastIndexOf("v1");
   return v1 >= 0 ? parts.slice(v1) : parts;
 }
 
@@ -57,7 +57,7 @@ export async function handler(req: Request): Promise<Response> {
       const body = await req.json().catch(() => null) as { amount?: number; idempotency_key?: string } | null;
       const amount = body?.amount;
       const idempotencyKey = body?.idempotency_key?.trim();
-      if (!Number.isFinite(amount) || (amount ?? 0) <= 0 || !idempotencyKey || idempotencyKey.length > 200) {
+      if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0 || !idempotencyKey || idempotencyKey.length > 200) {
         return json({ error: "amount and idempotency_key are required" }, 400);
       }
 
