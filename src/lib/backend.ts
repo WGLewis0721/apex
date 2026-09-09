@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 
-// Account, billing, and workspace calls for the real onboarding flow.
+// Account, billing, workspace, and Stripe Apps OAuth calls for the real onboarding flow.
 
 export type BackendAccount = { userId: string; email: string; fullName: string | null; companyName: string | null };
 
@@ -35,9 +35,6 @@ export async function signUpOrSignIn(input: { name: string; email: string; compa
   });
 
   if (error) {
-    // Supabase returns a generic "already registered" style error for an
-    // existing email; treat that one case as "log this returning user in"
-    // rather than surfacing a dead end.
     if (/already registered|already exists/i.test(error.message)) {
       return signIn({ email: input.email, password: input.password });
     }
@@ -61,6 +58,13 @@ export type ProvisionedWorkspace = {
   status: 'ready'; workspace: { id: string; name: string }; environment: { id: string; name: string };
   subscriptionStatus: string; publishable: string; secret?: string;
 };
+
+export type StripeConnection = {
+  status: 'not_connected' | 'pending' | 'connected' | 'disconnected';
+  stripeAccountId: string | null;
+  connectedAt: string | null;
+};
+
 async function invoke<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const client = requireClient();
   const { data: session } = await client.auth.getSession();
@@ -72,5 +76,8 @@ async function invoke<T>(name: string, body: Record<string, unknown>): Promise<T
   }
   return data as T;
 }
+
 export const startCheckout = () => invoke<{ url?: string; pending?: boolean; provisioned?: boolean }>('apex-checkout', { planId: 'founding' });
 export const getProvisionedWorkspace = (reveal = false) => invoke<ProvisionedWorkspace | { status: 'pending' }>('apex-workspace', { reveal });
+export const getStripeConnection = () => invoke<StripeConnection>('apex-stripe-connect', { action: 'status' });
+export const startStripeConnect = () => invoke<{ url?: string; status: 'pending' | 'connected'; stripeAccountId?: string }>('apex-stripe-connect', { action: 'start' });

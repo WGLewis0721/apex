@@ -13,7 +13,6 @@ import {
   Lock,
   RotateCcw,
   Sparkles,
-  Terminal as TerminalIcon,
 } from 'lucide-react';
 import {
   ChecklistItem,
@@ -26,7 +25,6 @@ import {
   OnboardingStep,
   PlanId,
   STEP_ORDER,
-  Stack,
   checklist,
   checklistProgress,
   furthestUnlockedStep,
@@ -44,9 +42,17 @@ import {
   createSimulatedPaymentConnection,
   createSimulatedVerification,
 } from '../lib/launchProviders';
-import { backendConfigured } from '../lib/supabaseClient';
-import { getCurrentAccount, signIn, signUpOrSignIn, startCheckout, getProvisionedWorkspace, type ProvisionedWorkspace } from '../lib/backend';
-import { supabase } from '../lib/supabaseClient';
+import { backendConfigured, supabase } from '../lib/supabaseClient';
+import {
+  getCurrentAccount,
+  getProvisionedWorkspace,
+  getStripeConnection,
+  signIn,
+  signUpOrSignIn,
+  startCheckout,
+  startStripeConnect,
+  type ProvisionedWorkspace,
+} from '../lib/backend';
 import '../onboarding.css';
 
 const billingProvider = createSimulatedBillingProvider();
@@ -63,13 +69,8 @@ const STEP_LABELS: Record<OnboardingStep, string> = {
   complete: 'Go live',
 };
 
-const TOTAL_NUMBERED_STEPS = STEP_ORDER.length - 1; // excludes the final "complete" summary
-
-// Both the desktop panel eyebrow and the mobile compact indicator derive
-// their step number from the same stepIndex() call, so the two can never
-// drift out of sync with each other or with a reordered STEP_ORDER.
+const TOTAL_NUMBERED_STEPS = STEP_ORDER.length;
 const stepEyebrow = (step: OnboardingStep, title: string) => `STEP ${stepIndex(step) + 1} OF ${TOTAL_NUMBERED_STEPS} · ${title}`;
-
 const asset = (name: string) => `/apex/assets/${name}`;
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -91,35 +92,6 @@ function CopyButton({ text }: { text: string }) {
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
     </button>
-  );
-}
-
-// A tiny hook that plays a sequence of awaited steps into a terminal-style
-// log: one "running" line with a spinner, then a completed, checked line.
-function useTerminalRunner() {
-  const [lines, setLines] = useState<string[]>([]);
-  const [running, setRunning] = useState<string | null>(null);
-  async function step<T>(label: string, task: () => Promise<T>, done: string | ((result: T) => string)): Promise<T> {
-    setRunning(label);
-    const result = await task();
-    setLines((prev) => [...prev, typeof done === 'function' ? done(result) : done]);
-    setRunning(null);
-    return result;
-  }
-  return { lines, running, step };
-}
-
-function Terminal({ prompt, lines, running }: { prompt?: string; lines: string[]; running: string | null }) {
-  return (
-    <div className="ob-term" role="log" aria-live="polite">
-      <div className="ob-term-top"><TerminalIcon size={13} /><span>Simulated install log · preview only, not a real shell</span></div>
-      <div className="ob-term-body">
-        {prompt && <div className="ob-term-line is-prompt">$ {prompt}</div>}
-        {lines.map((l, i) => <div className="ob-term-line is-done" key={i}><Check size={12} />{l}</div>)}
-        {running && <div className="ob-term-line is-active"><Loader2 size={12} className="ob-spin" />{running}</div>}
-        {!running && lines.length === 0 && !prompt && <div className="ob-term-line is-muted">Waiting to start…</div>}
-      </div>
-    </div>
   );
 }
 
@@ -172,6 +144,7 @@ export default function Onboarding() {
   const [checking, setChecking] = useState(backendConfigured);
   const [waitingForPayment, setWaitingForPayment] = useState(new URLSearchParams(window.location.search).get('checkout') === 'success');
   const [connecting, setConnecting] = useState(false);
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
 
   function apply(next: OnboardingState) {
     setState(next);
@@ -182,11 +155,6 @@ export default function Onboarding() {
     apply(onboardingReducer(state, action));
   }
 
-  // Merges facts learned from the real backend (a signed-in account, an
-  // already-provisioned workspace) onto local state, only ever moving
-  // `step` forward and only when landOn is a genuinely new development —
-  // an already-restored session should never be yanked backward or
-  // re-forced onto a step the user has since navigated away from.
   function hydrateFromServer(patch: Partial<OnboardingState>, landOn?: OnboardingStep) {
     setState((prev) => {
       const merged: OnboardingState = { ...prev, ...patch };
@@ -196,15 +164,37 @@ export default function Onboarding() {
     });
   }
 
-  async function refreshWorkspace() {
+  async function refreshWorkspace(): Promise<boolean> {
     const generation = authGeneration.current;
     const result = await getProvisionedWorkspace();
-    if (generation !== authGeneration.current) return;
+    if (generation !== authGeneration.current) return false;
     if (result.status === 'ready') {
       setWorkspace(result);
       setWaitingForPayment(false);
-      hydrateFromServer({ selectedPlan: 'founding', accountCreated: true, purchaseStatus: 'paid',
-        workspaceCreated: true, workspaceId: result.workspace.id, demoKeys: null, step: 'workspace' });
+      hydrateFromServer({
+        selectedPlan: 'founding',
+        accountCreated: true,
+        purchaseStatus: 'paid',
+        workspaceCreated: true,
+        workspaceId: result.workspace.id,
+        demoKeys: null,
+      }, 'workspace');
+      return true;
+    }
+    return false;
+  }
+
+  async function refreshStripeConnection() {
+    const generation = authGeneration.current;
+    const result = await getStripeConnection();
+    if (generation !== authGeneration.current) return;
+    setStripeAccountId(result.stripeAccountId);
+    if (result.status === 'connected') {
+      hydrateFromServer({ stack: 'javascript', paymentProviderStatus: 'connected' }, 'payments');
+    } else if (result.status === 'pending') {
+      hydrateFromServer({ stack: 'javascript', paymentProviderStatus: 'connecting' }, 'payments');
+    } else {
+      hydrateFromServer({ paymentProviderStatus: 'not_connected' });
     }
   }
 
@@ -217,18 +207,28 @@ export default function Onboarding() {
         const account = await getCurrentAccount();
         if (!active || !account || generation !== authGeneration.current) return;
         setAccountForm({ name: account.fullName ?? '', email: account.email, company: account.companyName ?? '', password: '' });
-        hydrateFromServer({ account: { name: account.fullName ?? '', email: account.email, company: account.companyName ?? '' },
-          accountCreated: true, selectedPlan: 'founding', step: 'purchase' });
-        await refreshWorkspace();
-      } catch (error) { if (active) setBillingError(error instanceof Error ? error.message : 'Could not restore your account.'); }
-      finally { if (active) setChecking(false); }
+        hydrateFromServer({
+          account: { name: account.fullName ?? '', email: account.email, company: account.companyName ?? '' },
+          accountCreated: true,
+          selectedPlan: 'founding',
+        }, 'purchase');
+        const ready = await refreshWorkspace();
+        if (ready) await refreshStripeConnection();
+      } catch (error) {
+        if (active) setBillingError(error instanceof Error ? error.message : 'Could not restore your account.');
+      } finally {
+        if (active) setChecking(false);
+      }
     };
     void restore();
     const { data } = supabase!.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || (activeUserId.current && session?.user && activeUserId.current !== session.user.id)) {
         authGeneration.current++;
         setBillingError(null);
-        setWorkspace(null); setState(initialOnboarding()); setWaitingForPayment(false);
+        setWorkspace(null);
+        setStripeAccountId(null);
+        setState(initialOnboarding());
+        setWaitingForPayment(false);
         setAccountForm({ name: '', email: '', company: '', password: '' });
       }
       activeUserId.current = session?.user.id ?? null;
@@ -253,9 +253,13 @@ export default function Onboarding() {
   const progress = checklistProgress(state);
 
   function goto(step: OnboardingStep) {
-    if (backendConfigured && stepIndex(step) > stepIndex('workspace')) return;
+    if (backendConfigured && stepIndex(step) > stepIndex('payments')) return;
     if (stepIndex(step) > stepIndex(furthest)) return;
     dispatch({ type: 'goto', step });
+  }
+
+  function continueFromWorkspace() {
+    dispatch({ type: 'choose_stack', stack: 'javascript' });
   }
 
   async function submitAccount(e: FormEvent) {
@@ -278,8 +282,14 @@ export default function Onboarding() {
         authGeneration.current++;
         setAccountForm((f) => ({ ...f, password: '' }));
         setWorkspace(null);
+        setStripeAccountId(null);
         setState({ ...initialOnboarding(), account: { name: account.fullName ?? '', email: account.email, company: account.companyName ?? '' }, accountCreated: true, selectedPlan: 'founding', step: 'purchase' });
-        try { await refreshWorkspace(); } catch (error) { setBillingError(error instanceof Error ? error.message : 'Could not load workspace status.'); }
+        try {
+          const ready = await refreshWorkspace();
+          if (ready) await refreshStripeConnection();
+        } catch (error) {
+          setBillingError(error instanceof Error ? error.message : 'Could not load workspace status.');
+        }
         return;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Something went wrong.';
@@ -313,8 +323,11 @@ export default function Onboarding() {
         if (result.url) { window.location.assign(result.url); return; }
         setWaitingForPayment(true);
         await refreshWorkspace();
-      } catch (error) { setBillingError(error instanceof Error ? error.message : 'Could not start checkout.'); }
-      finally { setPurchasing(false); }
+      } catch (error) {
+        setBillingError(error instanceof Error ? error.message : 'Could not start checkout.');
+      } finally {
+        setPurchasing(false);
+      }
       return;
     }
     dispatch({ type: 'purchase_pending' });
@@ -327,6 +340,31 @@ export default function Onboarding() {
   async function runConnect() {
     if (connecting) return;
     setConnecting(true);
+    setBillingError(null);
+
+    if (backendConfigured) {
+      hydrateFromServer({ stack: 'javascript', paymentProviderStatus: 'connecting' }, 'payments');
+      try {
+        const result = await startStripeConnect();
+        if (result.status === 'connected') {
+          setStripeAccountId(result.stripeAccountId ?? null);
+          hydrateFromServer({ stack: 'javascript', paymentProviderStatus: 'connected' }, 'payments');
+          return;
+        }
+        if (result.url) {
+          window.location.assign(result.url);
+          return;
+        }
+        throw new Error('Stripe did not return an authorization URL.');
+      } catch (error) {
+        hydrateFromServer({ paymentProviderStatus: 'not_connected' });
+        setBillingError(error instanceof Error ? error.message : 'Could not start Stripe authorization.');
+      } finally {
+        setConnecting(false);
+      }
+      return;
+    }
+
     dispatch({ type: 'connect_payments_pending' });
     await paymentConnection.connect();
     apply(onboardingReducer(onboardingReducer(state, { type: 'connect_payments_pending' }), { type: 'connect_payments_succeeded' }));
@@ -354,7 +392,7 @@ export default function Onboarding() {
         <nav className="ob-rail" aria-label="Onboarding progress">
           {STEP_ORDER.map((step, i) => {
             const done = stepIndex(furthest) > i || (step === 'complete' && state.step === 'complete');
-            const reachable = stepIndex(step) <= stepIndex(furthest) && (!backendConfigured || stepIndex(step) <= stepIndex('workspace'));
+            const reachable = stepIndex(step) <= stepIndex(furthest) && (!backendConfigured || stepIndex(step) <= stepIndex('payments'));
             return (
               <button
                 key={step}
@@ -398,7 +436,7 @@ export default function Onboarding() {
 
           {state.step === 'workspace' && (
             backendConfigured && workspace ? <>
-              <p className="ob-eyebrow">WORKSPACE READY · STRIPE TEST MODE</p>
+              <p className="ob-eyebrow">{stepEyebrow('workspace', 'WORKSPACE READY')}</p>
               <div className="ob-celebrate"><CheckCircle2 size={20} /> Payment verified. Your workspace is ready.</div>
               <h1>{workspace.workspace.name}</h1>
               <div className="ob-workspace-meta"><div><span>Environment</span><b>Sandbox</b></div><div><span>Workspace ID</span><code>{workspace.workspace.id}</code></div></div>
@@ -410,22 +448,29 @@ export default function Onboarding() {
               <button className="ob-ghost" onClick={async () => {
                 if (workspace.secret) { setWorkspace({ ...workspace, secret: undefined }); return; }
                 const generation = authGeneration.current;
-                try { const result = await getProvisionedWorkspace(true); if (result.status === 'ready' && generation === authGeneration.current) setWorkspace(result); }
-                catch (error) { setBillingError(error instanceof Error ? error.message : 'Could not reveal credentials.'); }
+                try {
+                  const result = await getProvisionedWorkspace(true);
+                  if (result.status === 'ready' && generation === authGeneration.current) setWorkspace(result);
+                } catch (error) {
+                  setBillingError(error instanceof Error ? error.message : 'Could not reveal credentials.');
+                }
               }}>{workspace.secret ? 'Hide secret key' : 'Reveal secret key'}</button>
-              <p className="ob-preview-note">Stripe connection, installation, and API access are coming in later phases. Your workspace and credentials are saved; the APEX API is not available yet.</p>
-            </> : <WorkspaceStep workspaceId={state.workspaceId} keys={state.demoKeys} onContinue={() => goto('stack')} />
-          )}
-
-          {state.step === 'stack' && (
-            <StackStep alreadyChosen={state.stack} onChoose={(stack) => dispatch({ type: 'choose_stack', stack })} />
+              <div className="ob-preview-note"><Info size={15} /><span>Your workspace is persisted. Next, authorize APEX to read your Stripe account. Install and APEX Cloud API access remain later phases.</span></div>
+              <button className="ob-primary" style={{ marginTop: 20 }} onClick={continueFromWorkspace}>Continue to Connect Stripe <ArrowRight size={15} /></button>
+            </> : <WorkspaceStep workspaceId={state.workspaceId} keys={state.demoKeys} onContinue={continueFromWorkspace} />
           )}
 
           {state.step === 'payments' && (
-            <PaymentsStep status={state.paymentProviderStatus} connecting={connecting} onConnect={runConnect} onContinue={() => goto('launcher')} />
+            <PaymentsStep
+              status={state.paymentProviderStatus}
+              connecting={connecting}
+              stripeAccountId={stripeAccountId}
+              onConnect={runConnect}
+              onContinue={() => goto('launcher')}
+            />
           )}
 
-          {state.step === 'launcher' && (
+          {state.step === 'launcher' && !backendConfigured && (
             <LauncherStep
               launcherStage={state.launcherStage}
               email={state.account?.email ?? null}
@@ -435,7 +480,7 @@ export default function Onboarding() {
             />
           )}
 
-          {state.step === 'complete' && (
+          {state.step === 'complete' && !backendConfigured && (
             <CompleteStep items={items} progress={progress} onJump={goto} onRequestProduction={() => dispatch({ type: 'request_production' })} productionRequested={state.productionRequested} />
           )}
         </section>
@@ -578,51 +623,19 @@ function WorkspaceStep({ workspaceId, keys, onContinue }: { workspaceId: string 
           <div className="ob-key-row"><span>SECRET</span><code>{keys.secret}</code><CopyButton text={keys.secret} /></div>
         </div>
       )}
-      <button className="ob-primary" onClick={onContinue}>Start installing APEX <ArrowRight size={15} /></button>
+      <button className="ob-primary" onClick={onContinue}>Continue to Connect Stripe <ArrowRight size={15} /></button>
     </>
   );
 }
 
-function StackStep({ alreadyChosen, onChoose }: { alreadyChosen: Stack | null; onChoose: (stack: Stack) => void }) {
-  const installer = useMemo(() => createSimulatedInstaller(), []);
-  const { lines, running, step } = useTerminalRunner();
-  const [detected, setDetected] = useState<{ runtime: string; framework: string } | null>(null);
-  const started = useRef(!!alreadyChosen);
-
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    (async () => {
-      const d = await step('Detecting your application stack…', () => installer.detectStack(), (r) => `✓ Detected ${r.runtime} · ${r.framework}`);
-      setDetected(d);
-    })();
-  }, []);
-
-  const staticLine = alreadyChosen ? ['✓ Detected Node.js · React'] : lines;
-  const ready = alreadyChosen ? true : !!detected;
-
-  return (
-    <>
-      <p className="ob-eyebrow">{stepEyebrow('stack', 'SELECT STACK')}</p>
-      <h1>Detect your application stack.</h1>
-      <p className="ob-lede">APEX ships a thin client for your language. JavaScript and TypeScript are ready today.</p>
-      <ArchitectureStrip />
-      <Terminal lines={staticLine} running={alreadyChosen ? null : running} />
-      {ready && (
-        <div className="ob-stacks">
-          <button aria-pressed={alreadyChosen === 'javascript'} onClick={() => onChoose('javascript')}>
-            JavaScript / TypeScript
-            <small>{alreadyChosen ? 'Selected' : 'Detected Node.js · React'}</small>
-          </button>
-          <button disabled title="Coming next">Python<small>Coming next</small></button>
-          <button disabled title="Coming next">Other languages<small>Coming next</small></button>
-        </div>
-      )}
-    </>
-  );
-}
-
-function PaymentsStep({ status, connecting, onConnect, onContinue }: { status: OnboardingState['paymentProviderStatus']; connecting: boolean; onConnect: () => void; onContinue: () => void }) {
+function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContinue }: {
+  status: OnboardingState['paymentProviderStatus'];
+  connecting: boolean;
+  stripeAccountId: string | null;
+  onConnect: () => void;
+  onContinue: () => void;
+}) {
+  const connected = status === 'connected' || status === 'demo_connected';
   return (
     <>
       <p className="ob-eyebrow">{stepEyebrow('payments', 'CONNECT STRIPE')}</p>
@@ -633,18 +646,26 @@ function PaymentsStep({ status, connecting, onConnect, onContinue }: { status: O
         <div className="ob-connect-icon"><CreditCard size={20} /></div>
         <div style={{ flex: 1 }}>
           <b>Stripe</b>
-          <div className={`ob-connect-status ${status === 'demo_connected' ? 'is-connected' : status === 'connecting' ? 'is-connecting' : ''}`}>
-            {status === 'demo_connected' ? 'CONNECTED IN DEMO' : status === 'connecting' ? 'CONNECTING…' : 'NOT CONNECTED'}
+          <div className={`ob-connect-status ${connected ? 'is-connected' : status === 'connecting' ? 'is-connecting' : ''}`}>
+            {status === 'connected' ? 'CONNECTED' : status === 'demo_connected' ? 'CONNECTED IN DEMO' : status === 'connecting' ? 'CONNECTING…' : 'NOT CONNECTED'}
           </div>
+          {backendConfigured && stripeAccountId && <small><code>{stripeAccountId}</code></small>}
         </div>
-        {status !== 'demo_connected' && (
+        {!connected && (
           <button className="ob-ghost" onClick={onConnect} disabled={connecting}>
-            {connecting ? <><Loader2 size={15} className="ob-spin" /> Connecting…</> : 'Connect Stripe (demo)'}
+            {connecting ? <><Loader2 size={15} className="ob-spin" /> Connecting…</> : backendConfigured ? (status === 'connecting' ? 'Restart Stripe connection' : 'Connect Stripe') : 'Connect Stripe (demo)'}
           </button>
         )}
       </div>
-      <div className="ob-preview-note"><Info size={15} /><span>There is no real Stripe OAuth connection yet. This is an interactive preview of the connection state — a real build would redirect to Stripe Connect here.</span></div>
-      <button className="ob-primary" style={{ marginTop: 20 }} disabled={status !== 'demo_connected'} onClick={onContinue}>Continue to install <ArrowRight size={15} /></button>
+      <div className="ob-preview-note"><Info size={15} /><span>{backendConfigured ? 'APEX sends you to Stripe’s hosted install page. APEX never receives your Stripe password or secret API key; Stripe returns scoped OAuth credentials to APEX after you approve the app.' : 'This is an interactive preview of the connection state. No Stripe account is actually linked.'}</span></div>
+      {backendConfigured ? (
+        connected ? <>
+          <div className="ob-celebrate" style={{ marginTop: 20 }}><CheckCircle2 size={20} /> Stripe account connected. Step 5 is complete.</div>
+          <button className="ob-primary" style={{ marginTop: 20 }} disabled>Install APEX — next step</button>
+        </> : null
+      ) : (
+        <button className="ob-primary" style={{ marginTop: 20 }} disabled={!connected} onClick={onContinue}>Continue to install <ArrowRight size={15} /></button>
+      )}
     </>
   );
 }
@@ -836,7 +857,6 @@ function LauncherStep({ launcherStage, email, workspaceId, onProgress, onOpenDas
     </>
   );
 }
-
 
 function CompleteStep({ items, progress, onJump, onRequestProduction, productionRequested }: {
   items: ChecklistItem[];

@@ -7,30 +7,27 @@ import { uid } from './controlPlane';
 // module — the same pattern src/lib/embeddedDemo.ts already uses for a
 // self-contained reducer.
 //
-// The post-purchase half of the funnel is a launcher: workspace -> pick a
-// stack -> connect Stripe -> one animated "Install APEX" launcher stage
-// (SDK install, environment config, webhook, live verification) -> go
-// live. None of it installs APEX itself locally — only a small SDK/CLI
-// that talks to hosted APEX Cloud, which in turn talks to the payment
-// provider. See the ArchitectureStrip copy in Onboarding.tsx for how
-// that is communicated.
+// The post-purchase half of the funnel is: workspace -> connect Stripe ->
+// one animated "Install APEX" launcher stage (stack detection, SDK install,
+// environment config, webhook, live verification) -> go live. None of it
+// installs APEX itself locally — only a small SDK/CLI that talks to hosted
+// APEX Cloud, which in turn talks to the payment provider.
 
 export type OnboardingStep = 'plan' | 'account' | 'purchase' | 'workspace' | 'stack' | 'payments' | 'launcher' | 'complete';
 export type PlanId = 'founding' | 'sandbox';
 export type PurchaseStatus = 'unpaid' | 'processing' | 'paid';
-export type PaymentProviderStatus = 'not_connected' | 'connecting' | 'demo_connected';
+export type PaymentProviderStatus = 'not_connected' | 'connecting' | 'demo_connected' | 'connected';
 export type Stack = 'javascript';
 
-export const STEP_ORDER: OnboardingStep[] = ['plan', 'account', 'purchase', 'workspace', 'stack', 'payments', 'launcher', 'complete'];
+// `stack` remains in the type for backwards compatibility with older demo
+// state, but it is no longer a numbered screen. The launcher detects the
+// only supported v1 stack (JavaScript/TypeScript) during installation.
+export const STEP_ORDER: OnboardingStep[] = ['plan', 'account', 'purchase', 'workspace', 'payments', 'launcher', 'complete'];
 
 export function stepIndex(step: OnboardingStep): number {
   return STEP_ORDER.indexOf(step);
 }
 
-// The APEX Launcher plays through these 14 stages in order, each moving
-// ○ Pending -> ◌ Running -> ✓ Complete. Thresholds below flip the coarser
-// domain flags (sdkInstalled, environmentConfigured, verificationPassed)
-// that the rest of the funnel (checklist, furthestUnlockedStep) reads.
 export const LAUNCHER_STAGES = [
   'Signing into APEX workspace',
   'Detecting project',
@@ -91,7 +88,6 @@ export const OFFERS: Record<PlanId, Offer> = {
 };
 
 export type OnboardingAccount = { name: string; email: string; company: string };
-
 export type DemoKeys = { publishable: string; secret: string };
 
 export type OnboardingState = {
@@ -143,7 +139,7 @@ export type OnboardingAction =
   | { type: 'purchase_succeeded'; receiptId: string }
   | { type: 'choose_stack'; stack: Stack }
   | { type: 'connect_payments_pending' }
-  | { type: 'connect_payments_succeeded' }
+  | { type: 'connect_payments_succeeded'; real?: boolean }
   | { type: 'launcher_progress'; stage: number }
   | { type: 'enter_complete' }
   | { type: 'request_production' }
@@ -152,6 +148,10 @@ export type OnboardingAction =
 
 function isValidAccount(account: OnboardingAccount): boolean {
   return account.name.trim().length > 0 && account.company.trim().length > 0 && /\S+@\S+\.\S+/.test(account.email.trim());
+}
+
+function paymentsConnected(status: PaymentProviderStatus): boolean {
+  return status === 'demo_connected' || status === 'connected';
 }
 
 export function onboardingReducer(state: OnboardingState, action: OnboardingAction): OnboardingState {
@@ -179,13 +179,13 @@ export function onboardingReducer(state: OnboardingState, action: OnboardingActi
       if (!state.workspaceCreated) return state;
       return { ...state, stack: action.stack, step: 'payments' };
     case 'connect_payments_pending':
-      if (!state.stack || state.paymentProviderStatus === 'demo_connected') return state;
+      if (!state.stack || paymentsConnected(state.paymentProviderStatus)) return state;
       return { ...state, paymentProviderStatus: 'connecting' };
     case 'connect_payments_succeeded':
       if (!state.stack) return state;
-      return { ...state, paymentProviderStatus: 'demo_connected' };
+      return { ...state, paymentProviderStatus: action.real ? 'connected' : 'demo_connected' };
     case 'launcher_progress': {
-      if (!state.stack || state.paymentProviderStatus !== 'demo_connected') return state;
+      if (!state.stack || !paymentsConnected(state.paymentProviderStatus)) return state;
       if (action.stage <= state.launcherStage) return state;
       const stage = Math.min(LAUNCHER_STAGE_COUNT, Math.max(0, action.stage));
       return {
@@ -202,6 +202,7 @@ export function onboardingReducer(state: OnboardingState, action: OnboardingActi
     case 'request_production':
       return { ...state, productionRequested: true };
     case 'goto':
+      if (!STEP_ORDER.includes(action.step)) return state;
       if (stepIndex(action.step) > stepIndex(furthestUnlockedStep(state))) return state;
       return { ...state, step: action.step };
     case 'reset':
@@ -214,9 +215,9 @@ export function onboardingReducer(state: OnboardingState, action: OnboardingActi
 export function furthestUnlockedStep(state: OnboardingState): OnboardingStep {
   if (state.step === 'complete') return 'complete';
   if (state.verificationPassed) return 'complete';
-  if (state.paymentProviderStatus === 'demo_connected') return 'launcher';
+  if (paymentsConnected(state.paymentProviderStatus)) return 'launcher';
   if (state.stack) return 'payments';
-  if (state.workspaceCreated) return 'stack';
+  if (state.workspaceCreated) return 'workspace';
   if (state.purchaseStatus === 'paid') return 'workspace';
   if (state.accountCreated) return 'purchase';
   if (state.selectedPlan) return 'account';
@@ -230,8 +231,8 @@ export function checklist(state: OnboardingState): ChecklistItem[] {
     { id: 'account', label: 'APEX account created', done: state.accountCreated, step: 'account' },
     { id: 'subscription', label: 'Subscription active', done: state.purchaseStatus === 'paid', step: 'purchase' },
     { id: 'workspace', label: 'Workspace created', done: state.workspaceCreated, step: 'workspace' },
-    { id: 'stack', label: 'Application stack selected', done: !!state.stack, step: 'stack' },
-    { id: 'payments', label: 'Payment provider connected', done: state.paymentProviderStatus === 'demo_connected', step: 'payments' },
+    { id: 'stack', label: 'Application stack detected', done: !!state.stack, step: 'payments' },
+    { id: 'payments', label: 'Payment provider connected', done: paymentsConnected(state.paymentProviderStatus), step: 'payments' },
     { id: 'sdk', label: 'SDK installed', done: state.sdkInstalled, step: 'launcher' },
     { id: 'environment', label: 'Environment configured', done: state.environmentConfigured, step: 'launcher' },
     { id: 'customer', label: 'First customer identified', done: state.verificationPassed, step: 'launcher' },
