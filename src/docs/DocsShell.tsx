@@ -151,6 +151,7 @@ export function DocsShell({
           )}
 
           <div className="docs-article" ref={contentRef}>
+            {page && <DocsStatusBanner />}
             {children}
           </div>
 
@@ -187,6 +188,18 @@ export function DocsShell({
       </div>
       {sidebarOpen && <button className="docs-sidebar-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
     </div>
+  );
+}
+
+function DocsStatusBanner() {
+  return (
+    <aside className="docs-home-note" aria-label="APEX implementation status">
+      <b>Implementation status · September 9, 2026.</b>{' '}
+      APEX accounts, its own Stripe test Checkout/webhook, and paid workspace provisioning are real.
+      Phase 5 customer Stripe connection is implemented but still awaits the External-test OAuth acceptance run.
+      Hosted API, production credits/usage, purchase packs, renewals, refunds, entitlement enforcement,
+      SDK, customer balance UI, and live operator data remain planned. <b>ROADMAP.md is authoritative.</b>
+    </aside>
   );
 }
 
