@@ -6,8 +6,22 @@ export function env(name: string): string {
   if (!value) throw new Error(`Missing configuration: ${name}`);
   return value;
 }
+
+function supabaseServerKey(): string {
+  const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (raw) {
+    try {
+      const keys = JSON.parse(raw) as Record<string, string>;
+      if (keys.default) return keys.default;
+    } catch {
+      throw new Error("Invalid SUPABASE_SECRET_KEYS configuration");
+    }
+  }
+  return env("SUPABASE_SERVICE_ROLE_KEY");
+}
+
 export const admin = () =>
-  createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), {
+  createClient(env("SUPABASE_URL"), supabaseServerKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 export const stripeClient = () => {
