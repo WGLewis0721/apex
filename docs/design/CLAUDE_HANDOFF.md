@@ -1,33 +1,128 @@
-# APEX visual redesign — four phases
+# APEX visual/product handoff
 
-Work from `design/apex-brand-kit` or its merged successor. Read the repository instructions and ROADMAP.md. Build the redesign using the supplied assets and existing React components. Keep the working demos, account flow, routes, and required hero video. This is frontend design work; use the existing stack.
+Read these in order before changing APEX:
 
-## Phase 1 — Establish the look
+1. `../../ROADMAP.md` — implementation source of truth and phase gates
+2. `../PRODUCT_CONTRACT.md` — canonical product promise/invariants
+3. `BRAND_SPEC.md` — visual/message system
 
-Review `docs/design/apex-brand-board.png` and BRAND_SPEC.md. Apply warm ivory, ink navy, cobalt blue, orange accents, and lilac. Use Fraunces for expressive headlines and Manrope for readable text, with licensed font files and sensible fallbacks.
+Do not let design copy redefine production status.
 
-Keep the existing APEX wordmark. Treat the board as visual inspiration; ignore its incidental text and trademark symbol. Use the original artwork and SVGs in `public/assets/brand-v1/`. Optimize images for the web. Establish the palette and typography in the existing tokens.
+## Canonical product story
 
-## Phase 2 — Build the visual homepage
+APEX is the payment-and-access layer for SaaS products that use Stripe.
 
-Create a welcoming hero with a large headline beside the sculpture, stacked above it on phones.
+> **Stripe moves the money. APEX knows what the money unlocks.**
 
-Example: “They pay. Your product follows.”
-Supporting sentence: “Keep subscriptions, credits, and customer access in sync—inside your app.”
-Buttons: “Try the demo” and “Explore setup.”
+The simplest customer story is:
 
-Keep the film prominent and playable. Replace repetitive text cards with an open visual story: “Customer pays → Credits appear → Your app is ready.” Use the supplied graphics, generous space, and restrained motion.
+```text
+End customer wants more credits/tokens/coins/allowance
+        ↓
+SaaS app
+        ↓
+APEX
+        ↓
+connected Stripe account
+        ↓
+verified payment
+        ↓
+credits/entitlements/balance/access update
+```
 
-Add “Your app. Your look.” showing the same billing interface styled for a creator tool, reporting app, and membership product. Label these fictional examples; do not build three applications.
+APEX complements Stripe. Never position it as replacing Stripe, storing money, or being cryptocurrency infrastructure.
 
-## Phase 3 — Make the experience intuitive
+## Current implementation boundary
 
-Enlarge the existing Forma demo and prioritize buying, generating, upgrading, and remaining credits. Example: buying activates 1,000 credits; one generation uses 250 and leaves 750. Use actual demo state.
+As of September 9, 2026:
 
-Move appearance settings and technical events into optional controls. Add a navy explanation section: “Stripe takes the payment. APEX connects it to access.” Put code under “For developers.” Carry the visual style into onboarding and the console, using straightforward labels and clear preview disclosures.
+- product/demo surfaces are built
+- accounts are real
+- APEX's own test Checkout/webhook is real
+- paid workspace provisioning is real
+- Phase 5 customer Stripe connection is implemented in PR #16 but still awaits Stripe App External-test OAuth acceptance
+- hosted API, production credit ledger, usage metering, entitlements, purchase packs, renewals, refunds, SDK, customer balance UI, end-to-end verification, and live operator data remain roadmap phases
 
-## Phase 4 — Polish and deliver
+If a visual shows planned behavior, label it as demo/design preview unless the roadmap says that behavior has passed production acceptance.
 
-Fix mobile overflow, drawer layering, uneven Billing Sync padding, and reset wording. Check phone, tablet, and desktop layouts, keyboard access, contrast, reduced motion, video controls, and demo/reset behavior. Run existing tests and the build.
+## Phase 1 — Keep the established visual system
 
-Deliver a PR with desktop/mobile screenshots and a short verification summary. Update the roadmap accurately. Use design judgment, keep reading light, and finish the implementation without introducing unnecessary infrastructure.
+Use the supplied brand assets and existing React components. Preserve warm ivory, ink navy, cobalt, tangerine, lilac, Fraunces display typography, Manrope body typography, the recurring connection/credit/access motifs, and the existing APEX wordmark.
+
+Treat the board as inspiration; ignore incidental generated text/trademark artifacts. Do not redesign from scratch unless explicitly directed.
+
+## Phase 2 — Homepage/product story
+
+Lead with outcomes and keep reading light.
+
+Recommended framing:
+
+**Headline territory:**
+> Your customer pays. Your product knows what to give them.
+
+**Supporting idea:**
+> Connect Stripe to credits, tokens, usage, plan rights, and customer access without rebuilding the whole system yourself.
+
+Useful short line:
+> Stripe moves the money. APEX knows what it unlocks.
+
+The visual sequence should show cause/effect rather than architecture diagrams first:
+
+**Customer pays → Product value appears → Customer uses it → Access stays correct.**
+
+Keep the product film prominent. Keep the Forma demo as interactive proof of the product model, while clearly separating demo behavior from production status.
+
+## Phase 3 — Forma/demo emphasis
+
+Prioritize:
+
+- buy/subscribe
+- current balance
+- consume usage
+- upgrade
+- purchase more
+- renewal/failure/recovery
+- activity/audit explanation
+
+Examples such as 1,000 credits → use 250 → 750 remaining are good visual teaching tools. They are not evidence that the production Phase 6 ledger/API is already live.
+
+When explaining mechanics, use:
+
+> Stripe takes the payment. APEX connects it to what the customer can use.
+
+Developer detail belongs behind progressive disclosure or Docs.
+
+## Phase 4 — Production-promise surfaces
+
+As later roadmap phases are implemented, the UI should grow to show the complete v1 promise:
+
+- connected Stripe health
+- purchase packs/top-ups
+- recurring allowance/renewal
+- refunds/reversals
+- credit ledger/balance
+- usage
+- plan/feature entitlements
+- ALLOW/DENY reason
+- audit timeline
+- API/SDK integration state
+- customer-facing balance/purchase-more UI
+
+Do not invent fake production records to make a screen look complete. Use explicit demo fixtures until live backend data exists.
+
+## Quality requirements
+
+- mobile/tablet/desktop
+- no horizontal overflow
+- keyboard/focus usability
+- WCAG-aware contrast
+- reduced-motion behavior
+- clear loading/success/error states
+- no dead controls
+- one primary action per important screen
+- no false production claims
+- tests/build pass
+
+## Delivery rule
+
+Every meaningful product change must update `ROADMAP.md` and the relevant docs in the same branch/PR. If a new promise is added to marketing copy, it must have a corresponding roadmap phase and acceptance test.
