@@ -1,0 +1,24 @@
+name: Validate docs alignment
+
+on:
+  push:
+    branches:
+      - docs/frozen-v1-alignment
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://fnmxlmjrkgojowpzrcwa.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_RmzipVOORKfFPlpdi3zheg_EQQth-xl
