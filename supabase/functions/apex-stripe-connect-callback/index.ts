@@ -3,13 +3,39 @@ import {
   appUrl,
   checked,
   env,
-  stripeClient,
 } from "../_shared/core.ts";
+
+const encoder = new TextEncoder();
+const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+const unb64 = (value: string) =>
+  Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
+
+async function encryptionKey(value: string) {
+  const bytes = unb64(value);
+  if (bytes.length !== 32) {
+    throw new Error("Credential encryption key must contain 32 random bytes");
+  }
+  return crypto.subtle.importKey("raw", bytes, "AES-GCM", false, ["encrypt"]);
+}
+
+async function encryptRefreshToken(
+  token: string,
+  workspaceId: string,
+): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const additionalData = encoder.encode(`stripe-app-oauth:${workspaceId}`);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData },
+    await encryptionKey(env("APEX_CREDENTIAL_ENCRYPTION_KEY")),
+    encoder.encode(token),
+  );
+  return `v1.${b64(iv)}.${b64(new Uint8Array(encrypted))}`;
+}
 
 async function sha256Hex(value: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(value),
+    encoder.encode(value),
   );
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -23,8 +49,10 @@ function back(status: string): Response {
   return Response.redirect(url.toString(), 303);
 }
 
-async function markNotConnected(workspaceId: string) {
-  await admin().from("stripe_connections").upsert({
+async function clearConnection(workspaceId: string) {
+  const db = admin();
+  await db.from("stripe_oauth_tokens").delete().eq("workspace_id", workspaceId);
+  await db.from("stripe_connections").upsert({
     workspace_id: workspaceId,
     stripe_account_id: null,
     status: "not_connected",
@@ -34,7 +62,9 @@ async function markNotConnected(workspaceId: string) {
 }
 
 export async function handler(req: Request): Promise<Response> {
-  if (req.method !== "GET") return new Response("Method not allowed", { status: 405 });
+  if (req.method !== "GET") {
+    return new Response("Method not allowed", { status: 405 });
+  }
 
   const url = new URL(req.url);
   const state = url.searchParams.get("state");
@@ -44,9 +74,7 @@ export async function handler(req: Request): Promise<Response> {
   const stateHash = await sha256Hex(state);
   const now = new Date().toISOString();
 
-  // Claim the state before exchanging Stripe's one-time code. Stripe warns
-  // that exchanging the same code twice can revoke the connection, so the
-  // compare-and-set below makes callback processing single-use.
+  // Claim the state exactly once before exchanging Stripe's one-time code.
   const claimed = checked(
     await db.from("stripe_connect_oauth_states")
       .update({ consumed_at: now })
@@ -73,66 +101,97 @@ export async function handler(req: Request): Promise<Response> {
       .maybeSingle(),
   );
   if (billing?.payment_status !== "paid" || membership?.role !== "owner") {
-    await markNotConnected(claimed.workspace_id);
+    await clearConnection(claimed.workspace_id);
     return back("invalid");
   }
 
   if (url.searchParams.get("error")) {
-    await markNotConnected(claimed.workspace_id);
+    await clearConnection(claimed.workspace_id);
     return back("cancelled");
   }
 
   const code = url.searchParams.get("code");
   if (!code) {
-    await markNotConnected(claimed.workspace_id);
+    await clearConnection(claimed.workspace_id);
     return back("error");
   }
 
   try {
-    const secret = env("STRIPE_SECRET_KEY");
-    if (!/^[rs]k_test_/.test(secret)) throw new Error("Test key required");
+    const developerKey = env("STRIPE_SECRET_KEY");
+    if (!/^[rs]k_test_/.test(developerKey)) {
+      throw new Error("Stripe Apps external test requires the developer test key");
+    }
 
-    const form = new URLSearchParams({
-      grant_type: "authorization_code",
-      code,
-    });
-    const tokenResponse = await fetch("https://connect.stripe.com/oauth/token", {
+    const tokenResponse = await fetch("https://api.stripe.com/v1/oauth/token", {
       method: "POST",
       headers: {
-        Authorization: `Basic ${btoa(`${secret}:`)}`,
+        Authorization: `Basic ${btoa(`${developerKey}:`)}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: form,
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+      }),
     });
     const token = await tokenResponse.json().catch(() => ({})) as {
+      access_token?: string;
+      refresh_token?: string;
       stripe_user_id?: string;
       livemode?: boolean;
       scope?: string;
+      token_type?: string;
     };
-    if (!tokenResponse.ok || !token.stripe_user_id || token.livemode !== false) {
-      throw new Error("Stripe OAuth exchange failed");
+    if (
+      !tokenResponse.ok ||
+      !token.access_token ||
+      !token.refresh_token ||
+      !token.stripe_user_id ||
+      token.livemode !== false ||
+      token.scope !== "stripe_apps"
+    ) {
+      throw new Error("Stripe Apps OAuth exchange failed");
     }
 
-    // OAuth access/refresh tokens are intentionally discarded. Stripe's current
-    // guidance is to use the platform key plus Stripe-Account for connected calls.
-    const account = await stripeClient().accounts.retrieve(token.stripe_user_id);
-    if (!account || account.id !== token.stripe_user_id) {
-      throw new Error("Connected account could not be verified");
+    // Verify the OAuth access token identifies the same account Stripe returned.
+    const accountResponse = await fetch("https://api.stripe.com/v1/account", {
+      headers: { Authorization: `Bearer ${token.access_token}` },
+    });
+    const account = await accountResponse.json().catch(() => ({})) as { id?: string };
+    if (!accountResponse.ok || account.id !== token.stripe_user_id) {
+      throw new Error("Stripe account verification failed");
     }
+
+    const ciphertext = await encryptRefreshToken(
+      token.refresh_token,
+      claimed.workspace_id,
+    );
+    const connectedAt = new Date().toISOString();
+
+    // Persist the encrypted refresh token first. The public connection is only
+    // marked connected after durable OAuth credentials exist.
+    checked(
+      await db.from("stripe_oauth_tokens").upsert({
+        workspace_id: claimed.workspace_id,
+        refresh_token_ciphertext: ciphertext,
+        livemode: false,
+        scope: token.scope,
+        updated_at: connectedAt,
+      }, { onConflict: "workspace_id" }),
+    );
 
     checked(
       await db.from("stripe_connections").upsert({
         workspace_id: claimed.workspace_id,
         stripe_account_id: token.stripe_user_id,
         status: "connected",
-        connected_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        connected_at: connectedAt,
+        updated_at: connectedAt,
       }, { onConflict: "workspace_id" }),
     );
 
     return back("connected");
   } catch {
-    await markNotConnected(claimed.workspace_id);
+    await clearConnection(claimed.workspace_id);
     return back("error");
   }
 }
