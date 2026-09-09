@@ -1,15 +1,15 @@
-import { DataTable, FlowDiagram, H2, PageHeader, SeeAlso } from '../primitives';
+import { Callout, DataTable, FlowDiagram, H2, PageHeader, SeeAlso } from '../primitives';
 
 interface UseCase {
   slug: string;
   title: string;
   lede: string;
   journey: { title: string; detail: string }[];
-  configuration: { label: string; value: string }[];
-  architecture: string;
-  advantages: string[];
-  limitations: string[];
-  considerations: string[];
+  fit: 'Direct v1 fit' | 'Partial v1 fit' | 'Later extension';
+  v1: string[];
+  later: string[];
+  value: string[];
+  caution: string[];
   seeAlso?: { href: string; title: string; description: string }[];
 }
 
@@ -21,20 +21,26 @@ function UseCasePage({ uc }: { uc: UseCase }) {
       <H2>Customer journey</H2>
       <FlowDiagram label={`${uc.title} customer journey`} nodes={uc.journey.map((j) => ({ title: j.title, detail: j.detail }))} />
 
-      <H2>APEX configuration</H2>
-      <DataTable head={['Concept', 'How it’s configured']} rows={uc.configuration.map((c) => [<b>{c.label}</b>, c.value])} />
+      <H2>Fit with APEX today</H2>
+      <DataTable head={['Stage', 'What applies']} rows={[
+        ['Fit', <b>{uc.fit}</b>],
+        ['Frozen v1', <ul>{uc.v1.map((x) => <li key={x}>{x}</li>)}</ul>],
+        ['Later extension', <ul>{uc.later.map((x) => <li key={x}>{x}</li>)}</ul>],
+      ]} />
 
-      <H2>Architecture</H2>
-      <p>{uc.architecture}</p>
+      <H2>Why APEX adds value</H2>
+      <ul>{uc.value.map((x) => <li key={x}>{x}</li>)}</ul>
 
-      <H2>Advantages</H2>
-      <ul>{uc.advantages.map((a) => <li key={a}>{a}</li>)}</ul>
+      <H2>Watch-outs</H2>
+      <ul>{uc.caution.map((x) => <li key={x}>{x}</li>)}</ul>
 
-      <H2>Limitations</H2>
-      <ul>{uc.limitations.map((a) => <li key={a}>{a}</li>)}</ul>
-
-      <H2>Implementation considerations</H2>
-      <ul>{uc.considerations.map((a) => <li key={a}>{a}</li>)}</ul>
+      {uc.fit !== 'Direct v1 fit' && (
+        <Callout kind="note" title="Do not enlarge v1 for this use case">
+          This use case is useful product direction, but it does not change the frozen implementation sequence.
+          A later capability should be added only when a real customer needs it and it strengthens a clear
+          buyer-value outcome.
+        </Callout>
+      )}
 
       {uc.seeAlso && <SeeAlso items={uc.seeAlso} />}
     </>
@@ -45,210 +51,211 @@ const USE_CASES: UseCase[] = [
   {
     slug: 'traditional-saas-subscriptions',
     title: 'Traditional SaaS subscriptions',
-    lede: 'Seats, tiers, and monthly recurring revenue — the model most B2B software still runs on.',
+    lede: 'Plan tiers and feature rights are a natural APEX direction, while the current frozen core is proving the reusable product-value ledger first.',
+    fit: 'Partial v1 fit',
     journey: [
-      { title: 'Picks a tier', detail: 'e.g. Team, $49/seat' },
-      { title: 'Adds teammates', detail: 'seat count grows' },
-      { title: 'Renews monthly', detail: 'Stripe charges automatically' },
-      { title: 'Upgrades tier', detail: 'unlocks more features' },
+      { title: 'Customer subscribes', detail: 'Stripe owns the payment/subscription event' },
+      { title: 'APEX maps plan state', detail: 'plan/features become product state' },
+      { title: 'Product reads entitlements', detail: 'UI and server understand current rights' },
+      { title: 'Lifecycle changes', detail: 'renewal/cancel/upgrade later update rights' },
     ],
-    configuration: [
-      { label: 'Plans', value: 'One plan per tier (Starter, Team, Enterprise), each with its own price.' },
-      { label: 'Entitlements', value: 'Feature flags per tier (SSO on Enterprise only) and numeric limits (seat count, projects).' },
-      { label: 'Credits', value: 'Usually not needed — access is tier-based, not consumption-based.' },
+    v1: [
+      'Hosted entitlements document can expose current plan/features where present.',
+      'The same customer/product-state model can coexist with credits.',
     ],
-    architecture: 'Nearly the whole model lives in plans and plan_features. Access checks are mostly boolean ("does this plan include SSO?") rather than balance checks, which makes this the simplest use case to reason about.',
-    advantages: [
-      'Predictable revenue and predictable customer cost — easy for both sides to plan around.',
-      'Simple access checks: mostly feature flags, not running balances.',
-      'Upgrades and downgrades map directly onto entitlement changes.',
+    later: [
+      'Full subscription lifecycle mapping from connected Stripe.',
+      'Signed/local feature evaluation and explicit grace/cancellation policy.',
+      'Operator tooling for plan-right changes.',
     ],
-    limitations: [
-      'Doesn\'t naturally handle highly variable usage — a light user and a heavy user on the same tier pay the same.',
-      'Seat-based pricing can undercount value for products where usage varies more than headcount.',
+    value: [
+      'Centralizes plan rights instead of duplicating billing logic across services.',
+      'Lets product teams separate money state from product rights.',
     ],
-    considerations: [
-      'Decide early whether seat count is enforced at signup time or checked continuously — the schema supports either via plan_features limits.',
-      'Plan changes usually take effect immediately for upgrades and at the next period for downgrades — decide and document which.',
+    caution: [
+      'Do not treat a future feature ALLOW response as permission to spend scarce credits.',
+      'Cancellation/grace behavior is product policy, not something Stripe or APEX should silently invent.',
     ],
-    seeAlso: [{ href: '#docs/learn/entitlements', title: 'Learn: Entitlements', description: 'The mechanism tiers are built from.' }],
+    seeAlso: [{ href: '#docs/learn/entitlements', title: 'Learn: Entitlements', description: 'Current read-only state and later evaluation direction.' }],
   },
   {
     slug: 'ai-token-applications',
     title: 'AI / token applications',
-    lede: 'Metering model inference, where cost tracks usage far more directly than in traditional software.',
+    lede: 'Prepaid AI credits are one of the clearest direct fits for the frozen v1 ledger and authoritative consume model.',
+    fit: 'Direct v1 fit',
     journey: [
-      { title: 'Subscribes or pays as they go', detail: 'plan grants a token/credit allowance' },
-      { title: 'Sends a request', detail: 'a prompt, an inference call' },
-      { title: 'Usage is metered', detail: 'often per input+output token' },
-      { title: 'Balance drops', detail: 'until topped up or renewed' },
+      { title: 'Buys credits', detail: 'connected Stripe payment' },
+      { title: 'APEX grants units', detail: 'source-attributed balance' },
+      { title: 'AI action consumes units', detail: 'authoritative consume' },
+      { title: 'Runs low', detail: 'balance/entitlements informs top-up UX' },
     ],
-    configuration: [
-      { label: 'Plans', value: 'A base allowance per period (e.g. 100,000 tokens/month on Pro).' },
-      { label: 'Credits', value: 'The primary mechanism — usage is metered per request via usage_events, drawn down against credit_grants.' },
-      { label: 'Entitlements', value: 'Often just "which models are available," layered on top of the token balance.' },
+    v1: [
+      'Verified payment → configured credit grant (ingress still to be wired).',
+      'Atomic consume protects against concurrent overspend.',
+      'Balance and entitlements provide current state.',
+      'Refunds claw back only the unspent part of the source purchase.',
     ],
-    architecture: 'This is the use case credits and usage_events were designed for most directly — high request volume, fine-grained metering, and a balance that needs to be checked before every single request, not just at signup.',
-    advantages: [
-      'Cost and price can track each other closely, since both scale with actual usage.',
-      'A single credit balance can span multiple models or features with different per-unit costs.',
-      'Fine-grained usage_events give precise cost attribution after the fact.',
+    later: [
+      'Reservations for streaming/unknown final cost only if a real workload requires them.',
+      'High-volume raw token analytics only when direct transactional metering stops being sufficient.',
+      'Signed local feature gates if latency evidence justifies them.',
     ],
-    limitations: [
-      'Customers can find token-based pricing hard to predict compared to a flat monthly fee.',
-      'High request volume means the access-check path needs to be fast — this is the use case most sensitive to access-check latency.',
+    value: [
+      'Launch a credit economy without engineering the wallet from scratch.',
+      'Protect costly inference from double-spend.',
+      'Make support/refund questions explainable from source history.',
     ],
-    considerations: [
-      'Decide the "cost" of different actions up front (an image generation might cost 10x a short text completion) — this maps to quantity on the usage event, not a separate feature.',
-      'Consider whether to deny or degrade when a customer runs out mid-session, rather than failing a request outright.',
+    caution: [
+      'A cached “750 remaining” read cannot authorize an AI job if multiple workers may spend concurrently.',
+      'Do not add reservation complexity unless work truly begins before final cost is known.',
     ],
-    seeAlso: [{ href: '#docs/learn/credits-and-usage', title: 'Learn: Credits and usage', description: 'The Jordan example this use case is closest to.' }],
+    seeAlso: [{ href: '#docs/build/record-usage', title: 'Build: Consume credits', description: 'The current scarce-value boundary.' }],
   },
   {
     slug: 'credit-based-products',
     title: 'Credit-based products',
-    lede: 'A single spendable balance that covers several different actions, each at its own cost.',
+    lede: 'A reusable prepaid balance is the strongest immediate APEX v1 product shape.',
+    fit: 'Direct v1 fit',
     journey: [
-      { title: 'Buys a credit pack', detail: 'or gets credits with a plan' },
-      { title: 'Spends across features', detail: 'exports, generations, downloads' },
-      { title: 'Balance runs low', detail: 'product warns before zero' },
-      { title: 'Tops up', detail: 'buys more without changing plan' },
+      { title: 'Buys a pack', detail: '1,000 credits, generations, exports, etc.' },
+      { title: 'APEX grants it', detail: 'purchase source is preserved' },
+      { title: 'Spends credits', detail: 'FIFO grant burn + atomic projection' },
+      { title: 'Refund or top up', detail: 'history remains source-aware' },
     ],
-    configuration: [
-      { label: 'Credits', value: 'One shared credit_grants balance, consumed by usage_events tagged with different feature_ids at different quantities.' },
-      { label: 'Plans', value: 'Often just "how many credits you start with" — the interesting logic is in what things cost, not the plan itself.' },
+    v1: [
+      'Per-purchase source-attributed grants.',
+      'Non-negative projected balance.',
+      'FIFO consume across open grants.',
+      'Append-only ledger and replay-safe operations.',
+      'Source-scoped refund with unrecoverable_spent.',
     ],
-    architecture: 'Multiple features draw from the same balance. credit_consumptions links each spend back to both the grant it came from and the usage event that caused it, so a single balance can be fully explained after the fact.',
-    advantages: [
-      'One number for the customer to track, no matter how many different actions exist.',
-      'New features can be priced in credits without introducing a new billing concept.',
-      'Top-ups are a simple, well-understood purchase — Forma\'s "buy 10 more" button is exactly this.',
+    later: [
+      'Expiring credits after projection reconciliation exists.',
+      'Customer-facing reference balance component.',
+      'Richer per-feature pricing/metering if customer demand needs it.',
     ],
-    limitations: [
-      'A single balance can obscure which specific feature is driving cost or usage without good reporting.',
-      'Pricing different actions in credits requires ongoing calibration as costs change.',
+    value: [
+      'One reusable wallet system across many digital products.',
+      'New purchase packs do not require another custom balance implementation.',
+      'Refund A cannot accidentally consume purchase B.',
     ],
-    considerations: [
-      'Decide a draw-down order when a customer has multiple active grants (e.g. plan allowance before purchased top-ups, or oldest-expiring first).',
-      'Show customers a breakdown, not just a total — event_history exists for exactly this.',
+    caution: [
+      'Frozen v1 grants should be non-expiring.',
+      'The browser cannot choose its own grant amount from a payment amount.',
     ],
-    seeAlso: [{ href: '#docs/build/configure-credits', title: 'Build: Configure credits', description: 'How grants and top-ups are set up.' }],
+    seeAlso: [{ href: '#docs/learn/credits-and-usage', title: 'Learn: Credits and usage', description: 'The current wallet model.' }],
   },
   {
     slug: 'membership-platforms',
     title: 'Membership platforms',
-    lede: 'Recurring access to a community, a content library, or a set of ongoing benefits — access is the product, not a metered action.',
+    lede: 'Membership is mostly an entitlement/status problem rather than a scarce-credit wallet problem.',
+    fit: 'Later extension',
     journey: [
-      { title: 'Joins a tier', detail: 'e.g. Member, Founding Member' },
-      { title: 'Gets ongoing access', detail: 'content, community, events' },
-      { title: 'Renews or lapses', detail: 'access follows payment status directly' },
+      { title: 'Joins a tier', detail: 'Stripe subscription starts' },
+      { title: 'Gets ongoing rights', detail: 'content/community/features' },
+      { title: 'Renews or lapses', detail: 'commercial state changes' },
+      { title: 'Product rights update', detail: 'explicit access policy' },
     ],
-    configuration: [
-      { label: 'Plans', value: 'Membership tiers, often with a single price and no usage dimension at all.' },
-      { label: 'Entitlements', value: 'Mostly boolean unlocks — access to a space, a library, an event tier.' },
-      { label: 'Credits', value: 'Rarely needed; occasionally used for something like "2 guest passes per month."' },
+    v1: [
+      'Customer, subscription, plan, and feature schema foundations exist.',
+      'Entitlements read can expose current modeled rights.',
     ],
-    architecture: 'The simplest architecture of any use case here: subscription status essentially is access. The main thing to get right is how quickly access should follow a status change — immediately on cancellation, or through to the end of the paid period.',
-    advantages: [
-      'Very simple access checks — often just "is the subscription active."',
-      'Easy for members to understand what they\'re paying for.',
+    later: [
+      'Connected subscription lifecycle processing.',
+      'Deterministic feature-access policy and local/server evaluation.',
+      'Grace/cancellation timing and operator support views.',
     ],
-    limitations: [
-      'Doesn\'t differentiate engagement — a member who logs in daily and one who never returns pay the same.',
-      'Less natural fit if the platform later wants to add metered or premium add-on features.',
+    value: [
+      'Keeps subscription state and product rights from drifting across services.',
+      'Makes “why did access change?” explainable once lifecycle handling is accepted.',
     ],
-    considerations: [
-      'Decide explicitly whether cancellation ends access immediately or at the end of the paid period — this is a product decision APEX doesn\'t make for you.',
-      'If guest passes or occasional perks are added later, they fit naturally as a small credit grant layered on top.',
+    caution: [
+      'Do not force the credit-ledger model onto a use case that does not need scarce units.',
     ],
-    seeAlso: [{ href: '#docs/learn/customer-lifecycle', title: 'Learn: Customer lifecycle', description: 'Exactly the states that drive access here.' }],
   },
   {
     slug: 'usage-based-services',
     title: 'Usage-based services',
-    lede: 'Pay-as-you-go pricing tied directly to metered consumption — no plan tier at all in the simplest version.',
+    lede: 'Postpaid high-volume usage is adjacent to APEX, but it is not the reason to expand frozen v1 before the prepaid core is proven.',
+    fit: 'Later extension',
     journey: [
-      { title: 'Connects, no upfront plan', detail: 'or a minimal base plan' },
-      { title: 'Uses the service', detail: 'API calls, storage, compute time' },
-      { title: 'Usage accumulates', detail: 'tracked per period' },
-      { title: 'Billed for what was used', detail: 'at the end of the period' },
+      { title: 'Customer uses service', detail: 'API/storage/compute activity' },
+      { title: 'Usage is recorded', detail: 'high-volume raw events or counters' },
+      { title: 'Period is rated/billed', detail: 'postpaid commercial workflow' },
+      { title: 'Product/support reviews state', detail: 'limits, alerts, invoice context' },
     ],
-    configuration: [
-      { label: 'Usage counters', value: 'usage_counters aggregates usage_events per customer, per feature, per period — the natural fit for "how much did they use this month."' },
-      { label: 'Credits', value: 'Optional — some usage-based products also offer a prepaid credit option instead of postpaid billing.' },
+    v1: [
+      'Direct prepaid credit consume can model usage where the product sells prepaid units.',
+      'Existing usage tables are schema foundation, not accepted high-volume metering infrastructure.',
     ],
-    architecture: 'Unlike credit-based products, this model often bills after the fact rather than gating in real time. usage_counters exists specifically to support that: a running total per period, separate from any prepaid balance.',
-    advantages: [
-      'No friction from plan selection — customers pay for exactly what they use.',
-      'Scales naturally from a hobby user to a heavy one without a plan change.',
+    later: [
+      'Raw event ingest/counters for postpaid metering.',
+      'Streaming/columnar storage only at proven scale.',
+      'Spend caps/alerts and postpaid reconciliation policy.',
     ],
-    limitations: [
-      'Harder for customers to predict their bill in advance compared to a flat plan.',
-      'Needs careful handling of runaway usage — a bug in a customer\'s integration can generate a large, unexpected bill.',
+    value: [
+      'Could later unify product usage and commercial context for SaaS operators.',
+      'Prepaid mode already gives a controlled path for products that want hard spend limits.',
     ],
-    considerations: [
-      'Decide whether to gate in real time (check access before every action) or only aggregate and bill afterward — usage_counters supports the latter; access_decisions the former.',
-      'Consider spend caps or alerts as a safeguard against runaway usage, even in a postpaid model.',
+    caution: [
+      'Do not introduce Kafka/ClickHouse simply because “usage-based billing” sounds high scale.',
+      'Wallet spend remains transactional Postgres even if analytics later moves elsewhere.',
     ],
-    seeAlso: [{ href: '#docs/reference/data-model', title: 'Reference: Data model', description: 'usage_counters, exactly as defined.' }],
   },
   {
     slug: 'add-ons',
-    title: 'Add-ons',
-    lede: 'Optional extras a customer can attach to a base plan without changing their core subscription.',
+    title: 'Add-ons & purchase packs',
+    lede: 'One-time credit/value packs are a direct v1 fit; arbitrary non-credit add-on entitlements are a later product-right extension.',
+    fit: 'Direct v1 fit',
     journey: [
-      { title: 'Subscribes to a base plan', detail: 'e.g. Starter' },
-      { title: 'Adds an optional extra', detail: 'e.g. extra storage, priority support' },
-      { title: 'Both are billed together', detail: 'base + add-on' },
-      { title: 'Removes the add-on anytime', detail: 'without affecting the base plan' },
+      { title: 'Chooses an extra', detail: 'credit pack / reports / generations' },
+      { title: 'Pays in Stripe', detail: 'server-authoritative product/price mapping' },
+      { title: 'APEX grants value', detail: 'one source-attributed grant' },
+      { title: 'Uses/refunds it', detail: 'consume/refund stay auditable' },
     ],
-    configuration: [
-      { label: 'Features', value: 'An add-on is modeled as a feature that isn\'t tied to any single plan — it can be attached independently.' },
-      { label: 'Entitlements', value: 'A plan_features-style row associates the add-on with the customer\'s subscription directly rather than through their base plan.' },
+    v1: [
+      'Configured Stripe product/price → fixed credit grant is the next connected ingress target.',
+      'Top-up creates another source-attributed grant; it does not mutate an old purchase.',
     ],
-    architecture: 'The base plan and each add-on are conceptually independent entitlement sources that both feed into the same access decision for a customer — access checks don\'t care which source unlocked a feature, only that one did.',
-    advantages: [
-      'Lets customers customize spend without forcing a full plan change.',
-      'New add-ons can be introduced without restructuring existing plan tiers.',
+    later: [
+      'Non-credit add-on entitlement composition.',
+      'Customer balance/purchase reference UI.',
     ],
-    limitations: [
-      'More combinations to test — base plan × add-on state multiplies the number of access scenarios.',
-      'Pricing and entitlement logic need to clearly define what happens if an add-on and a plan both grant the same feature.',
+    value: [
+      'Lets SaaS teams add monetizable extras without another wallet implementation.',
+      'Keeps each purchase independently refundable/auditable.',
     ],
-    considerations: [
-      'Decide whether removing an add-on takes effect immediately or at the next billing period — same question as a downgrade.',
-      'Keep add-on entitlements additive, not overriding, to avoid one add-on accidentally reducing what the base plan already grants.',
+    caution: [
+      'Never accept browser-supplied grant quantity as fulfillment truth.',
     ],
+    seeAlso: [{ href: '#docs/build/configure-credits', title: 'Build: Configure credits', description: 'Source-attributed grants and refund behavior.' }],
   },
   {
     slug: 'team-accounts',
     title: 'Team accounts',
-    lede: 'Multiple people share one workspace, one subscription, and often one pooled usage balance.',
+    lede: 'Shared balances and seats are useful later, but they require an explicit end-customer account/membership model beyond APEX’s own tenant membership.',
+    fit: 'Later extension',
     journey: [
-      { title: 'One person subscribes', detail: 'creates the team\'s subscription' },
-      { title: 'Invites teammates', detail: 'each becomes a member' },
-      { title: 'Usage is shared', detail: 'one balance, many contributors' },
-      { title: 'Owner manages billing', detail: 'seats, plan, payment method' },
+      { title: 'Company buys product', detail: 'one commercial customer' },
+      { title: 'Invites members', detail: 'product-specific membership' },
+      { title: 'Members share rights/value', detail: 'pooled credits or seats' },
+      { title: 'Owner manages billing', detail: 'subscription/packs/limits' },
     ],
-    configuration: [
-      { label: 'Workspace', value: 'Maps closely onto APEX\'s own workspace/workspace_members model — a team account is a workspace, one level down, for a workspace\'s own customer.' },
-      { label: 'Entitlements', value: 'A seat-count limit_value on plan_features, checked against workspace_members-equivalent rows.' },
-      { label: 'Credits', value: 'Usually pooled — a single credit_grants balance shared by every member of the team.' },
+    v1: [
+      'A single APEX customer record can own a credit account and balance.',
+      'The wallet can safely consume from that account if the SaaS maps team activity to it server-side.',
     ],
-    architecture: 'The access check is for "this team," not "this individual" — an individual\'s permission to act still needs a separate, simpler check (are they a member), but the underlying credits or limits belong to the team as a whole.',
-    advantages: [
-      'Matches how most B2B buyers think about billing — one invoice, one account, several users.',
-      'Pooled usage means light and heavy users on the same team balance each other out.',
+    later: [
+      'First-class end-customer team/member roles.',
+      'Per-member attribution and seat management.',
+      'Shared balance/operator reporting semantics.',
     ],
-    limitations: [
-      'Needs a separate membership/role model on top of billing — who can invite, remove, or change the plan.',
-      'Pooled balances can make individual usage attribution harder without good per-member reporting.',
+    value: [
+      'Could let B2B SaaS products reuse one product-state system for team-level monetization.',
     ],
-    considerations: [
-      'Decide who can spend from the shared balance and who can only view it — this is a permissions question layered on top of, not replacing, the access decision.',
-      'If seats are billed per member, seat count changes need the same "when does it take effect" decision as any other entitlement change.',
+    caution: [
+      'Do not confuse APEX workspace_members (APEX tenant users) with the SaaS customer’s own team membership.',
     ],
-    seeAlso: [{ href: '#docs/reference/data-model', title: 'Reference: Data model', description: 'workspaces and workspace_members, the closest real analog.' }],
   },
 ];
 
