@@ -1,46 +1,53 @@
 import { Callout, CodeBlock, DataTable, H2, H3, PageHeader, SeeAlso } from '../primitives';
 
-const PLANNED = { kind: 'planned' as const, label: 'Design preview — not a published, hosted API' };
+const PLANNED = { kind: 'planned' as const, label: 'Planned — not production-accepted yet' };
 
 /* ============================================================ api-overview */
 
 function ApiOverview() {
   return (
     <>
-      <PageHeader eyebrow="REFERENCE" title="API overview & authentication" lede="Base URL, authentication, environments, and request shape — as currently designed, not as currently running." status={PLANNED} />
-
-      <Callout kind="planned" title="Status">
-        There is no hosted APEX API today. Everything on this page describes the intended shape of one,
-        modeled directly on the schema in <a href="#docs/reference/data-model">Data model</a> and the
-        logic already running in the Forma demo. Treat code on this page as illustrative, not callable.
-      </Callout>
+      <PageHeader eyebrow="REFERENCE" title="API overview & authentication" lede="The hosted APEX v1 API is real; connected Stripe fulfillment around it is still being completed." />
 
       <H2>Authentication</H2>
       <p>
-        Each workspace has one or more <code>environments</code> (e.g. sandbox, live), and each environment
-        has its own <code>api_keys</code>: a <code>publishable_key</code> safe to use client-side, and a
-        secret key intended for server-side requests only. The secret key's hash is stored in{' '}
-        <code>secret_key_hash</code>; an encrypted copy is stored in <code>secret_key_ciphertext</code>
-        for authenticated owner retrieval. Both columns are locked down at the database level —
-        revoked from normal client access via column-level <code>GRANT</code>/<code>REVOKE</code>.
+        The public server API expects an APEX secret credential in the form <code>apex_sk_*</code>. The Edge
+        Function hashes the presented credential, resolves the active workspace/environment from
+        <code>api_keys</code>, and rejects missing, revoked, or mismatched credentials.
       </p>
-      <CodeBlock language="http" code={`Authorization: Bearer sk_live_...`} caption="Illustrative request header — no server validates this today." />
+      <CodeBlock language="http" code={`Authorization: Bearer apex_sk_...`} caption="Server-side only. Do not expose APEX secret credentials in browser code." />
 
-      <H2>Environments</H2>
+      <H2>Frozen v1 routes</H2>
+      <DataTable
+        head={['Method', 'Route', 'Purpose']}
+        rows={[
+          ['GET', <code>/v1/customers/:id/balance</code>, 'Read authoritative hosted remaining/version/as_of.'],
+          ['GET', <code>/v1/customers/:id/entitlements</code>, 'Read customer/plan/features plus remaining/version/as_of.'],
+          ['POST', <code>/v1/customers/:id/consume</code>, 'Atomically spend scarce credits with an idempotency key.'],
+        ]}
+      />
+
+      <Callout kind="warning" title="No public /check in frozen v1">
+        Entitlements is a read-only state document. Scarce-credit authorization happens through the atomic
+        <code>consume</code> operation so concurrent callers cannot spend the same final credits twice.
+      </Callout>
+
+      <H2>Privilege boundary</H2>
       <p>
-        Sandbox and live are fully separate: separate API keys, separate data, no path that migrates one
-        into the other. Requests are always scoped to exactly one environment by which key was used.
+        Ledger mutation RPCs such as <code>grant_credits</code>, <code>consume_credits</code>, and
+        <code>refund_unspent_credits</code> are server-role only. Browser <code>anon</code> and ordinary
+        authenticated roles cannot call them directly.
       </p>
 
-      <H2>Request shape</H2>
-      <p>JSON in, JSON out. Every request is scoped implicitly to the workspace that owns the API key used to make it — there is no separate workspace ID parameter to pass.</p>
-
-      <H2>Versioning</H2>
-      <Callout kind="note">Not yet decided. No API exists to version — this will be defined once the first real endpoint ships, per the project's own rule against inventing unapproved technical decisions.</Callout>
+      <H2>What is not a public API yet</H2>
+      <p>
+        Grant/refund are currently internal server RPCs because their authoritative source will be verified
+        connected Stripe events and server configuration. A public SDK is not published yet.
+      </p>
 
       <SeeAlso items={[
-        { href: '#docs/reference/requests-and-responses', title: 'Requests, responses & errors', description: 'Object shapes and error format.' },
-        { href: '#docs/reference/data-model', title: 'Data model', description: 'The real schema this API would sit on top of.' },
+        { href: '#docs/reference/requests-and-responses', title: 'Requests, responses & errors', description: 'Current v1 shapes and semantics.' },
+        { href: '#docs/reference/data-model', title: 'Data model', description: 'The hosted ledger structures behind these routes.' },
       ]} />
     </>
   );
@@ -51,376 +58,184 @@ function ApiOverview() {
 function RequestsAndResponses() {
   return (
     <>
-      <PageHeader eyebrow="REFERENCE" title="Requests, responses & errors" lede="Object shapes, status codes, and the error format a real integration would rely on." status={PLANNED} />
+      <PageHeader eyebrow="REFERENCE" title="Requests, responses & errors" lede="Current v1 object shapes with read-only state kept separate from authoritative spend." />
 
-      <H2>Access decision response</H2>
+      <H2>Balance response</H2>
       <CodeBlock language="json" code={`{
-  "allow": true,
-  "reason": "Allowed under the Pro plan.",
-  "feature": "report_generation",
-  "remaining": 47
-}`} caption="Modeled directly on Forma's FormaDecision shape: { allow, reason }." />
-
-      <H2>Credit grant object</H2>
-      <CodeBlock language="json" code={`{
-  "id": "cgr_...",
-  "customer": "cus_jordan",
-  "feature": "report_generation",
-  "amount": 10,
-  "remaining_amount": 7,
-  "expires_at": null,
-  "reason": "plan_renewal",
-  "created_at": "2026-09-08T00:00:00Z"
-}`} caption="Field names match the real credit_grants table exactly." />
-
-      <H2>Subscription object</H2>
-      <CodeBlock language="json" code={`{
-  "id": "sub_...",
-  "customer": "cus_jordan",
-  "plan": "pro",
-  "status": "active",
-  "current_period_end": "2026-10-08T00:00:00Z"
+  "remaining": 250,
+  "version": 2,
+  "as_of": "2026-09-09T22:44:33.203Z"
 }`} />
 
-      <H2>Status codes</H2>
+      <H2>Entitlements response</H2>
+      <CodeBlock language="json" code={`{
+  "customer_id": "...",
+  "customer_status": "active",
+  "subscription_status": "active",
+  "plan": { "key": "pro", "name": "Pro" },
+  "features": [],
+  "remaining": 250,
+  "version": 2,
+  "as_of": "2026-09-09T22:44:33.203Z"
+}`} caption="Read-only product state. This document does not authorize credit spend." />
+
+      <H2>Consume request</H2>
+      <CodeBlock language="json" code={`{
+  "amount": 750,
+  "idempotency_key": "generation_8f21ac"
+}`} />
+
+      <H2>Consume success</H2>
+      <CodeBlock language="json" code={`{
+  "allowed": true,
+  "consumed": 750,
+  "remaining": 250,
+  "version": 2,
+  "replayed": false
+}`} />
+
+      <H2>Consume DENY</H2>
+      <CodeBlock language="json" code={`{
+  "allowed": false,
+  "reason": "INSUFFICIENT_CREDITS",
+  "remaining": 250,
+  "version": 2,
+  "replayed": false
+}`} />
+
+      <H2>Idempotent replay</H2>
+      <p>
+        Reusing the same workspace-scoped idempotency key with the same operation returns the original
+        outcome with <code>replayed: true</code>. A DENY replays as DENY rather than trying again against a
+        later balance.
+      </p>
+
+      <H2>Request errors</H2>
       <DataTable
-        head={['Code', 'Meaning']}
+        head={['Condition', 'Behavior']}
         rows={[
-          ['200', 'Request succeeded.'],
-          ['400', 'The request body is malformed or missing a required field.'],
-          ['401', 'Missing or invalid API key.'],
-          ['404', 'The referenced customer, plan, or feature doesn\'t exist in this workspace.'],
-          ['409', 'A duplicate event_id was reused — the request was rejected to avoid double-counting.'],
-          ['429', 'Rate limit exceeded — see Reference → Limits.'],
+          ['Missing/invalid APEX secret', '401 Unauthorized.'],
+          ['Invalid amount or missing idempotency key', '400 request error.'],
+          ['Customer outside the credential workspace', 'Request fails without cross-tenant access.'],
+          ['Same idempotency key reused for a different payload/operation', 'Rejected as idempotency key reuse.'],
+          ['Insufficient credits', 'Normal 200-style operation result with allowed=false and reason=INSUFFICIENT_CREDITS.'],
         ]}
       />
 
-      <H2>Error format</H2>
-      <CodeBlock language="json" code={`{
-  "error": {
-    "code": "insufficient_credits",
-    "message": "This customer has 0 of 10 credits remaining for report_generation."
-  }
-}`} caption="Illustrative — errors are always specific and actionable, matching the { allow, reason } style already used in Forma." />
-
-      <SeeAlso items={[{ href: '#docs/reference/events-and-webhooks', title: 'Events & webhooks', description: 'The asynchronous half of this API.' }]} />
+      <SeeAlso items={[
+        { href: '#docs/build/record-usage', title: 'Consume credits', description: 'Why consume is the scarce-value boundary.' },
+        { href: '#docs/build/check-access', title: 'Product access', description: 'Why entitlements is not a spend authorization.' },
+      ]} />
     </>
   );
 }
 
 /* ==================================================== events-and-webhooks */
 
-const EVENT_TYPES = [
-  { type: 'subscription.created', when: 'A new subscription starts (any status).' },
-  { type: 'subscription.updated', when: 'Plan, status, or period changes.' },
-  { type: 'subscription.canceled', when: 'A subscription is canceled.' },
-  { type: 'invoice.paid', when: 'A payment succeeds.' },
-  { type: 'invoice.payment_failed', when: 'A payment fails.' },
-  { type: 'credit.granted', when: 'A new credit_grants row is created (plan renewal, top-up, correction).' },
-  { type: 'credit.consumed', when: 'A usage event draws down a grant.' },
-  { type: 'access.denied', when: 'An access check returns deny — useful for alerting on customers hitting limits.' },
-];
-
 function EventsAndWebhooks() {
   return (
     <>
-      <PageHeader eyebrow="REFERENCE" title="Events & webhooks" lede="Every event type APEX would emit, and how a receiving webhook should be handled." status={PLANNED} />
+      <PageHeader eyebrow="REFERENCE" title="Events & webhooks" lede="Separate APEX's own billing events from the connected Stripe events that will grant/refund product value." />
 
-      <H2>Event types</H2>
-      <DataTable head={['Event', 'Fires when']} rows={EVENT_TYPES.map((e) => [<code>{e.type}</code>, e.when])} />
-
-      <H2>Payload shape</H2>
-      <CodeBlock language="json" code={`{
-  "id": "evt_...",
-  "type": "credit.consumed",
-  "workspace_id": "...",
-  "created_at": "2026-09-08T00:00:00Z",
-  "data": {
-    "customer": "cus_jordan",
-    "feature": "report_generation",
-    "amount": 1,
-    "remaining_amount": 7
-  }
-}`} />
-
-      <H2>Idempotency</H2>
+      <H2>APEX's own billing</H2>
       <p>
-        This is the one piece of this page with a real table behind it today: <code>stripe_webhook_events</code>{' '}
-        is a live idempotency ledger, keyed on a unique <code>stripe_event_id</code>, with a{' '}
-        <code>status</code> of <code>received</code>, <code>processed</code>, or <code>failed</code>. It has
-        row-level security enabled with zero policies granted to normal clients — only trusted server-side
-        code (service role) can read or write it, by design.
+        This path is real in Stripe test mode. It verifies APEX Checkout/subscription events and provisions
+        the SaaS company's APEX workspace/environment/credentials.
       </p>
 
-      <SeeAlso items={[{ href: '#docs/build/handle-webhooks', title: 'Build: Handle webhooks', description: 'How to receive and verify these safely.' }]} />
+      <H2>Connected customer Stripe</H2>
+      <Callout kind="planned" title="Next core ingress milestone">
+        Phase 5 OAuth connection is implemented but still awaits External-test acceptance. After that, verified
+        connected payment/refund events must be persisted and mapped to the deployed grant/refund RPCs.
+      </Callout>
+
+      <H2>Frozen connected-event identity</H2>
+      <p>
+        Connected events are unique by <code>(stripe_connection_id, stripe_event_id)</code>. Platform APEX
+        billing events remain in the null-connection partition.
+      </p>
+
+      <H2>Processing target</H2>
+      <DataTable
+        head={['Event outcome', 'APEX product-state action']}
+        rows={[
+          ['Verified configured payment succeeds', <><code>grant_credits</code> exactly once for the server-defined product value.</>],
+          ['Same payment event is replayed', 'No second grant.'],
+          ['Verified refund for purchase A', <><code>refund_unspent_credits</code> only against A’s source grant(s).</>],
+          ['Same refund event is replayed', 'No second clawback/unrecoverable entry.'],
+          ['Processing fails', 'Persisted event remains pending/failed and replayable.'],
+        ]}
+      />
+
+      <H2>Queue boundary</H2>
+      <p>
+        Frozen v1 starts with persisted event rows plus existing Supabase/Postgres replay scheduling. A new
+        queue or worker product is not justified until this mechanism proves insufficient under real workload.
+      </p>
+
+      <SeeAlso items={[{ href: '#docs/build/handle-webhooks', title: 'Build: Handle Stripe events', description: 'The exact next implementation sequence.' }]} />
     </>
   );
 }
 
 /* ============================================================= data-model */
 
-interface Column { name: string; type: string; notes?: string; }
-interface TableDef { name: string; summary: string; columns: Column[]; }
-interface Group { heading: string; tables: TableDef[]; }
+interface Row { table: string; purpose: string; keyFields: string; status: string; }
 
-const GROUPS: Group[] = [
-  {
-    heading: 'Accounts & workspaces',
-    tables: [
-      {
-        name: 'profiles',
-        summary: 'One row per Supabase Auth user, kept in sync by a trigger on auth.users.',
-        columns: [
-          { name: 'id', type: 'uuid, PK', notes: 'References auth.users(id).' },
-          { name: 'email', type: 'text' },
-          { name: 'full_name', type: 'text, nullable', notes: 'Display only — never read by RLS or any auth check.' },
-          { name: 'company_name', type: 'text, nullable' },
-          { name: 'created_at / updated_at', type: 'timestamptz' },
-        ],
-      },
-      {
-        name: 'workspaces',
-        summary: 'A company or team using APEX — APEX\'s own paying customer.',
-        columns: [
-          { name: 'id', type: 'uuid, PK' },
-          { name: 'name', type: 'text' },
-          { name: 'slug', type: 'text, unique' },
-          { name: 'status', type: "text, check: 'active' | 'suspended' | 'closed'" },
-          { name: 'created_by', type: 'uuid', notes: 'References auth.users(id).' },
-          { name: 'created_at / updated_at', type: 'timestamptz' },
-        ],
-      },
-      {
-        name: 'workspace_members',
-        summary: 'Membership linking a user to a workspace, with a role.',
-        columns: [
-          { name: 'workspace_id', type: 'uuid → workspaces' },
-          { name: 'user_id', type: 'uuid → auth.users' },
-          { name: 'role', type: "text, check: 'owner' | 'admin' | 'member'" },
-          { name: '(unique)', type: '(workspace_id, user_id)' },
-        ],
-      },
-    ],
-  },
-  {
-    heading: 'Commercial catalog',
-    tables: [
-      {
-        name: 'plans',
-        summary: 'workspace_id = null is APEX\'s own platform catalog; set = a plan a workspace defines for its own customers.',
-        columns: [
-          { name: 'workspace_id', type: 'uuid, nullable → workspaces' },
-          { name: 'key / name', type: 'text' },
-          { name: 'monthly_price_cents', type: 'integer, default 0' },
-          { name: 'setup_fee_cents', type: 'integer, default 0' },
-          { name: 'currency', type: "text, default 'usd'" },
-          { name: 'stripe_price_id_recurring / _setup', type: 'text, nullable' },
-          { name: 'is_active', type: 'boolean, default true' },
-          { name: '(unique)', type: 'key, scoped separately for platform (workspace_id is null) vs. workspace plans' },
-        ],
-      },
-      {
-        name: 'features',
-        summary: 'A workspace\'s catalog of things that can be gated or metered.',
-        columns: [
-          { name: 'workspace_id', type: 'uuid → workspaces' },
-          { name: 'key / name / description', type: 'text' },
-          { name: 'is_active', type: 'boolean, default true' },
-          { name: '(unique)', type: '(workspace_id, key)' },
-        ],
-      },
-      {
-        name: 'plan_features',
-        summary: 'Join table: what a plan includes, and any numeric limit.',
-        columns: [
-          { name: 'plan_id', type: 'uuid → plans' },
-          { name: 'feature_id', type: 'uuid → features' },
-          { name: 'limit_value', type: 'bigint, nullable', notes: 'Null = unlimited or a plain unlock, not a numeric ceiling.' },
-          { name: '(unique)', type: '(plan_id, feature_id)' },
-        ],
-      },
-    ],
-  },
-  {
-    heading: 'Customers & subscriptions',
-    tables: [
-      {
-        name: 'customers',
-        summary: 'A workspace\'s own end customers — distinct from the workspace itself.',
-        columns: [
-          { name: 'workspace_id', type: 'uuid → workspaces' },
-          { name: 'external_id', type: 'text', notes: 'The workspace\'s own identifier for this customer.' },
-          { name: 'email / name', type: 'text, nullable' },
-          { name: 'status', type: "text, check: 'active' | 'inactive'" },
-          { name: '(unique)', type: '(workspace_id, external_id)' },
-        ],
-      },
-      {
-        name: 'subscriptions',
-        summary: 'customer_id = null is the workspace\'s own APEX subscription; set = one of the workspace\'s customers subscribed to one of its plans.',
-        columns: [
-          { name: 'workspace_id', type: 'uuid → workspaces' },
-          { name: 'customer_id', type: 'uuid, nullable → customers' },
-          { name: 'plan_id', type: 'uuid → plans' },
-          { name: 'status', type: "text, check: 'incomplete' | 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid'" },
-          { name: 'stripe_subscription_id', type: 'text, unique, nullable' },
-          { name: 'current_period_end', type: 'timestamptz, nullable' },
-        ],
-      },
-    ],
-  },
-  {
-    heading: 'Environments & API keys',
-    tables: [
-      {
-        name: 'environments',
-        summary: 'A sandbox or live context a workspace operates in.',
-        columns: [
-          { name: 'workspace_id', type: 'uuid → workspaces' },
-          { name: 'name', type: "text, default 'sandbox'" },
-          { name: 'status', type: "text, check: 'pending' | 'active' | 'disabled'" },
-          { name: '(unique)', type: '(workspace_id, name)' },
-        ],
-      },
-      {
-        name: 'api_keys',
-        summary: 'Publishable + secret key pair per environment. Secret columns are locked at the database level.',
-        columns: [
-          { name: 'workspace_id / environment_id', type: 'uuid →' },
-          { name: 'publishable_key', type: 'text, unique' },
-          { name: 'secret_key_hash', type: 'text', notes: 'Never granted to authenticated/anon clients.' },
-          { name: 'secret_key_ciphertext', type: 'text, nullable', notes: 'AES-256-GCM encrypted secret; trusted server code only.' },
-          { name: 'status', type: "text, check: 'active' | 'revoked'" },
-          { name: 'revoked_at', type: 'timestamptz, nullable' },
-        ],
-      },
-    ],
-  },
-  {
-    heading: 'Usage, credits & access',
-    tables: [
-      {
-        name: 'usage_events',
-        summary: 'One record per reported unit of usage, deduplicated by event_id.',
-        columns: [
-          { name: 'workspace_id / customer_id', type: 'uuid →' },
-          { name: 'feature_id', type: 'uuid, nullable → features' },
-          { name: 'event_id', type: 'text', notes: 'Idempotency key — unique per workspace.' },
-          { name: 'quantity', type: 'numeric, default 1' },
-          { name: 'metadata', type: 'jsonb, default {}' },
-          { name: 'occurred_at', type: 'timestamptz' },
-          { name: '(unique)', type: '(workspace_id, event_id)' },
-        ],
-      },
-      {
-        name: 'usage_counters',
-        summary: 'A running total of usage per customer, feature, and period.',
-        columns: [
-          { name: 'workspace_id / customer_id / feature_id', type: 'uuid →' },
-          { name: 'period_start / period_end', type: 'timestamptz' },
-          { name: 'total_quantity', type: 'numeric, default 0' },
-          { name: '(unique)', type: '(customer_id, feature_id, period_start)' },
-        ],
-      },
-      {
-        name: 'credit_grants',
-        summary: 'A specific allocation of credits — from a plan, a top-up, or a correction.',
-        columns: [
-          { name: 'workspace_id / customer_id', type: 'uuid →' },
-          { name: 'feature_id', type: 'uuid, nullable → features' },
-          { name: 'amount', type: 'numeric', notes: 'The original grant amount.' },
-          { name: 'remaining_amount', type: 'numeric', notes: 'Drawn down by consumptions.' },
-          { name: 'expires_at', type: 'timestamptz, nullable' },
-          { name: 'reason', type: 'text, nullable' },
-        ],
-      },
-      {
-        name: 'credit_consumptions',
-        summary: 'One record per spend against a grant, optionally linked to the usage event that caused it.',
-        columns: [
-          { name: 'credit_grant_id', type: 'uuid → credit_grants' },
-          { name: 'usage_event_id', type: 'uuid, nullable → usage_events' },
-          { name: 'amount', type: 'numeric' },
-        ],
-      },
-      {
-        name: 'access_decisions',
-        summary: 'A record of an allow/deny answer. No evaluation logic writes to this table yet.',
-        columns: [
-          { name: 'customer_id / feature_id', type: 'uuid, nullable →' },
-          { name: 'decision', type: "text, check: 'allow' | 'deny'" },
-          { name: 'reason', type: 'text, nullable' },
-          { name: 'context', type: 'jsonb, default {}' },
-        ],
-      },
-    ],
-  },
-  {
-    heading: 'Webhooks & audit',
-    tables: [
-      {
-        name: 'stripe_webhook_events',
-        summary: 'Idempotency ledger for incoming webhooks. RLS enabled with zero policies — service-role only.',
-        columns: [
-          { name: 'stripe_event_id', type: 'text, unique' },
-          { name: 'event_type', type: 'text' },
-          { name: 'workspace_id', type: 'uuid, nullable → workspaces' },
-          { name: 'payload', type: 'jsonb' },
-          { name: 'status', type: "text, check: 'received' | 'processed' | 'failed'" },
-          { name: 'processed_at', type: 'timestamptz, nullable' },
-        ],
-      },
-      {
-        name: 'audit_logs',
-        summary: 'Append-only record of what changed, for whom, and why.',
-        columns: [
-          { name: 'workspace_id', type: 'uuid, nullable → workspaces' },
-          { name: 'actor_user_id', type: 'uuid, nullable → auth.users' },
-          { name: 'action', type: 'text', notes: 'e.g. "subscription.upgraded".' },
-          { name: 'target_type / target_id', type: 'text, nullable' },
-          { name: 'metadata', type: 'jsonb, default {}' },
-        ],
-      },
-    ],
-  },
+const CORE_ROWS: Row[] = [
+  { table: 'workspaces / workspace_members', purpose: 'APEX tenant and membership boundary.', keyFields: 'workspace_id, user_id, role', status: 'Real' },
+  { table: 'environments / api_keys', purpose: 'Environment-scoped server credentials.', keyFields: 'environment_id, secret_key_hash, status', status: 'Real' },
+  { table: 'stripe_connections', purpose: 'Workspace connection to the SaaS company’s Stripe account.', keyFields: 'workspace_id, connected account, status', status: 'Implemented; OAuth acceptance pending' },
+  { table: 'customers / subscriptions', purpose: 'The SaaS company’s end-customer and plan state.', keyFields: 'workspace_id, external_id, plan_id, status', status: 'Real schema' },
+  { table: 'plans / features / plan_features', purpose: 'Product catalog and plan rights.', keyFields: 'workspace_id, key, limit_value', status: 'Real schema; management/evaluation broader than v1' },
+  { table: 'credit_accounts', purpose: 'Hot non-negative spendable projection and concurrency boundary.', keyFields: 'workspace_id, customer_id, remaining, version', status: 'Deployed' },
+  { table: 'credit_grants', purpose: 'Source-attributed product value with consumed/remaining state.', keyFields: 'amount, consumed_amount, remaining_amount, source event/payment, status', status: 'Deployed' },
+  { table: 'credit_ledger', purpose: 'Append-only grant/consume/refund/unrecoverable audit history.', keyFields: 'entry_type, amount, credit_grant_id, idempotency_key', status: 'Deployed' },
+  { table: 'credit_operations', purpose: 'Idempotent request outcomes, including DENY replay.', keyFields: 'operation_type, idempotency_key, status, result', status: 'Deployed' },
+  { table: 'stripe_webhook_events', purpose: 'Persisted Stripe event/replay state.', keyFields: 'stripe_connection_id, stripe_event_id, status, attempts', status: 'Real; connected fulfillment wiring pending' },
+  { table: 'usage_events / usage_counters', purpose: 'Broader metering foundation beyond direct credit consume.', keyFields: 'event_id, quantity, period', status: 'Schema foundation; broader v1.1+ work' },
+  { table: 'access_decisions', purpose: 'Future richer durable access-decision history.', keyFields: 'decision, reason, context', status: 'Schema foundation; no public /check v1' },
+  { table: 'audit_logs', purpose: 'General operator/audit events.', keyFields: 'action, target, metadata', status: 'Real foundation' },
 ];
 
 function DataModel() {
   return (
     <>
-      <PageHeader eyebrow="REFERENCE" title="Data model" lede="The real, applied Postgres schema — every table and column, taken directly from the live migration." />
+      <PageHeader eyebrow="REFERENCE" title="Data model" lede="The current hosted tenancy and ledger model, with schema existence kept separate from production capability acceptance." />
 
-      <Callout kind="note" title="This page is real">
-        Unlike most of Reference, this schema is live: it's the exact table set applied to the project's
-        Supabase database, with workspace-scoped row-level security already enforced. Nothing on this page
-        is aspirational.
+      <Callout kind="note" title="The wallet tables are deployed">
+        <code>credit_accounts</code>, per-grant credit fields, <code>credit_ledger</code>, and
+        <code>credit_operations</code> are live in hosted Supabase. The connected Stripe ingress that feeds
+        them automatically is still the next production step.
       </Callout>
 
-      <H2>Row-level security</H2>
+      <DataTable
+        head={['Table / group', 'Purpose', 'Important fields', 'Product status']}
+        rows={CORE_ROWS.map((r) => [<code>{r.table}</code>, r.purpose, r.keyFields, r.status])}
+      />
+
+      <H2>Credit invariants</H2>
+      <DataTable
+        head={['Invariant', 'Implementation']}
+        rows={[
+          ['Balance never negative', <><code>credit_accounts.remaining &gt;= 0</code> plus conditional atomic update.</>],
+          ['Purchase attribution survives spend/refund', 'Consumes mutate exact grant rows FIFO; refunds load only the original source grant(s).'],
+          ['Ledger is audit history', 'Grant/consume/refund/unrecoverable entries are append-only.'],
+          ['DENY is replayable', <><code>credit_operations</code> stores final denied outcomes even though no spend ledger row exists.</>],
+          ['Cross-workspace access is blocked', 'Workspace-scoped API authentication, RLS, and server-only privileged RPCs.'],
+        ]}
+      />
+
+      <H2>Expiry limitation</H2>
       <p>
-        Every table above (except <code>stripe_webhook_events</code>, which grants nothing to normal
-        clients) is scoped by a single SQL helper: <code>current_workspace_ids()</code> returns the set of
-        workspace IDs the current authenticated user belongs to, read from <code>workspace_members</code>{' '}
-        — never from user-editable metadata. Every select policy filters on{' '}
-        <code>workspace_id in (select current_workspace_ids())</code>.
+        <code>credit_grants.expires_at</code> exists and consume skips expired grants, but expiry is not
+        production-supported because expired remainder is not yet reconciled out of the account projection.
+        Frozen v1 grants should be non-expiring.
       </p>
 
-      {GROUPS.map((g) => (
-        <div key={g.heading}>
-          <H2>{g.heading}</H2>
-          {g.tables.map((t) => (
-            <div key={t.name}>
-              <H3>{t.name}</H3>
-              <p>{t.summary}</p>
-              <DataTable head={['Column', 'Type', 'Notes']} rows={t.columns.map((c) => [<code>{c.name}</code>, c.type, c.notes ?? ''])} />
-            </div>
-          ))}
-        </div>
-      ))}
-
       <SeeAlso items={[
-        { href: '#docs/reference/terminology', title: 'Terminology', description: 'Precise definitions for the terms used above.' },
-        { href: '#docs/learn/entitlements', title: 'Learn: Entitlements', description: 'The plain-English version of plan_features.' },
+        { href: '#docs/learn/credits-and-usage', title: 'Credits and usage', description: 'Why projection + grants + ledger are separate.' },
+        { href: '#docs/reference/terminology', title: 'Terminology', description: 'Precise v1 operation terms.' },
       ]} />
     </>
   );
@@ -431,34 +246,28 @@ function DataModel() {
 function Limits() {
   return (
     <>
-      <PageHeader eyebrow="REFERENCE" title="Limits" lede="Rate limits, sizing limits, and plan boundaries." />
+      <PageHeader eyebrow="REFERENCE" title="Limits" lede="Do not invent scale numbers or infrastructure thresholds before workload evidence exists." />
 
-      <H2>Rate limits</H2>
-      <Callout kind="planned" title="Not yet decided">
-        There is no live API to rate-limit yet, so no specific numbers are official — this documentation
-        won't invent them. When an API ships, its limits will be documented here as real, decided values,
-        not before.
+      <H2>Published rate limits</H2>
+      <Callout kind="planned" title="Not yet defined">
+        The hosted core exists, but APEX has not established a customer-facing rate-limit contract. Do not
+        invent one from Supabase plan limits or internal test behavior.
       </Callout>
 
-      <H2>Sizing limits (real, from the schema)</H2>
+      <H2>Current architectural thresholds</H2>
       <DataTable
-        head={['Constraint', 'Detail']}
+        head={['Add this', 'Only when']}
         rows={[
-          [<code>plan_features.limit_value</code>, 'bigint — supports very large numeric limits, not capped by application logic.'],
-          [<><code>credit_grants.amount</code> / <code>remaining_amount</code></>, 'numeric — supports fractional amounts, e.g. metered seconds.'],
-          [<><code>usage_events.metadata</code> / <code>access_decisions.context</code></>, 'jsonb — structurally unbounded; Postgres\'s own row and TOAST limits apply, not a smaller application-level cap.'],
-          ['Uniqueness', 'Enforced at the database level everywhere it matters — e.g. one usage_events.event_id per workspace, one plan key per workspace.'],
+          ['Dedicated worker/service', 'Edge execution limits or recurring processing loops are a measured constraint.'],
+          ['Redis', 'Hot entitlements/snapshot reads measurably overload Postgres and caching solves the proven bottleneck.'],
+          ['Real queue product', 'Persisted event row + replay/backoff cannot reliably handle observed ingress behavior.'],
+          ['Kafka', 'Usage ingest becomes large, ordered, multi-consumer streaming — not merely Stripe webhooks.'],
+          ['ClickHouse', 'High-cardinality raw usage analytics/metering needs a columnar store; wallet spend still stays transactional.'],
+          ['AWS migration', 'Compliance/region/control-plane requirements justify leaving the current stack — not simply because webhooks exist.'],
         ]}
       />
 
-      <H2>Plan boundaries</H2>
-      <p>
-        A plan's entitlement limits are exactly what's configured in <code>plan_features.limit_value</code>{' '}
-        — APEX doesn't impose a separate platform-level ceiling on top of what a workspace defines for its
-        own plans.
-      </p>
-
-      <SeeAlso items={[{ href: '#docs/reference/data-model', title: 'Data model', description: 'The tables these limits come from.' }]} />
+      <SeeAlso items={[{ href: '#docs/reference/data-model', title: 'Data model', description: 'The current transactional foundation these thresholds protect.' }]} />
     </>
   );
 }
@@ -466,25 +275,27 @@ function Limits() {
 /* ============================================================= terminology */
 
 const TERMS = [
-  { term: 'workspace', definition: 'APEX\'s own paying customer — a company or team. Table: workspaces.' },
-  { term: 'customer', definition: 'A workspace\'s own end user. Table: customers. Never confused with workspace in the schema.' },
-  { term: 'key', definition: 'A stable, human-chosen identifier (e.g. plans.key = "pro"), distinct from id (a generated uuid).' },
-  { term: 'limit_value', definition: 'A nullable bigint on plan_features. Null means the feature is unlocked with no numeric ceiling, not "zero" or "unset."' },
-  { term: 'remaining_amount', definition: 'The live, spendable balance of a credit_grants row — starts equal to amount and is drawn down by credit_consumptions.' },
-  { term: 'event_id', definition: 'The idempotency key on usage_events, unique per workspace — resending the same event_id must be a safe no-op, not a double charge.' },
-  { term: 'decision', definition: 'The enum on access_decisions: "allow" or "deny" — always paired with a reason.' },
-  { term: 'status', definition: 'A constrained text enum present on several tables (subscriptions, workspaces, customers, environments, api_keys, stripe_connections, stripe_webhook_events) — always check the specific table\'s allowed values, they differ per table.' },
+  { term: 'workspace', definition: 'The SaaS/software company that pays APEX.' },
+  { term: 'customer', definition: 'That workspace’s own end customer.' },
+  { term: 'connected Stripe account', definition: 'The SaaS company’s Stripe account where its end customers pay.' },
+  { term: 'APEX billing', definition: 'The separate Stripe path where the SaaS company pays APEX.' },
+  { term: 'grant', definition: 'A durable source-attributed amount of product value.' },
+  { term: 'credit account / projection', definition: 'The hot-path non-negative spendable remaining balance.' },
+  { term: 'ledger', definition: 'Append-only product-value history: grant, consume, refund, unrecoverable.' },
+  { term: 'operation', definition: 'Idempotent request/outcome state used to replay both success and DENY.' },
+  { term: 'consume', definition: 'Frozen v1 authoritative scarce-credit spend operation.' },
+  { term: 'entitlements', definition: 'Read-only snapshot-shaped plan/features/balance/version/as_of document.' },
+  { term: 'unrecoverable_spent', definition: 'Refunded source value that was already consumed and cannot be clawed back from the wallet.' },
+  { term: 'reservation', definition: 'Future hold primitive for start-now/finish-later work; not frozen v1.' },
+  { term: 'production-accepted', definition: 'A capability that passed its defined hosted/end-to-end acceptance gate.' },
 ];
 
 function Terminology() {
   return (
     <>
-      <PageHeader eyebrow="REFERENCE" title="Terminology" lede="Field names and object types, precisely defined — the technical companion to Learn's plain-English glossary." />
-      <H2>Terms</H2>
+      <PageHeader eyebrow="REFERENCE" title="Terminology" lede="Precise terms for the frozen v1 product-state contract." />
       <DataTable head={['Term', 'Definition']} rows={TERMS.map((t) => [<code>{t.term}</code>, t.definition])} />
-      <Callout kind="tip">
-        Looking for the plain-English version instead? See <a href="#docs/learn/glossary">Learn → Glossary</a>.
-      </Callout>
+      <SeeAlso items={[{ href: '#docs/learn/glossary', title: 'Learn → Glossary', description: 'The same concepts in plain English.' }]} />
     </>
   );
 }
