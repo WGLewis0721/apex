@@ -13,4 +13,4 @@ Canonical positioning:
 
 > **Stripe moves the money. APEX knows what the money unlocks.**
 
-Any visual showing credits, usage, refunds, renewals, SDK/API behavior, or customer balance must match the roadmap's actual status and be labeled demo/planned when production acceptance has not passed.
+Any visual showing credits, usage, purchase packs, renewals, refunds, API/SDK behavior, or customer balance must match the roadmap's actual status and be labeled demo/planned when production acceptance has not passed.
