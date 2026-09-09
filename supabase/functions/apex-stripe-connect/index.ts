@@ -70,25 +70,35 @@ export async function handler(req: Request): Promise<Response> {
         .eq("workspace_id", workspaceId)
         .maybeSingle(),
     );
+    const tokenRow = checked(
+      await db.from("stripe_oauth_tokens")
+        .select("workspace_id")
+        .eq("workspace_id", workspaceId)
+        .maybeSingle(),
+    );
+    const fullyConnected = connection?.status === "connected" &&
+      !!connection.stripe_account_id && !!tokenRow;
 
     if (action === "status") {
       return response({
-        status: connection?.status ?? "not_connected",
-        stripeAccountId: connection?.stripe_account_id ?? null,
-        connectedAt: connection?.connected_at ?? null,
+        status: fullyConnected ? "connected" : connection?.status === "pending" ? "pending" : "not_connected",
+        stripeAccountId: fullyConnected ? connection!.stripe_account_id : null,
+        connectedAt: fullyConnected ? connection!.connected_at : null,
       });
     }
 
-    if (connection?.status === "connected" && connection.stripe_account_id) {
+    if (fullyConnected) {
       return response({
         status: "connected",
-        stripeAccountId: connection.stripe_account_id,
+        stripeAccountId: connection!.stripe_account_id,
       });
     }
 
-    const clientId = env("STRIPE_CONNECT_CLIENT_ID");
-    if (!/^ca_[A-Za-z0-9]+$/.test(clientId)) {
-      throw new Error("Invalid Stripe Connect client ID");
+    // Stripe Apps OAuth uses the client ID from the app's External test OAuth
+    // link. It is not a Stripe Connect platform client ID.
+    const clientId = env("STRIPE_APP_CLIENT_ID");
+    if (clientId.length < 8 || clientId.length > 200) {
+      throw new Error("Invalid Stripe App client ID");
     }
 
     const state = randomState();
@@ -115,13 +125,12 @@ export async function handler(req: Request): Promise<Response> {
       }, { onConflict: "workspace_id" }),
     );
 
-    const authorize = new URL("https://connect.stripe.com/oauth/authorize");
-    authorize.searchParams.set("response_type", "code");
+    // Current Stripe Apps OAuth install URL. Stripe supplies separate client IDs
+    // for live and external-test links; this milestone uses the test link only.
+    const authorize = new URL("https://marketplace.stripe.com/oauth/v2/authorize");
     authorize.searchParams.set("client_id", clientId);
-    authorize.searchParams.set("scope", "read_only");
     authorize.searchParams.set("redirect_uri", callbackUrl());
     authorize.searchParams.set("state", state);
-    if (user.email) authorize.searchParams.set("stripe_user[email]", user.email);
 
     return response({ url: authorize.toString(), status: "pending" });
   } catch (error) {
