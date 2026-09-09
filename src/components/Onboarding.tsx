@@ -69,7 +69,7 @@ const STEP_LABELS: Record<OnboardingStep, string> = {
   complete: 'Go live',
 };
 
-const TOTAL_NUMBERED_STEPS = STEP_ORDER.length - 1;
+const TOTAL_NUMBERED_STEPS = STEP_ORDER.length;
 const stepEyebrow = (step: OnboardingStep, title: string) => `STEP ${stepIndex(step) + 1} OF ${TOTAL_NUMBERED_STEPS} · ${title}`;
 const asset = (name: string) => `/apex/assets/${name}`;
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
