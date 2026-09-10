@@ -1,0 +1,121 @@
+name: Apply auth reset fix
+
+on:
+  push:
+    branches: [fix/auth-reset-flow]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[auth-fix]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/auth-reset-flow
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Patch recovery flow
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected 1 match, found {count}\n--- needle ---\n{old}")
+              p.write_text(text.replace(old, new))
+
+          replace_once(
+              'src/ProductSite.tsx',
+              "  const startOpen = route === '#start';",
+              "  const recoveryOpen = new URLSearchParams(window.location.search).get('recovery') === '1';\n  const startOpen = route === '#start' || recoveryOpen;",
+          )
+
+          replace_once(
+              'src/components/Onboarding.tsx',
+              "  const [accountError, setAccountError] = useState<string | null>(null);\n  const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');\n  const [authBusy, setAuthBusy] = useState(false);",
+              "  const [accountError, setAccountError] = useState<string | null>(null);\n  const [resetNotice, setResetNotice] = useState<string | null>(null);\n  const [recoveryMode, setRecoveryMode] = useState(new URLSearchParams(window.location.search).get('recovery') === '1');\n  const [recoveryPassword, setRecoveryPassword] = useState('');\n  const [recoveryError, setRecoveryError] = useState<string | null>(null);\n  const [recoveryBusy, setRecoveryBusy] = useState(false);\n  const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');\n  const [authBusy, setAuthBusy] = useState(false);",
+          )
+
+          replace_once(
+              'src/components/Onboarding.tsx',
+              "    const { data } = supabase!.auth.onAuthStateChange((event, session) => {\n      if (event === 'SIGNED_OUT' || (activeUserId.current && session?.user && activeUserId.current !== session.user.id)) {",
+              "    const { data } = supabase!.auth.onAuthStateChange((event, session) => {\n      if (event === 'PASSWORD_RECOVERY') {\n        setRecoveryMode(true);\n        setChecking(false);\n      }\n      if (event === 'SIGNED_OUT' || (activeUserId.current && session?.user && activeUserId.current !== session.user.id)) {",
+          )
+
+          replace_once(
+              'src/components/Onboarding.tsx',
+              "  function continueFromWorkspace() {\n    dispatch({ type: 'choose_stack', stack: 'javascript' });\n  }\n\n  async function submitAccount(e: FormEvent) {",
+              "  function continueFromWorkspace() {\n    dispatch({ type: 'choose_stack', stack: 'javascript' });\n  }\n\n  async function requestPasswordReset() {\n    if (!backendConfigured || authBusy) return;\n    const email = accountForm.email.trim();\n    if (!email) {\n      setAccountError('Enter your email first.');\n      return;\n    }\n    setAccountError(null);\n    setResetNotice(null);\n    setAuthBusy(true);\n    try {\n      const redirectTo = `${window.location.origin}${window.location.pathname}?recovery=1`;\n      const { error } = await supabase!.auth.resetPasswordForEmail(email, { redirectTo });\n      if (error) throw error;\n      setResetNotice('Password reset email sent. Check your inbox.');\n    } catch (error) {\n      const message = error instanceof Error ? error.message : 'Could not send a password reset email.';\n      setAccountError(/rate|too many/i.test(message)\n        ? 'Email delivery is temporarily rate-limited. APEX needs custom SMTP for reliable auth email delivery.'\n        : message);\n    } finally {\n      setAuthBusy(false);\n    }\n  }\n\n  async function submitRecoveryPassword(e: FormEvent) {\n    e.preventDefault();\n    if (recoveryBusy) return;\n    if (recoveryPassword.length < 8) {\n      setRecoveryError('Use a password of at least 8 characters.');\n      return;\n    }\n    setRecoveryBusy(true);\n    setRecoveryError(null);\n    try {\n      const { error } = await supabase!.auth.updateUser({ password: recoveryPassword });\n      if (error) throw error;\n      await supabase!.auth.signOut();\n      window.location.assign(`${window.location.origin}${window.location.pathname}#start`);\n    } catch (error) {\n      setRecoveryError(error instanceof Error ? error.message : 'Could not update your password.');\n      setRecoveryBusy(false);\n    }\n  }\n\n  async function submitAccount(e: FormEvent) {",
+          )
+
+          replace_once(
+              'src/components/Onboarding.tsx',
+              "        const message = err instanceof Error ? err.message : 'Something went wrong.';\n        setAccountError(message === 'Failed to fetch' ? 'Could not reach APEX. Check your connection and try again.' : message);",
+              "        const message = err instanceof Error ? err.message : 'Something went wrong.';\n        const normalized = /rate|too many/i.test(message)\n          ? 'Email delivery is temporarily rate-limited. APEX needs custom SMTP for reliable auth email delivery.'\n          : message === 'Failed to fetch'\n            ? 'Could not reach APEX. Check your connection and try again.'\n            : message;\n        setAccountError(normalized);",
+          )
+
+          replace_once(
+              'src/components/Onboarding.tsx',
+              "  return (\n    <div className=\"ap-site ob\">",
+              "  if (recoveryMode) {\n    return (\n      <div className=\"ap-site ob\">\n        <header className=\"ap-nav ob-nav\">\n          <a className=\"ap-logo\" href=\"#\" aria-label=\"APEX home\">APEX</a>\n          <span className=\"ob-nav-mark\"><Lock size={14} /> Password recovery</span>\n        </header>\n        <main id=\"main\" className=\"ob-body\" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>\n          <section className=\"ob-panel\">\n            <p className=\"ob-eyebrow\">ACCOUNT RECOVERY</p>\n            <h1>Choose a new password.</h1>\n            <p className=\"ob-lede\">This recovery link is tied to your APEX account. Set a new password, then log in again.</p>\n            <form className=\"ob-form\" onSubmit={submitRecoveryPassword}>\n              <label className=\"ob-field\">New password\n                <input type=\"password\" value={recoveryPassword} onChange={(e) => setRecoveryPassword(e.target.value)} placeholder=\"At least 8 characters\" autoComplete=\"new-password\" minLength={8} />\n              </label>\n              {recoveryError && <p className=\"ob-form-error\" role=\"alert\">{recoveryError}</p>}\n              <button type=\"submit\" className=\"ob-primary\" disabled={recoveryBusy}>\n                {recoveryBusy ? <><Loader2 size={16} className=\"ob-spin\" /> Updating…</> : <>Update password <ArrowRight size={15} /></>}\n              </button>\n            </form>\n          </section>\n        </main>\n      </div>\n    );\n  }\n\n  return (\n    <div className=\"ap-site ob\">",
+          )
+
+          replace_once(
+              'src/components/Onboarding.tsx',
+              "              error={accountError}\n              busy={authBusy}\n              mode={authMode}\n              onToggleMode={() => { setAuthMode((m) => (m === 'signup' ? 'login' : 'signup')); setAccountError(null); }}\n              onChange={setAccountForm}\n              onSubmit={submitAccount}",
+              "              error={accountError}\n              notice={resetNotice}\n              busy={authBusy}\n              mode={authMode}\n              onToggleMode={() => { setAuthMode((m) => (m === 'signup' ? 'login' : 'signup')); setAccountError(null); setResetNotice(null); }}\n              onForgotPassword={requestPasswordReset}\n              onChange={setAccountForm}\n              onSubmit={submitAccount}",
+          )
+
+          replace_once(
+              'src/components/Onboarding.tsx',
+              "function AccountStep({ form, error, busy, mode, onToggleMode, onChange, onSubmit, onBack }: {\n  form: { name: string; email: string; company: string; password: string };\n  error: string | null;\n  busy: boolean;\n  mode: 'signup' | 'login';\n  onToggleMode: () => void;\n  onChange: (form: { name: string; email: string; company: string; password: string }) => void;",
+              "function AccountStep({ form, error, notice, busy, mode, onToggleMode, onForgotPassword, onChange, onSubmit, onBack }: {\n  form: { name: string; email: string; company: string; password: string };\n  error: string | null;\n  notice: string | null;\n  busy: boolean;\n  mode: 'signup' | 'login';\n  onToggleMode: () => void;\n  onForgotPassword: () => void;\n  onChange: (form: { name: string; email: string; company: string; password: string }) => void;",
+          )
+
+          replace_once(
+              'src/components/Onboarding.tsx',
+              "        {error && <p className=\"ob-form-error\">{error}</p>}\n        {backendConfigured ? (",
+              "        {error && <p className=\"ob-form-error\">{error}</p>}\n        {notice && <p className=\"ob-note\" role=\"status\">{notice}</p>}\n        {backendConfigured ? (",
+          )
+
+          replace_once(
+              'src/components/Onboarding.tsx',
+              "        {backendConfigured && (\n          <button type=\"button\" className=\"ob-link-btn\" onClick={onToggleMode}>\n            {isLogin ? \"Need an account? Sign up instead\" : 'Already have an account? Log in'}\n          </button>\n        )}",
+              "        {backendConfigured && isLogin && (\n          <button type=\"button\" className=\"ob-link-btn\" onClick={onForgotPassword} disabled={busy}>Forgot password?</button>\n        )}\n        {backendConfigured && (\n          <button type=\"button\" className=\"ob-link-btn\" onClick={onToggleMode} disabled={busy}>\n            {isLogin ? \"Need an account? Sign up instead\" : 'Already have an account? Log in'}\n          </button>\n        )}",
+          )
+          PY
+      - name: Create migration with Supabase CLI
+        shell: bash
+        run: |
+          npx --yes supabase@latest migration new --help >/dev/null
+          npx --yes supabase@latest migration new allow_workspace_creator_delete
+          MIGRATION=$(ls -1 supabase/migrations/*_allow_workspace_creator_delete.sql | tail -1)
+          cat > "$MIGRATION" <<'SQL'
+          -- Preserve workspace history when an auth identity is deleted.
+          -- Membership remains the authorization boundary; created_by is historical provenance only.
+          alter table public.workspaces alter column created_by drop not null;
+          SQL
+          echo "Created $MIGRATION"
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://fnmxlmjrkgojowpzrcwa.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_RmzipVOORKfFPlpdi3zheg_EQQth-xl
+      - name: Commit generated fix
+        shell: bash
+        run: |
+          git config user.name "WGLewis0721"
+          git config user.email "William.GLewis17@gmail.com"
+          git add src/ProductSite.tsx src/components/Onboarding.tsx supabase/migrations
+          git commit -m "fix: add password recovery flow [auth-fix]"
+          git push origin HEAD:fix/auth-reset-flow
