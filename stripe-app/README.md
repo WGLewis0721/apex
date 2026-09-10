@@ -10,7 +10,9 @@ Phase 5 establishes the trusted connection only. The hosted wallet/API already e
 
 ## External test setup
 
-1. Install/login to the Stripe CLI using the APEX Stripe developer account.
+Stripe Apps External testing is available only for **public** apps. Upload the public APEX app from an eligible Stripe developer account, then configure External test from that account. Stripe generates separate OAuth links for Test Mode and general Sandboxes.
+
+1. Install/login to the Stripe CLI using the APEX Stripe App developer account.
 2. From this directory run:
 
    ```bash
@@ -18,25 +20,36 @@ Phase 5 establishes the trusted connection only. The hosted wallet/API already e
    ```
 
 3. In Stripe Dashboard, open the uploaded **APEX** app → **External test** → **Get started**.
-4. Use the **Test OAuth** link. Its `client_id` is the value APEX needs as `STRIPE_APP_CLIENT_ID`.
+4. Copy the OAuth link for the environment being tested.
+5. Configure Supabase Edge Function secrets for that environment:
+
+   ```text
+   STRIPE_APP_OAUTH_MODE=test | sandbox
+   STRIPE_APP_TEST_CLIENT_ID=ca_...            # Test Mode link
+   STRIPE_APP_TEST_SECRET_KEY=sk_test_...      # app developer test key
+   STRIPE_APP_SANDBOX_CLIENT_ID=ca_...         # general Sandbox link
+   STRIPE_APP_SANDBOX_SECRET_KEY=sk_test_...   # managed-sandbox key
+   ```
 
 Callback URI — must match exactly:
 
 `https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-stripe-connect-callback`
 
-The OAuth client ID is not a secret. The APEX developer Stripe secret key and OAuth refresh tokens are secrets and must never be committed or exposed in browser code.
+The OAuth client IDs are not secrets. Stripe secret keys and OAuth refresh tokens are secrets and must never be committed or exposed in browser code.
+
+APEX binds the selected OAuth mode into the one-time CSRF `state`. The callback then uses the matching Stripe key for the authorization-code exchange. Stripe requires the developer test key for a Test Mode link and the app's managed-sandbox key for a general Sandbox link.
 
 ## Phase 5 acceptance
 
 Phase 5 is complete only when all of these are true:
 
-1. `stripe apps upload` succeeds.
+1. A public APEX app version uploads successfully from the Stripe App developer account.
 2. APEX is registered for Stripe Apps External test.
-3. `STRIPE_APP_CLIENT_ID` is configured in Supabase Edge Function secrets.
+3. The correct mode-specific OAuth client ID and exchange key are configured in Supabase.
 4. Live APEX onboarding starts the OAuth flow from a paid workspace.
 5. Stripe returns through the callback successfully.
 6. `stripe_connections.status` becomes `connected` for that workspace with the expected connected Stripe account ID.
-7. The encrypted OAuth refresh token is persisted server-side and remains unreadable to normal browser clients.
+7. `stripe_oauth_tokens.install_mode` records `test` or `sandbox` and the encrypted OAuth refresh token remains unreadable to normal browser clients.
 
 Do not advance a real paid user into Install/Verify until this acceptance test passes.
 
