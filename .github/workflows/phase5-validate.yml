@@ -25,4 +25,5 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: deno check supabase/functions/apex-stripe-connect/index.ts supabase/functions/apex-stripe-connect-callback/index.ts
+      - run: deno check apex-stripe-connect/index.ts apex-stripe-connect-callback/index.ts
+        working-directory: supabase/functions
