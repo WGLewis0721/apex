@@ -7,6 +7,8 @@ import {
   response,
 } from "../_shared/core.ts";
 
+type StripeOAuthMode = "test" | "sandbox";
+
 function randomState(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return btoa(String.fromCharCode(...bytes))
@@ -28,6 +30,25 @@ async function sha256Hex(value: string): Promise<string> {
 function callbackUrl(): string {
   return env("SUPABASE_URL").replace(/\/$/, "") +
     "/functions/v1/apex-stripe-connect-callback";
+}
+
+function oauthMode(): StripeOAuthMode {
+  const value = Deno.env.get("STRIPE_APP_OAUTH_MODE")?.trim().toLowerCase();
+  if (value !== "test" && value !== "sandbox") {
+    throw new Error("STRIPE_APP_OAUTH_MODE must be test or sandbox");
+  }
+  return value;
+}
+
+function clientIdFor(mode: StripeOAuthMode): string {
+  const name = mode === "sandbox"
+    ? "STRIPE_APP_SANDBOX_CLIENT_ID"
+    : "STRIPE_APP_TEST_CLIENT_ID";
+  const clientId = env(name);
+  if (!/^ca_[A-Za-z0-9]+$/.test(clientId)) {
+    throw new Error(`Invalid ${name}`);
+  }
+  return clientId;
 }
 
 async function ownerWorkspace(userId: string) {
@@ -72,7 +93,7 @@ export async function handler(req: Request): Promise<Response> {
     );
     const tokenRow = checked(
       await db.from("stripe_oauth_tokens")
-        .select("workspace_id")
+        .select("workspace_id,install_mode")
         .eq("workspace_id", workspaceId)
         .maybeSingle(),
     );
@@ -84,6 +105,7 @@ export async function handler(req: Request): Promise<Response> {
         status: fullyConnected ? "connected" : connection?.status === "pending" ? "pending" : "not_connected",
         stripeAccountId: fullyConnected ? connection!.stripe_account_id : null,
         connectedAt: fullyConnected ? connection!.connected_at : null,
+        mode: fullyConnected ? tokenRow!.install_mode : oauthMode(),
       });
     }
 
@@ -91,15 +113,17 @@ export async function handler(req: Request): Promise<Response> {
       return response({
         status: "connected",
         stripeAccountId: connection!.stripe_account_id,
+        mode: tokenRow!.install_mode,
       });
     }
 
-    const clientId = env("STRIPE_APP_CLIENT_ID");
-    if (clientId.length < 8 || clientId.length > 200) {
-      throw new Error("Invalid Stripe App client ID");
-    }
+    const mode = oauthMode();
+    const clientId = clientIdFor(mode);
 
-    const state = randomState();
+    // Stripe requires the authorization-code exchange key to match the link
+    // type. Bind the mode into the one-time CSRF state so the callback chooses
+    // the same environment after Stripe redirects back.
+    const state = `${mode}.${randomState()}`;
     const stateHash = await sha256Hex(state);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
@@ -137,7 +161,7 @@ export async function handler(req: Request): Promise<Response> {
     authorize.searchParams.set("redirect_uri", callbackUrl());
     authorize.searchParams.set("state", state);
 
-    return response({ url: authorize.toString(), status: "pending" });
+    return response({ url: authorize.toString(), status: "pending", mode });
   } catch (error) {
     if (error instanceof Error && error.message === "WORKSPACE_REQUIRED") {
       return response({ error: "A paid workspace is required before connecting Stripe." }, 409);
