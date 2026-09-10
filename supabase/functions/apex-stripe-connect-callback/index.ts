@@ -10,6 +10,8 @@ const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const unb64 = (value: string) =>
   Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
 
+type StripeOAuthMode = "test" | "sandbox";
+
 async function encryptionKey(value: string) {
   const bytes = unb64(value);
   if (bytes.length !== 32) {
@@ -42,6 +44,23 @@ async function sha256Hex(value: string): Promise<string> {
     .join("");
 }
 
+function modeFromState(state: string): StripeOAuthMode | null {
+  if (state.startsWith("test.")) return "test";
+  if (state.startsWith("sandbox.")) return "sandbox";
+  return null;
+}
+
+function exchangeKeyFor(mode: StripeOAuthMode): string {
+  const name = mode === "sandbox"
+    ? "STRIPE_APP_SANDBOX_SECRET_KEY"
+    : "STRIPE_APP_TEST_SECRET_KEY";
+  const key = env(name);
+  if (!/^sk_test_/.test(key)) {
+    throw new Error(`Invalid ${name}`);
+  }
+  return key;
+}
+
 function back(status: string): Response {
   const url = new URL(appUrl());
   url.searchParams.set("stripe", status);
@@ -69,12 +88,16 @@ export async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const state = url.searchParams.get("state");
   if (!state || state.length < 32 || state.length > 256) return back("invalid");
+  const mode = modeFromState(state);
+  if (!mode) return back("invalid");
 
   const db = admin();
   const stateHash = await sha256Hex(state);
   const now = new Date().toISOString();
 
   // Claim the state exactly once before exchanging Stripe's one-time code.
+  // Because the mode is part of the hashed state, it can't be changed without
+  // making the stored CSRF state fail validation.
   const claimed = checked(
     await db.from("stripe_connect_oauth_states")
       .update({ consumed_at: now })
@@ -117,10 +140,10 @@ export async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    const developerKey = env("STRIPE_SECRET_KEY");
-    if (!/^[rs]k_test_/.test(developerKey)) {
-      throw new Error("Stripe Apps external test requires the developer test key");
-    }
+    // Stripe requires the API key used for the OAuth code exchange to match
+    // the install link type: developer test key for Test Mode, managed-sandbox
+    // key for a general Sandbox install.
+    const developerKey = exchangeKeyFor(mode);
 
     const tokenResponse = await fetch("https://api.stripe.com/v1/oauth/token", {
       method: "POST",
@@ -175,6 +198,7 @@ export async function handler(req: Request): Promise<Response> {
         refresh_token_ciphertext: ciphertext,
         livemode: false,
         scope: token.scope,
+        install_mode: mode,
         updated_at: connectedAt,
       }, { onConflict: "workspace_id" }),
     );
