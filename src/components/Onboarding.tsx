@@ -134,6 +134,11 @@ export default function Onboarding() {
   const [state, setState] = useState<OnboardingState>(() => backendConfigured ? initialOnboarding() : loadOnboarding());
   const [accountForm, setAccountForm] = useState(() => ({ ...(state.account ?? { name: '', email: '', company: '' }), password: '' }));
   const [accountError, setAccountError] = useState<string | null>(null);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
+  const [recoveryMode, setRecoveryMode] = useState(new URLSearchParams(window.location.search).get('recovery') === '1');
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [authBusy, setAuthBusy] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
@@ -222,6 +227,10 @@ export default function Onboarding() {
     };
     void restore();
     const { data } = supabase!.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecoveryMode(true);
+        setChecking(false);
+      }
       if (event === 'SIGNED_OUT' || (activeUserId.current && session?.user && activeUserId.current !== session.user.id)) {
         authGeneration.current++;
         setBillingError(null);
@@ -262,6 +271,51 @@ export default function Onboarding() {
     dispatch({ type: 'choose_stack', stack: 'javascript' });
   }
 
+  async function requestPasswordReset() {
+    if (!backendConfigured || authBusy) return;
+    const email = accountForm.email.trim();
+    if (!email) {
+      setAccountError('Enter your email first.');
+      return;
+    }
+    setAccountError(null);
+    setResetNotice(null);
+    setAuthBusy(true);
+    try {
+      const redirectTo = `${window.location.origin}${window.location.pathname}?recovery=1`;
+      const { error } = await supabase!.auth.resetPasswordForEmail(email, { redirectTo });
+      if (error) throw error;
+      setResetNotice('Password reset email sent. Check your inbox.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not send a password reset email.';
+      setAccountError(/rate|too many/i.test(message)
+        ? 'Email delivery is temporarily rate-limited. APEX needs custom SMTP for reliable auth email delivery.'
+        : message);
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function submitRecoveryPassword(e: FormEvent) {
+    e.preventDefault();
+    if (recoveryBusy) return;
+    if (recoveryPassword.length < 8) {
+      setRecoveryError('Use a password of at least 8 characters.');
+      return;
+    }
+    setRecoveryBusy(true);
+    setRecoveryError(null);
+    try {
+      const { error } = await supabase!.auth.updateUser({ password: recoveryPassword });
+      if (error) throw error;
+      await supabase!.auth.signOut();
+      window.location.assign(`${window.location.origin}${window.location.pathname}#start`);
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : 'Could not update your password.');
+      setRecoveryBusy(false);
+    }
+  }
+
   async function submitAccount(e: FormEvent) {
     e.preventDefault();
     if (backendConfigured) {
@@ -293,7 +347,12 @@ export default function Onboarding() {
         return;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Something went wrong.';
-        setAccountError(message === 'Failed to fetch' ? 'Could not reach APEX. Check your connection and try again.' : message);
+        const normalized = /rate|too many/i.test(message)
+          ? 'Email delivery is temporarily rate-limited. APEX needs custom SMTP for reliable auth email delivery.'
+          : message === 'Failed to fetch'
+            ? 'Could not reach APEX. Check your connection and try again.'
+            : message;
+        setAccountError(normalized);
       } finally {
         setAuthBusy(false);
       }
@@ -371,6 +430,33 @@ export default function Onboarding() {
     setConnecting(false);
   }
 
+  if (recoveryMode) {
+    return (
+      <div className="ap-site ob">
+        <header className="ap-nav ob-nav">
+          <a className="ap-logo" href="#" aria-label="APEX home">APEX</a>
+          <span className="ob-nav-mark"><Lock size={14} /> Password recovery</span>
+        </header>
+        <main id="main" className="ob-body" style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}>
+          <section className="ob-panel">
+            <p className="ob-eyebrow">ACCOUNT RECOVERY</p>
+            <h1>Choose a new password.</h1>
+            <p className="ob-lede">This recovery link is tied to your APEX account. Set a new password, then log in again.</p>
+            <form className="ob-form" onSubmit={submitRecoveryPassword}>
+              <label className="ob-field">New password
+                <input type="password" value={recoveryPassword} onChange={(e) => setRecoveryPassword(e.target.value)} placeholder="At least 8 characters" autoComplete="new-password" minLength={8} />
+              </label>
+              {recoveryError && <p className="ob-form-error" role="alert">{recoveryError}</p>}
+              <button type="submit" className="ob-primary" disabled={recoveryBusy}>
+                {recoveryBusy ? <><Loader2 size={16} className="ob-spin" /> Updating…</> : <>Update password <ArrowRight size={15} /></>}
+              </button>
+            </form>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="ap-site ob">
       <a className="ap-skip" href="#main">Skip to content</a>
@@ -421,9 +507,11 @@ export default function Onboarding() {
             <AccountStep
               form={accountForm}
               error={accountError}
+              notice={resetNotice}
               busy={authBusy}
               mode={authMode}
-              onToggleMode={() => { setAuthMode((m) => (m === 'signup' ? 'login' : 'signup')); setAccountError(null); }}
+              onToggleMode={() => { setAuthMode((m) => (m === 'signup' ? 'login' : 'signup')); setAccountError(null); setResetNotice(null); }}
+              onForgotPassword={requestPasswordReset}
               onChange={setAccountForm}
               onSubmit={submitAccount}
               onBack={() => goto('plan')}
@@ -523,12 +611,14 @@ function PlanStep({ selected, onSelect }: { selected: PlanId | null; onSelect: (
   );
 }
 
-function AccountStep({ form, error, busy, mode, onToggleMode, onChange, onSubmit, onBack }: {
+function AccountStep({ form, error, notice, busy, mode, onToggleMode, onForgotPassword, onChange, onSubmit, onBack }: {
   form: { name: string; email: string; company: string; password: string };
   error: string | null;
+  notice: string | null;
   busy: boolean;
   mode: 'signup' | 'login';
   onToggleMode: () => void;
+  onForgotPassword: () => void;
   onChange: (form: { name: string; email: string; company: string; password: string }) => void;
   onSubmit: (e: FormEvent) => void;
   onBack: () => void;
@@ -559,6 +649,7 @@ function AccountStep({ form, error, busy, mode, onToggleMode, onChange, onSubmit
           </label>
         )}
         {error && <p className="ob-form-error">{error}</p>}
+        {notice && <p className="ob-note" role="status">{notice}</p>}
         {backendConfigured ? (
           <div className="ob-preview-note"><Info size={15} /><span>Real authentication via Supabase. Your password is never visible to APEX staff.</span></div>
         ) : (
@@ -570,8 +661,11 @@ function AccountStep({ form, error, busy, mode, onToggleMode, onChange, onSubmit
             {busy ? <><Loader2 size={16} className="ob-spin" /> {isLogin ? 'Logging in…' : 'Creating…'}</> : <>{isLogin ? 'Log in' : 'Create account'} <ArrowRight size={15} /></>}
           </button>
         </div>
+        {backendConfigured && isLogin && (
+          <button type="button" className="ob-link-btn" onClick={onForgotPassword} disabled={busy}>Forgot password?</button>
+        )}
         {backendConfigured && (
-          <button type="button" className="ob-link-btn" onClick={onToggleMode}>
+          <button type="button" className="ob-link-btn" onClick={onToggleMode} disabled={busy}>
             {isLogin ? "Need an account? Sign up instead" : 'Already have an account? Log in'}
           </button>
         )}

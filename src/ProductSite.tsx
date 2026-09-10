@@ -21,7 +21,8 @@ export default function ProductSite() {
   const [route, setRoute] = useState(() => window.location.hash);
   const consoleOpen = route === '#console';
   const formaOpen = route === '#forma';
-  const startOpen = route === '#start';
+  const recoveryOpen = new URLSearchParams(window.location.search).get('recovery') === '1';
+  const startOpen = route === '#start' || recoveryOpen;
   const docsOpen = route === '#docs' || route.startsWith('#docs/') || route.startsWith('#docs?');
   const [filmOpen, setFilmOpen] = useState(false);
   const film = useRef<HTMLDialogElement>(null);
