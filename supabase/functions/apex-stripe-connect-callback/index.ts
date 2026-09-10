@@ -55,7 +55,10 @@ function exchangeKeyFor(mode: StripeOAuthMode): string {
     ? "STRIPE_APP_SANDBOX_SECRET_KEY"
     : "STRIPE_APP_TEST_SECRET_KEY";
   const key = env(name);
-  if (!/^sk_test_/.test(key)) {
+  // Preserve the previously-supported restricted test-key prefix. Stripe will
+  // still reject an rk_test_ key at exchange time if it lacks the permissions
+  // required by the app, but configuration should not fail solely on prefix.
+  if (!/^[rs]k_test_/.test(key)) {
     throw new Error(`Invalid ${name}`);
   }
   return key;
