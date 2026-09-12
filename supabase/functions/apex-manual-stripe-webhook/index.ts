@@ -68,6 +68,26 @@ export async function handler(req: Request): Promise<Response> {
       }));
       await db.from("stripe_webhook_events").update({ status: "processed", processed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq("stripe_connection_id", manual.stripe_connection_id).eq("stripe_event_id", event.id);
+    } else if (event.type === "charge.refunded") {
+      const charge = event.data.object as Stripe.Charge;
+      const paymentId = stripeId(charge.payment_intent);
+      const stripeCustomerId = stripeId(charge.customer);
+      if (!charge.refunded || !paymentId || !stripeCustomerId) throw new Error("manual_refund_mapping_incomplete");
+      const customer = checked(await db.from("customers").select("id")
+        .eq("workspace_id", manual.workspace_id).eq("stripe_customer_id", stripeCustomerId).maybeSingle());
+      if (!customer) throw new Error("manual_refund_customer_missing");
+      const grants = checked(await db.from("credit_grants").select("source_stripe_event_id,amount")
+        .eq("workspace_id", manual.workspace_id).eq("customer_id", customer.id).eq("source_payment_id", paymentId)) ?? [];
+      if (grants.length === 0) return Response.json({ ignored: true });
+      const sourceEventId = grants[0].source_stripe_event_id;
+      if (!sourceEventId || grants.some((grant) => grant.source_stripe_event_id !== sourceEventId)) {
+        throw new Error("manual_refund_source_ambiguous");
+      }
+      checked(await db.rpc("process_connected_stripe_event", {
+        p_connection_id: manual.stripe_connection_id, p_event_id: event.id, p_customer_id: customer.id,
+        p_refund_source_event_id: sourceEventId,
+        p_refund_credits: grants.reduce((sum, grant) => sum + Number(grant.amount), 0),
+      }));
     } else {
       checked(await db.rpc("process_connected_stripe_event", { p_connection_id: manual.stripe_connection_id, p_event_id: event.id }));
     }
