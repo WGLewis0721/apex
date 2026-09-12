@@ -13,7 +13,8 @@ first install remain Dashboard-driven acceptance steps.
 ## Finish in Stripe
 
 1. Open **Dashboard → Apps → APEX → Version history**, select `0.2.0`, and set it as the External-test
-   version for a sandbox.
+   version for a sandbox. If Stripe offers a **Link access** choice, use the unrestricted testing link;
+   some Dashboard variants omit this choice and generate the links directly.
 2. Copy the generated sandbox OAuth client ID and configure `STRIPE_APP_SANDBOX_CLIENT_ID`,
    `STRIPE_APP_SANDBOX_SECRET_KEY`, and `STRIPE_APP_OAUTH_MODE=sandbox` as Supabase function secrets.
 3. In Workbench, create a connected-account event destination for `checkout.session.completed`,
