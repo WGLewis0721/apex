@@ -31,7 +31,7 @@ function CustomerLookup() {
           ['What is spendable right now?', <><code>credit_accounts.remaining</code> / balance API — not a hot-path SUM of ledger rows.</>],
           ['Where did the value come from?', <><code>credit_grants</code> source Stripe event/payment references.</>],
           ['What was spent/refunded?', <><code>credit_ledger</code> + <code>credit_operations</code>.</>],
-          ['What Stripe event caused it?', <><code>stripe_webhook_events</code> once connected ingress is wired.</>],
+          ['What Stripe event caused it?', <><code>stripe_webhook_events</code>; this is proven for the manual test-pilot path.</>],
         ]}
       />
 
@@ -134,7 +134,7 @@ function EventHistory() {
           [<code>credit_operations</code>, 'Original idempotent outcomes, including denied consumes and replays.'],
           [<code>credit_grants</code>, 'Which source purchase created value and how much remains/was consumed.'],
           [<code>credit_accounts</code>, 'Current projected spendable balance/version.'],
-          [<code>stripe_webhook_events</code>, 'Persisted Stripe receipt/processing state; connected fulfillment wiring is next.'],
+          [<code>stripe_webhook_events</code>, 'Persisted Stripe receipt/processing state; manual pilot delivery/replay is proven, scalable connected-account onboarding remains later.'],
           [<code>audit_logs</code>, 'General audit foundation for broader operator events.'],
         ]}
       />
@@ -156,7 +156,7 @@ function EventHistory() {
 /* ============================================================ support-workflows */
 
 const WORKFLOWS = [
-  { situation: '"I paid but did not receive credits."', check: 'Find the verified connected Stripe event, then confirm it persisted and produced exactly one source-attributed grant. This ingress is the next implementation milestone.' },
+  { situation: '"I paid but did not receive credits."', check: 'Find the verified Stripe event, then confirm it persisted and produced exactly one source-attributed grant. The manual pilot proves this trace; broaden it before self-service onboarding.' },
   { situation: '"My balance is wrong."', check: 'Read credit_accounts.remaining first, then reconcile the customer’s source grants and credit_ledger history.' },
   { situation: '"My spend was denied."', check: 'Read the credit_operations result/reason and current projection. A DENY replay should return the same original outcome.' },
   { situation: '"I was refunded but credits remain."', check: 'Confirm the refund targets the original source grant(s); already-consumed value is unrecoverable, other purchases are untouched.' },
@@ -196,7 +196,7 @@ function Debugging() {
         { title: 'Read the projection', body: <>Check <code>credit_accounts.remaining</code> and <code>version</code> through the API.</> },
         { title: 'Inspect the operation outcome', body: <>For a spend, find the matching <code>credit_operations</code> idempotency key and ALLOW/DENY result.</> },
         { title: 'Trace the grant burn/refund', body: <>Use <code>credit_ledger</code> and <code>credit_grants</code> to see exactly which source grants changed.</> },
-        { title: 'Trace the commercial source', body: 'Once connected ingress is wired, follow the Stripe event/payment reference back to the verified event row.' },
+        { title: 'Trace the commercial source', body: 'Follow the Stripe event/payment reference back to the verified event row; this works in the manual pilot and is the model for the later public path.' },
       ]} />
 
       <Callout kind="warning" title="Do not debug by summing the ledger on the hot path">

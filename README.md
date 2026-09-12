@@ -108,6 +108,13 @@ See [`docs/architecture/APEX_V1_LEDGER.md`](docs/architecture/APEX_V1_LEDGER.md)
 | End-to-end connected Stripe proof | ⏳ Pending Phase 5 + ingress |
 | Live operator dashboard | ⏳ Planned |
 
+### Status clarification
+
+The legacy phase table below describes the still-unaccepted **Stripe Apps OAuth / connected-account** route.
+The separate manual Dashboard-webhook pilot has now proved payment, grant, consume, refund, payment replay,
+and refund replay against hosted APEX state. It is complete demo evidence, but not production acceptance for
+multi-workspace self-service onboarding.
+
 ## What is proven now
 
 The hosted wallet/concurrency contract is real:

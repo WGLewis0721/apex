@@ -192,7 +192,7 @@ const CORE_ROWS: Row[] = [
   { table: 'credit_grants', purpose: 'Source-attributed product value with consumed/remaining state.', keyFields: 'amount, consumed_amount, remaining_amount, source event/payment, status', status: 'Deployed' },
   { table: 'credit_ledger', purpose: 'Append-only grant/consume/refund/unrecoverable audit history.', keyFields: 'entry_type, amount, credit_grant_id, idempotency_key', status: 'Deployed' },
   { table: 'credit_operations', purpose: 'Idempotent request outcomes, including DENY replay.', keyFields: 'operation_type, idempotency_key, status, result', status: 'Deployed' },
-  { table: 'stripe_webhook_events', purpose: 'Persisted Stripe event/replay state.', keyFields: 'stripe_connection_id, stripe_event_id, status, attempts', status: 'Real; connected fulfillment wiring pending' },
+  { table: 'stripe_webhook_events', purpose: 'Persisted Stripe event/replay state.', keyFields: 'stripe_connection_id, stripe_event_id, status, attempts', status: 'Real; manual webhook fulfillment/replay proven, public connected-account path pending' },
   { table: 'usage_events / usage_counters', purpose: 'Broader metering foundation beyond direct credit consume.', keyFields: 'event_id, quantity, period', status: 'Schema foundation; broader v1.1+ work' },
   { table: 'access_decisions', purpose: 'Future richer durable access-decision history.', keyFields: 'decision, reason, context', status: 'Schema foundation; no public /check v1' },
   { table: 'audit_logs', purpose: 'General operator/audit events.', keyFields: 'action, target, metadata', status: 'Real foundation' },

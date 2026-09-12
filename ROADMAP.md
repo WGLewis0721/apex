@@ -55,6 +55,11 @@ is “not wired” applies only to the unaccepted Stripe Apps OAuth path, not th
 
 ### Ordered next steps
 
+**Lifecycle evidence update:** the manual test-pilot lifecycle is now complete: Checkout payment created one
+grant; 750 credits were consumed; a full refund clawed back the remaining 250 and recorded 750 as
+unrecoverable; resending both the payment and refund events created no duplicate ledger effect. The next
+priority is to preserve this result in automated evidence and remove pilot-only configuration coupling.
+
 1. **Security cleanup:** rotate the exposed Supabase PAT and demo webhook secret.
 2. **Pilot lifecycle proof is complete:** payment replay, consume 750, full refund, and refund replay now
    pass without duplicate grants or adjustments. Preserve the evidence in an automated integration test.

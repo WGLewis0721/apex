@@ -80,7 +80,7 @@ export const SECTIONS: DocSection[] = [
       { slug: 'customer-lookup', title: 'Customer lookup', description: 'Target operator view for customer plan, balance, ledger history, and integration state.' },
       { slug: 'payment-failures-and-cancellations', title: 'Payment failures & cancellations', description: 'Later rules for how verified Stripe state affects product rights.' },
       { slug: 'access-changes-and-credit-corrections', title: 'Access changes, refunds & credit corrections', description: 'Source-aware refunds preserve history, never steal another grant, and never create v1 debt.', keywords: ['refund', 'reversal', 'adjustment', 'unrecoverable'] },
-      { slug: 'event-history', title: 'Event history', description: 'Durable credit ledger now; connected Stripe event/replay history is the next production step.' },
+      { slug: 'event-history', title: 'Event history', description: 'Durable credit ledger and a verified manual Stripe webhook replay proof; scalable connected-account operations remain later work.' },
       { slug: 'support-workflows', title: 'Support workflows', description: 'Target workflows for explaining purchase, balance, refund, and denied-consume issues.' },
       { slug: 'debugging', title: 'Debugging', description: 'Trace connected Stripe event → grant → consume/refund → projected balance.' },
     ],
@@ -88,11 +88,11 @@ export const SECTIONS: DocSection[] = [
   {
     id: 'reference',
     label: 'Reference',
-    tagline: 'Ledger/API core is deployed; connected fulfillment is still being completed',
+    tagline: 'Ledger/API core and controlled Stripe webhook lifecycle are proven; scalable connected-account fulfillment is still being completed',
     pages: [
       { slug: 'api-overview', title: 'API overview & authentication', description: 'Current hosted APEX API, apex_sk_* server authentication, and v1 route boundaries.' },
       { slug: 'requests-and-responses', title: 'Requests, responses & errors', description: 'Current balance/entitlements/consume shapes plus clearly labeled future contracts.' },
-      { slug: 'events-and-webhooks', title: 'Events & webhooks', description: 'APEX own-billing events are real; connected Stripe fulfillment ingress is next.' },
+      { slug: 'events-and-webhooks', title: 'Events & webhooks', description: 'APEX billing and a controlled manual Stripe fulfillment proof are real; public connected-account onboarding is next.' },
       { slug: 'data-model', title: 'Data model', description: 'Real tenancy plus credit_accounts, source-attributed grants, append-only ledger, and idempotent operations.' },
       { slug: 'limits', title: 'Limits', description: 'Do not invent scale limits or infrastructure thresholds before production evidence justifies them.' },
       { slug: 'terminology', title: 'Terminology', description: 'Field names, product units, operation semantics, and production-status terms precisely defined.' },

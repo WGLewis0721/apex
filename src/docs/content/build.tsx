@@ -323,8 +323,8 @@ function HandleWebhooks() {
     <>
       <Callout kind="tip" title="Verified test-pilot path">
         APEX has now processed one real signed Stripe sandbox Checkout event into exactly one 1,000-credit
-        grant through its workspace-scoped manual webhook pilot. The self-serve Stripe Apps OAuth path and
-        refund/replay acceptance proof remain later gates; see <code>docs/implementation/STRIPE_WEBHOOK_DEMO.md</code>.
+        grant through its workspace-scoped manual webhook pilot. Payment replay, consume, refund, and refund
+        replay have also passed. The self-serve Stripe Apps OAuth path remains a later gate; see <code>docs/implementation/STRIPE_WEBHOOK_DEMO.md</code>.
       </Callout>
       <PageHeader eyebrow="BUILD" title="Handle Stripe events" lede="The next core milestone is turning verified connected-account payment/refund events into replay-safe ledger changes." status={PLANNED} />
 
