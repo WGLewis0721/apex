@@ -1,0 +1,12 @@
+{
+  "name": "@apex/sdk",
+  "version": "0.1.0",
+  "description": "Server-side client for the hosted APEX API",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED"
+}
