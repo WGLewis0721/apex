@@ -543,8 +543,11 @@ export default function Onboarding() {
                   setBillingError(error instanceof Error ? error.message : 'Could not reveal credentials.');
                 }
               }}>{workspace.secret ? 'Hide secret key' : 'Reveal secret key'}</button>
-              <div className="ob-preview-note"><Info size={15} /><span>Your workspace is persisted. Next, authorize APEX to read your Stripe account. Install and APEX Cloud API access remain later phases.</span></div>
-              <button className="ob-primary" style={{ marginTop: 20 }} onClick={continueFromWorkspace}>Continue to Connect Stripe <ArrowRight size={15} /></button>
+              <div className="ob-preview-note"><Info size={15} /><span>Payment verification is complete. Connecting a customer Stripe account is optional advanced setup and is not needed to test APEX billing.</span></div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 }}>
+                <button className="ob-primary" onClick={() => { window.location.assign('#console'); }}>Open APEX dashboard <ArrowRight size={15} /></button>
+                <button className="ob-ghost" onClick={continueFromWorkspace}>Connect Stripe later <ArrowRight size={15} /></button>
+              </div>
             </> : <WorkspaceStep workspaceId={state.workspaceId} keys={state.demoKeys} onContinue={continueFromWorkspace} />
           )}
 
@@ -555,6 +558,7 @@ export default function Onboarding() {
               stripeAccountId={stripeAccountId}
               onConnect={runConnect}
               onContinue={() => goto('launcher')}
+              onFinishDemo={() => { window.location.assign('#console'); }}
             />
           )}
 
@@ -722,12 +726,13 @@ function WorkspaceStep({ workspaceId, keys, onContinue }: { workspaceId: string 
   );
 }
 
-function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContinue }: {
+function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContinue, onFinishDemo }: {
   status: OnboardingState['paymentProviderStatus'];
   connecting: boolean;
   stripeAccountId: string | null;
   onConnect: () => void;
   onContinue: () => void;
+  onFinishDemo: () => void;
 }) {
   const connected = status === 'connected' || status === 'demo_connected';
   return (
@@ -756,7 +761,10 @@ function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContin
         connected ? <>
           <div className="ob-celebrate" style={{ marginTop: 20 }}><CheckCircle2 size={20} /> Stripe account connected. Step 5 is complete.</div>
           <button className="ob-primary" style={{ marginTop: 20 }} disabled>Install APEX — next step</button>
-        </> : null
+        </> : <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 }}>
+          <button className="ob-primary" onClick={onFinishDemo}>Payment test complete <ArrowRight size={15} /></button>
+          <span className="ob-note">Connecting Stripe is optional for this test.</span>
+        </div>
       ) : (
         <button className="ob-primary" style={{ marginTop: 20 }} disabled={!connected} onClick={onContinue}>Continue to install <ArrowRight size={15} /></button>
       )}
