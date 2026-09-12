@@ -22,12 +22,17 @@ export async function handler(req: Request): Promise<Response> {
   const manual = checked(await db.from("stripe_manual_webhook_connections")
     .select("workspace_id,stripe_connection_id,signing_secret_ciphertext,enabled")
     .eq("endpoint_token", token).maybeSingle());
-  if (!manual?.enabled || !manual.signing_secret_ciphertext) return new Response("Not found", { status: 404 });
+  if (!manual?.enabled) return new Response("Not found", { status: 404 });
 
   let event: Stripe.Event;
   try {
-    const secret = await decryptCredential(manual.signing_secret_ciphertext,
-      env("APEX_CREDENTIAL_ENCRYPTION_KEY"), `manual-stripe-webhook:${manual.workspace_id}`);
+    // A workspace owner normally saves the secret through the authenticated
+    // setup function. The deployment fallback lets the first guided demo be
+    // completed without exposing the one-time Stripe secret in the browser.
+    const secret = manual.signing_secret_ciphertext
+      ? await decryptCredential(manual.signing_secret_ciphertext,
+        env("APEX_CREDENTIAL_ENCRYPTION_KEY"), `manual-stripe-webhook:${manual.workspace_id}`)
+      : env("APEX_MANUAL_STRIPE_WEBHOOK_SECRET");
     event = await Stripe.webhooks.constructEventAsync(await req.text(), req.headers.get("stripe-signature") ?? "", secret,
       undefined, Stripe.createSubtleCryptoProvider());
   } catch { return new Response("Invalid signature", { status: 400 }); }
