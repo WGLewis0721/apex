@@ -40,6 +40,7 @@ import {
 
 import { AgentControls, CommandCenter, Connections, Customer360, ExecutionDemo, FindingsWorkspace, PolicyStudio } from './components/AssuranceWorkspace';
 import { findings } from './lib/assurance';
+import LiveOperations from './components/LiveOperations';
 
 const pages = [
   ['Command Center', LayoutDashboard],
@@ -53,6 +54,7 @@ const pages = [
   ['Access Lab', LockKeyhole],
   ['Usage', Gauge],
   ['Billing Sync', CreditCard],
+  ['Live Operations', Activity],
   ['AI Controls', Bot],
   ['Audit Log', FileClock],
   ['Developer', Code2],
@@ -152,11 +154,11 @@ function App() {
             </div>
           </div>
           <div className="top-actions">
-            <div className="health"><Database size={15} aria-hidden="true"/> Local sandbox · v0.3</div>
-            <button className="secondary reset-demo" onClick={resetDemo} title="Clear every change made in this demo and restore the original sandbox data">
+            <div className="health"><Database size={15} aria-hidden="true"/> {page === 'Live Operations' ? 'Hosted workspace · live data' : 'Local sandbox · v0.3'}</div>
+            {page !== 'Live Operations' && <button className="secondary reset-demo" onClick={resetDemo} title="Clear every change made in this demo and restore the original sandbox data">
               <RefreshCcw size={15} aria-hidden="true"/><span>Reset demo</span>
-            </button>
-            <button className="primary" onClick={() => navigate('Usage')}><Zap size={16} aria-hidden="true"/> Track usage</button>
+            </button>}
+            {page !== 'Live Operations' && <button className="primary" onClick={() => navigate('Usage')}><Zap size={16} aria-hidden="true"/> Track usage</button>}
           </div>
         </header>
 
@@ -173,6 +175,7 @@ function App() {
           {page === 'Access Lab' && <AccessLab store={store} commit={commit} selected={selectedCustomer} setSelectedCustomerId={setSelectedCustomerId}/>}
           {page === 'Usage' && <Usage store={store} commit={commit}/>}
           {page === 'Billing Sync' && <Billing store={store} commit={commit}/>}
+          {page === 'Live Operations' && <LiveOperations/>}
           {page === 'AI Controls' && <AgentControls {...workspaceProps}/>}
           {page === 'Audit Log' && <Audit store={store}/>}
           {page === 'Developer' && <Developer/>}
@@ -197,6 +200,7 @@ function subtitle(page: Page) {
     'Access Lab': 'Test a live policy decision against your current control state.',
     'Usage': 'Track consumption and remaining plan balances.',
     'Billing Sync': 'Keep billing state and product access synchronized.',
+    'Live Operations': 'Inspect verified Stripe events and the hosted credit ledger.',
     'AI Controls': 'Govern autonomous agents with identity, budgets, and permissions.',
     'Audit Log': 'Every commercial and access decision, recorded.',
     'Developer': 'Integrate once. Enforce everywhere.',

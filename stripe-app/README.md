@@ -14,7 +14,7 @@ it is deployed and exercised through a real connected-account test transaction.
 
 Stripe Apps External testing is available only for **public** apps. Upload the public APEX app from an eligible Stripe developer account, then configure External test from that account. Stripe generates separate OAuth links for Test Mode and general Sandboxes.
 
-1. Install/login to the Stripe CLI using the APEX Stripe App developer account.
+1. Install/login to the Stripe CLI using the non-Connect APEX Stripe App developer account that owns `com.graymatter.apex-dev`.
 2. From this directory run:
 
    ```bash

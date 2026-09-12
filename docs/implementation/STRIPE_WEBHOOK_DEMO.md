@@ -24,6 +24,18 @@ It then consumed 750 credits, processed a full Stripe refund, clawed back the re
 The original successful Checkout event was also resent: APEX recorded the delivery retry but retained exactly
 one credit grant and one grant-ledger entry.
 
+The proof is now repeatable without entering card details. From the repository root run:
+
+```powershell
+.\scripts\run-stripe-lifecycle-proof.ps1
+```
+
+The script creates a new isolated Stripe test customer and a successful test PaymentIntent using Stripe's
+`pm_card_visa` test PaymentMethod (the API equivalent of the `4242` test card). The endpoint also accepts
+`payment_intent.succeeded`. Checkout and PaymentIntent events are serialized by payment identity so they
+cannot create two grants for one payment. The script then consumes 750, refunds, resends both Stripe events,
+and fails unless the final balance and ledger counts are exact.
+
 ## Do not confuse these paths
 
 | Path | Use now | Limit |
@@ -50,6 +62,7 @@ one credit grant and one grant-ledger entry.
 1. Rotate all secrets exposed during the first demo, particularly the Supabase PAT and webhook signing secret.
 2. Replace the first-demo deployment-secret fallback with an encrypted unique Dashboard signing secret for
    every workspace.
-3. Add an automated isolated integration test and an operator runbook for failed event investigation/replay.
-4. Do not call the full product lifecycle accepted until the scalable public Stripe App route has also passed
+3. Use the automated lifecycle command for every webhook/ledger release and investigate failures in the
+   authenticated **Live Operations** console.
+4. Do not call the full self-serve product lifecycle accepted until the scalable public Stripe App route has also passed
    External test and the full lifecycle on a connected customer Stripe account.

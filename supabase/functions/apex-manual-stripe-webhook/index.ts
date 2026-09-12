@@ -14,6 +14,19 @@ function credits(value: string | undefined) {
   return Number.isSafeInteger(amount) && amount > 0 && amount <= 100000 ? amount : null;
 }
 
+async function ensureCustomer(workspaceId: string, stripeCustomerId: string) {
+  const db = admin();
+  let customer = checked(await db.from("customers").select("id")
+    .eq("workspace_id", workspaceId).eq("stripe_customer_id", stripeCustomerId).maybeSingle());
+  if (!customer) {
+    customer = checked(await db.from("customers").insert({
+      workspace_id: workspaceId, external_id: `stripe:${stripeCustomerId}`,
+      stripe_customer_id: stripeCustomerId,
+    }).select("id").single());
+  }
+  return customer!.id;
+}
+
 export async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const token = endpointToken(req);
@@ -50,24 +63,24 @@ export async function handler(req: Request): Promise<Response> {
       if (session.payment_status !== "paid" || !stripeCustomerId || !amount || !session.payment_intent) {
         throw new Error("manual_checkout_metadata_incomplete");
       }
-      let customer = checked(await db.from("customers").select("id")
-        .eq("workspace_id", manual.workspace_id).eq("stripe_customer_id", stripeCustomerId).maybeSingle());
-      if (!customer) {
-        customer = checked(await db.from("customers").insert({
-          workspace_id: manual.workspace_id, external_id: `stripe:${stripeCustomerId}`,
-          stripe_customer_id: stripeCustomerId,
-        }).select("id").single());
-      }
-      // The existing price-mapping processor is intentionally strict. A pilot
-      // grant has no catalog price, so grant directly with the same event-level
-      // idempotency and then mark the recorded event processed.
-      checked(await db.rpc("grant_credits", {
-        p_workspace_id: manual.workspace_id, p_customer_id: customer!.id, p_amount: amount,
-        p_idempotency_key: `stripe:${event.id}:manual`, p_stripe_event_id: event.id,
-        p_source_payment_id: stripeId(session.payment_intent), p_feature_id: null, p_reason: "stripe_manual_checkout",
+      const paymentId = stripeId(session.payment_intent)!;
+      const customerId = await ensureCustomer(manual.workspace_id, stripeCustomerId);
+      checked(await db.rpc("process_manual_stripe_payment", {
+        p_connection_id: manual.stripe_connection_id, p_event_id: event.id,
+        p_customer_id: customerId, p_payment_id: paymentId, p_credits: amount,
       }));
-      await db.from("stripe_webhook_events").update({ status: "processed", processed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq("stripe_connection_id", manual.stripe_connection_id).eq("stripe_event_id", event.id);
+    } else if (event.type === "payment_intent.succeeded") {
+      const payment = event.data.object as Stripe.PaymentIntent;
+      const stripeCustomerId = stripeId(payment.customer);
+      const amount = credits(payment.metadata?.apex_credits);
+      if (payment.status !== "succeeded" || !stripeCustomerId || !amount) {
+        throw new Error("manual_payment_metadata_incomplete");
+      }
+      const customerId = await ensureCustomer(manual.workspace_id, stripeCustomerId);
+      checked(await db.rpc("process_manual_stripe_payment", {
+        p_connection_id: manual.stripe_connection_id, p_event_id: event.id,
+        p_customer_id: customerId, p_payment_id: payment.id, p_credits: amount,
+      }));
     } else if (event.type === "charge.refunded") {
       const charge = event.data.object as Stripe.Charge;
       const paymentId = stripeId(charge.payment_intent);

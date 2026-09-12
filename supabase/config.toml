@@ -65,3 +65,8 @@ verify_jwt = false
 # The v1 server API authenticates APEX secret keys itself. Browser JWTs are not
 # accepted as authority for balance-changing operations.
 verify_jwt = false
+
+[functions.apex-operator]
+# Browser access requires a confirmed Supabase session; the handler also
+# verifies paid workspace ownership and scopes every query server-side.
+verify_jwt = true

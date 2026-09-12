@@ -84,3 +84,16 @@ export const startStripeConnect = () => invoke<{ url?: string; status: 'pending'
 export type ManualStripeWebhook = { configured: boolean; endpoint: string | null };
 export const getManualStripeWebhook = () => invoke<ManualStripeWebhook>('apex-manual-stripe-setup', { action: 'status' });
 export const configureManualStripeWebhook = (signingSecret: string) => invoke<ManualStripeWebhook>('apex-manual-stripe-setup', { action: 'configure', signingSecret });
+
+export type OperatorSnapshot = {
+  asOf: string;
+  workspace: { id: string; name: string; status: string; created_at: string };
+  connections: Array<{ id: string; stripe_account_id: string | null; status: string; connected_at: string | null; updated_at: string }>;
+  customers: Array<{ id: string; external_id: string; stripe_customer_id: string | null; status: string; created_at: string }>;
+  accounts: Array<{ customer_id: string; remaining: number; version: number; updated_at: string }>;
+  grants: Array<{ id: string; customer_id: string; amount: number; consumed_amount: number; remaining_amount: number; status: string; reason: string; source_stripe_event_id: string | null; source_payment_id: string | null; created_at: string }>;
+  ledger: Array<{ id: string; customer_id: string; credit_grant_id: string | null; entry_type: string; amount: number; idempotency_key: string; created_at: string }>;
+  events: Array<{ id: string; stripe_connection_id: string; stripe_event_id: string; event_type: string; status: string; attempt_count: number; last_error: string | null; received_at: string; processed_at: string | null; updated_at: string }>;
+};
+
+export const getOperatorSnapshot = () => invoke<OperatorSnapshot>('apex-operator', { action: 'snapshot' });

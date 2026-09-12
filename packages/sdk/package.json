@@ -5,8 +5,16 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
-  "scripts": { "build": "tsc -p tsconfig.json" },
-  "engines": { "node": ">=18" },
-  "license": "UNLICENSED"
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/index.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "engines": { "node": ">=22" },
+  "publishConfig": { "access": "public", "provenance": true },
+  "repository": { "type": "git", "url": "git+https://github.com/WGLewis0721/apex.git", "directory": "packages/sdk" },
+  "keywords": ["apex", "stripe", "credits", "entitlements", "billing"],
+  "license": "MIT"
 }

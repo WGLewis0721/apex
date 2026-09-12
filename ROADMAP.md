@@ -53,25 +53,29 @@ is “not wired” applies only to the unaccepted Stripe Apps OAuth path, not th
 5. Remote Supabase migration history has legacy version drift. Apply only reviewed migrations and do not run
    bulk `supabase db push --include-all` until that history is reconciled.
 
-### Ordered next steps
+### Ordered next steps — execution result
 
 **Lifecycle evidence update:** the manual test-pilot lifecycle is now complete: Checkout payment created one
 grant; 750 credits were consumed; a full refund clawed back the remaining 250 and recorded 750 as
 unrecoverable; resending both the payment and refund events created no duplicate ledger effect. The next
 priority is to preserve this result in automated evidence and remove pilot-only configuration coupling.
 
-1. **Security cleanup:** rotate the exposed Supabase PAT and demo webhook secret.
+1. **Security cleanup — human credential rotation remains:** rotate the exposed Supabase PAT and demo webhook secret.
 2. **Pilot lifecycle proof is complete:** payment replay, consume 750, full refund, and refund replay now
    pass without duplicate grants or adjustments. Preserve the evidence in an automated integration test.
 3. **Remove guided-demo coupling:** use encrypted, per-workspace Dashboard secrets and server-side
    product/price mappings rather than Checkout metadata for normal pilot customers.
-4. **Automate the proof:** add an isolated integration test and runbook for payment, duplicate event,
-   consume, refund, refund replay, and ledger reconciliation.
-5. **Publish the thin SDK:** add package tests and release provenance; keep it server-only.
-6. **Build scalable onboarding:** create a public Stripe App under an eligible developer owner, enable
-   sandbox/External test, register connected-account events, and repeat the full acceptance proof.
-7. **Operator visibility:** build a live, tenant-scoped dashboard for connection health, event failures,
-   balance/grant history, and support replay.
+4. **Automate the proof — complete:** `scripts/run-stripe-lifecycle-proof.ps1` creates an isolated test
+   payment, asserts grant/consume/refund state, resends both events, and reconciles the final ledger.
+5. **Publish the thin SDK — engineering complete:** server-only client, validation, retry/timeout behavior,
+   tests, package contents, and provenance workflow are complete. npm scope ownership and `NPM_TOKEN` are
+   the remaining release credentials.
+6. **Build scalable onboarding — code complete, Stripe gate remains:** the eligible public app manifest is
+   aligned to `com.graymatter.apex-dev`, validates, and packages. Stripe currently returns `Forbidden` when
+   uploading version 0.2.0 from the owning account context; External-test selection and the first install
+   remain Dashboard/account-authorized actions.
+7. **Operator visibility — complete for v1:** `apex-operator` is deployed with confirmed-user plus workspace-
+   owner checks, and the console now shows hosted connection, event, balance, and ledger evidence.
 
 ## Canonical product statement
 
@@ -183,7 +187,7 @@ Do not invent a queue vendor, new database, new cloud runtime, cache, framework,
 
 ---
 
-# Current status — September 9, 2026
+# Current status — September 12, 2026
 
 | Phase | Capability | Status |
 | --- | --- | --- |
@@ -191,11 +195,11 @@ Do not invent a queue vendor, new database, new cloud runtime, cache, framework,
 | 2 | Accounts + backend foundation | ✅ Complete |
 | 3 | APEX's own Stripe billing | ✅ Real in test mode |
 | 4 | Paid workspace provisioning | ✅ Real |
-| 5 | Connect customer's Stripe | 🟡 Implementation merged; External-test Stripe App OAuth acceptance remains |
-| 6 | Hosted product-state core | 🟡 In progress — ledger/API deployed and concurrency-proven; connected Stripe ingress still missing |
-| 7 | SDK + customer balance integration | ⏳ Not started |
-| 8 | Connected Stripe end-to-end proof | ⏳ Not started |
-| 9 | Live operator dashboard | ⏳ Not started |
+| 5 | Connect customer's Stripe | 🟡 Public OAuth implementation ready; Stripe upload/External-test authorization remains |
+| 6 | Hosted product-state core | ✅ Manual pilot accepted; public connected-account acceptance remains |
+| 7 | SDK + customer balance integration | 🟡 SDK release-ready; npm publication credential remains |
+| 8 | Connected Stripe end-to-end proof | ✅ Manual lifecycle automated; public OAuth-connected repetition remains |
+| 9 | Live operator dashboard | ✅ Tenant-scoped hosted event and ledger view deployed |
 
 The hosted wallet proof does **not** depend on Phase 5 and has already passed. Customer-facing onboarding still stops at Connect Stripe until Phase 5 acceptance passes.
 
@@ -462,7 +466,7 @@ Later SDK responsibilities may add signed local entitlement evaluation, purchase
 
 Do not put APEX secret credentials in browser-only code.
 
-**Status:** ⏳ Not started.
+**Status:** 🟡 Client implementation, tests, package metadata, and release workflow complete; npm publication requires scope ownership and an `NPM_TOKEN`.
 
 ## 7.2 Customer balance UI
 
@@ -478,7 +482,7 @@ Minimum eventual display contract:
 
 The authoritative data comes from APEX. The merchant may use a reference component or build its own UI.
 
-**Status:** ⏳ Not started.
+**Status:** ⏳ Reference customer balance component remains a later merchant-facing deliverable; the APEX operator balance view is live.
 
 ---
 
@@ -505,7 +509,7 @@ Required flow:
 
 A later broader proof adds recurring renewal behavior, signed/local feature evaluation, or reservations only after those capabilities are intentionally added.
 
-**Status:** ⏳ Not started.
+**Status:** 🟡 The full lifecycle is automated and accepted for the manual test pilot. Repeat it through an External-test OAuth installation before calling the self-serve route accepted.
 
 ---
 
@@ -527,7 +531,7 @@ Minimum eventual views:
 
 Later views may add usage counters, renewals, access-decision history, reservations, or reconciliation data as those features become production capabilities.
 
-**Status:** ⏳ Not started.
+**Status:** ✅ v1 live view implemented through the authenticated `apex-operator` Edge Function and console page.
 
 ---
 

@@ -1,17 +1,16 @@
 import { Callout, DataTable, ExampleWalkthrough, H2, PageHeader, SeeAlso, Steps } from '../primitives';
 
 const CONSOLE_NOTE = (
-  <Callout kind="simulated" title="Operator UI is still a preview">
-    The <a href="#console">behind-the-scenes console</a> remains browser-local demo state. The production
-    ledger/API is hosted now, but the live operator dashboard that reads it is still a later phase.
+  <Callout kind="tip" title="Live Operations now reads hosted state">
+    The authenticated console includes a tenant-scoped Live Operations page backed by the deployed
+    <code>apex-operator</code> function. Other console areas remain browser-local demonstrations.
   </Callout>
 );
 
 const WEBHOOK_PILOT_NOTE = (
-  <Callout kind="tip" title="Test-pilot event evidence exists">
-    APEX has verified one Stripe sandbox Checkout event through the workspace-scoped manual webhook path,
-    persisted it as processed, and created one source-attributed 1,000-credit grant. The live operator UI
-    and the refund/replay proof remain future work.
+  <Callout kind="tip" title="Automated test-pilot evidence exists">
+    APEX now runs payment, grant, consume, refund, payment replay, and refund replay against hosted state.
+    The public OAuth-connected repetition remains an External-test acceptance gate.
   </Callout>
 );
 
