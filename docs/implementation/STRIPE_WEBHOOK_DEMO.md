@@ -21,6 +21,8 @@ The September 12 sandbox run completed a $1.00 Checkout, received a processed
 `checkout.session.completed` event, and produced exactly one open 1,000-credit grant.
 It then consumed 750 credits, processed a full Stripe refund, clawed back the remaining 250, recorded the
 750 already spent as unrecoverable, and replayed the refund event without adding a second adjustment.
+The original successful Checkout event was also resent: APEX recorded the delivery retry but retained exactly
+one credit grant and one grant-ledger entry.
 
 ## Do not confuse these paths
 
@@ -48,7 +50,6 @@ It then consumed 750 credits, processed a full Stripe refund, clawed back the re
 1. Rotate all secrets exposed during the first demo, particularly the Supabase PAT and webhook signing secret.
 2. Replace the first-demo deployment-secret fallback with an encrypted unique Dashboard signing secret for
    every workspace.
-3. Resend the original successful Checkout event and verify it creates no second grant.
-4. Add an automated isolated integration test and an operator runbook for failed event investigation/replay.
-5. Do not call the full product lifecycle accepted until the scalable public Stripe App route has also passed
+3. Add an automated isolated integration test and an operator runbook for failed event investigation/replay.
+4. Do not call the full product lifecycle accepted until the scalable public Stripe App route has also passed
    External test and the full lifecycle on a connected customer Stripe account.

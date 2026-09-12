@@ -56,8 +56,8 @@ is “not wired” applies only to the unaccepted Stripe Apps OAuth path, not th
 ### Ordered next steps
 
 1. **Security cleanup:** rotate the exposed Supabase PAT and demo webhook secret.
-2. **Finish the remaining replay proof:** payment → grant, consume 750, refund, and refund replay have now
-   passed. Resend the original payment event and prove it creates no second grant.
+2. **Pilot lifecycle proof is complete:** payment replay, consume 750, full refund, and refund replay now
+   pass without duplicate grants or adjustments. Preserve the evidence in an automated integration test.
 3. **Remove guided-demo coupling:** use encrypted, per-workspace Dashboard secrets and server-side
    product/price mappings rather than Checkout metadata for normal pilot customers.
 4. **Automate the proof:** add an isolated integration test and runbook for payment, duplicate event,
