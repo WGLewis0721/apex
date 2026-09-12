@@ -6,7 +6,9 @@ This directory contains the Stripe App manifest used by APEX to authorize a SaaS
 
 This is **not APEX's own billing account**. It is the connected Stripe account where that SaaS company's end customers pay for subscriptions, credits, tokens, add-ons, or other product value.
 
-Phase 5 establishes the trusted connection only. The hosted wallet/API already exists independently, but connected Stripe payment/refund events are not yet wired into that ledger.
+Phase 5 establishes the trusted connection. The repository also contains the
+Phase 6 connected-account ingress implementation, but it is not accepted until
+it is deployed and exercised through a real connected-account test transaction.
 
 ## External test setup
 
@@ -38,6 +40,33 @@ Callback URI — must match exactly:
 The OAuth client IDs are not secrets. Stripe secret keys and OAuth refresh tokens are secrets and must never be committed or exposed in browser code.
 
 APEX binds the selected OAuth mode into the one-time CSRF `state`. The callback then uses the matching Stripe key for the authorization-code exchange. Stripe requires the developer test key for a Test Mode link and the app's managed-sandbox key for a general Sandbox link.
+
+## Connected-account event destination
+
+After External test is enabled, create a separate Stripe Workbench webhook
+destination that listens to **events on connected accounts**. It must point to:
+
+```text
+https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-connected-stripe-webhook
+```
+
+Select only these v1 events:
+
+- `checkout.session.completed`
+- `checkout.session.async_payment_succeeded`
+- `charge.refunded`
+
+Store the destination signing secret as the Supabase Edge Function secret
+`APEX_CONNECTED_STRIPE_WEBHOOK_SECRET`. This must be a distinct secret from
+APEX's own billing endpoint. The Stripe App manifest requests the event and
+read permissions required by this flow.
+
+Before accepting payments, configure each end customer's
+`customers.stripe_customer_id` and an active `stripe_credit_price_mappings`
+row for every Stripe Price that grants credits. The webhook only grants
+configured Checkout line items. A full `charge.refunded` event claws back
+credits sourced from its original payment; partial refunds are intentionally
+unsupported in frozen v1.
 
 ## Phase 5 acceptance
 

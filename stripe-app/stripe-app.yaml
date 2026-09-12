@@ -1,14 +1,25 @@
+$schema: https://stripe.com/stripe-app/v2.0.0/schema
 id: com.graymatter.apex
 name: APEX
-version: 0.1.0
+version: 0.1.1
 declarations:
-  distribution_type: public
-  sandbox_install_compatible: true
-  stripe_api_access_type: oauth
-  allowed_redirect_uris:
-    - https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-stripe-connect-callback
-  stripe_api_access:
-    permissions:
-      - permission: connected_account_read
-        purpose: Confirm which Stripe account is linked to this APEX workspace.
+    distribution_type: public
+    stripe_api_access:
+        permissions:
+            - permission: connected_account_read
+              purpose: Confirm which Stripe account is linked to this APEX workspace.
+            - permission: event_read
+              purpose: Receive verified payment and refund events from the connected Stripe account.
+            - permission: checkout_session_read
+              purpose: Read completed Checkout Sessions to map configured prices to APEX credits.
+            - permission: payment_intent_read
+              purpose: Read the successful payment that funded an APEX credit grant.
+            - permission: charge_read
+              purpose: Read fully refunded charges before source-scoped credit clawback.
+            - permission: customer_read
+              purpose: Match a Stripe customer to the APEX customer configured by this workspace.
+    stripe_api_access_type: oauth
+    sandbox_install_compatible: true
+    allowed_redirect_uris:
+        - https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-stripe-connect-callback
 extensions: []

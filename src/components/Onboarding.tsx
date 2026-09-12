@@ -45,11 +45,13 @@ import {
 import { backendConfigured, supabase } from '../lib/supabaseClient';
 import {
   getCurrentAccount,
+  getManualStripeWebhook,
   getProvisionedWorkspace,
   getStripeConnection,
   signIn,
   signUpOrSignIn,
   startCheckout,
+  configureManualStripeWebhook,
   startStripeConnect,
   type ProvisionedWorkspace,
 } from '../lib/backend';
@@ -150,6 +152,9 @@ export default function Onboarding() {
   const [waitingForPayment, setWaitingForPayment] = useState(new URLSearchParams(window.location.search).get('checkout') === 'success');
   const [connecting, setConnecting] = useState(false);
   const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+  const [manualWebhook, setManualWebhook] = useState<{ configured: boolean; endpoint: string | null } | null>(null);
+  const [manualSecret, setManualSecret] = useState('');
+  const [manualBusy, setManualBusy] = useState(false);
 
   function apply(next: OnboardingState) {
     setState(next);
@@ -205,6 +210,12 @@ export default function Onboarding() {
     }
   }
 
+  async function refreshManualWebhook() {
+    const generation = authGeneration.current;
+    const result = await getManualStripeWebhook();
+    if (generation === authGeneration.current) setManualWebhook(result);
+  }
+
   useEffect(() => {
     if (!backendConfigured) return;
     let active = true;
@@ -220,7 +231,7 @@ export default function Onboarding() {
           selectedPlan: 'founding',
         }, 'purchase');
         const ready = await refreshWorkspace();
-        if (ready) await refreshStripeConnection();
+        if (ready) { await refreshStripeConnection(); await refreshManualWebhook(); }
       } catch (error) {
         if (active) setBillingError(error instanceof Error ? error.message : 'Could not restore your account.');
       } finally {
@@ -342,7 +353,7 @@ export default function Onboarding() {
         setState({ ...initialOnboarding(), account: { name: account.fullName ?? '', email: account.email, company: account.companyName ?? '' }, accountCreated: true, selectedPlan: 'founding', step: 'purchase' });
         try {
           const ready = await refreshWorkspace();
-          if (ready) await refreshStripeConnection();
+          if (ready) { await refreshStripeConnection(); await refreshManualWebhook(); }
         } catch (error) {
           setBillingError(error instanceof Error ? error.message : 'Could not load workspace status.');
         }
@@ -430,6 +441,20 @@ export default function Onboarding() {
     await paymentConnection.connect();
     apply(onboardingReducer(onboardingReducer(state, { type: 'connect_payments_pending' }), { type: 'connect_payments_succeeded' }));
     setConnecting(false);
+  }
+
+  async function saveManualWebhook() {
+    if (manualBusy || !manualSecret.trim()) return;
+    setManualBusy(true);
+    setBillingError(null);
+    try {
+      const result = await configureManualStripeWebhook(manualSecret.trim());
+      setManualWebhook(result);
+      setManualSecret('');
+      hydrateFromServer({ stack: 'javascript', paymentProviderStatus: 'connected' });
+    } catch (error) {
+      setBillingError(error instanceof Error ? error.message : 'Could not save the Stripe webhook secret.');
+    } finally { setManualBusy(false); }
   }
 
   if (recoveryMode) {
@@ -561,6 +586,11 @@ export default function Onboarding() {
               onConnect={runConnect}
               onContinue={() => goto('launcher')}
               onFinishDemo={() => { window.location.assign('#console'); }}
+              manualWebhook={manualWebhook}
+              manualSecret={manualSecret}
+              manualBusy={manualBusy}
+              onManualSecretChange={setManualSecret}
+              onSaveManualWebhook={saveManualWebhook}
             />
           )}
 
@@ -728,20 +758,25 @@ function WorkspaceStep({ workspaceId, keys, onContinue }: { workspaceId: string 
   );
 }
 
-function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContinue, onFinishDemo }: {
+function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContinue, onFinishDemo, manualWebhook, manualSecret, manualBusy, onManualSecretChange, onSaveManualWebhook }: {
   status: OnboardingState['paymentProviderStatus'];
   connecting: boolean;
   stripeAccountId: string | null;
   onConnect: () => void;
   onContinue: () => void;
   onFinishDemo: () => void;
+  manualWebhook: { configured: boolean; endpoint: string | null } | null;
+  manualSecret: string;
+  manualBusy: boolean;
+  onManualSecretChange: (value: string) => void;
+  onSaveManualWebhook: () => void;
 }) {
   const connected = status === 'connected' || status === 'demo_connected';
   return (
     <>
       <p className="ob-eyebrow">{stepEyebrow('payments', 'CONNECT STRIPE')}</p>
       <h1>Connect Stripe.</h1>
-      <p className="ob-lede">Stripe moves the money. APEX uses those payment events to update what the customer gets inside your product.</p>
+      <p className="ob-lede">Stripe moves the money. This pilot uses a signed Stripe webhook, so there is no OAuth installation gate.</p>
       <ArchitectureStrip />
       <div className="ob-connect">
         <div className="ob-connect-icon"><CreditCard size={20} /></div>
@@ -752,12 +787,21 @@ function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContin
           </div>
           {backendConfigured && stripeAccountId && <small><code>{stripeAccountId}</code></small>}
         </div>
-        {!connected && (
+        {!connected && !backendConfigured && (
           <button className="ob-ghost" onClick={onConnect} disabled={connecting}>
             {connecting ? <><Loader2 size={15} className="ob-spin" /> Connecting…</> : backendConfigured ? (status === 'connecting' ? 'Restart Stripe connection' : 'Connect Stripe') : 'Connect Stripe (demo)'}
           </button>
         )}
       </div>
+      {backendConfigured && <div style={{ marginTop: 20 }}>
+        <p className="ob-note">1. In Stripe Test mode: Developers → Webhooks → Create event destination. Select <code>checkout.session.completed</code> and <code>charge.refunded</code>.</p>
+        <p className="ob-note">2. Paste this endpoint into Stripe:</p>
+        {manualWebhook?.endpoint ? <div className="ob-key-row"><code>{manualWebhook.endpoint}</code><CopyButton text={manualWebhook.endpoint} /></div> : <p className="ob-note">Preparing your secure endpoint…</p>}
+        <p className="ob-note">3. Reveal Stripe’s signing secret and paste it here:</p>
+        <div className="ob-field"><input aria-label="Stripe webhook signing secret" type="password" value={manualSecret} onChange={(e) => onManualSecretChange(e.target.value)} placeholder="whsec_…" autoComplete="off" /></div>
+        <button className="ob-primary" style={{ marginTop: 12 }} onClick={onSaveManualWebhook} disabled={manualBusy || !manualSecret.trim()}>{manualBusy ? <><Loader2 size={15} className="ob-spin" /> Saving…</> : <>Save webhook connection <ArrowRight size={15} /></>}</button>
+        {manualWebhook?.configured && <div className="ob-celebrate" style={{ marginTop: 20 }}><CheckCircle2 size={20} /> Stripe webhook connected. Create a test Checkout Session with <code>apex_credits</code> metadata to grant credits.</div>}
+      </div>}
       <div className="ob-preview-note"><Info size={15} /><span>{backendConfigured ? 'APEX sends you to Stripe’s hosted install page. APEX never receives your Stripe password or secret API key; Stripe returns scoped OAuth credentials to APEX after you approve the app.' : 'This is an interactive preview of the connection state. No Stripe account is actually linked.'}</span></div>
       {backendConfigured ? (
         connected ? <>

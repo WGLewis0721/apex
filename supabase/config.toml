@@ -39,6 +39,20 @@ verify_jwt = true
 # Stripe signature verification is performed against the raw body in the handler.
 verify_jwt = false
 
+[functions.apex-connected-stripe-webhook]
+# Stripe signature verification is performed against the raw body in the handler.
+# This is deliberately separate from APEX's own billing webhook: it receives
+# events from customer accounts that installed the APEX Stripe App.
+verify_jwt = false
+
+[functions.apex-manual-stripe-setup]
+verify_jwt = true
+
+[functions.apex-manual-stripe-webhook]
+# Stripe signature verification is performed against a workspace-specific,
+# encrypted Dashboard endpoint secret in the handler.
+verify_jwt = false
+
 [functions.apex-stripe-connect]
 verify_jwt = true
 

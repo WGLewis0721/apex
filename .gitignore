@@ -7,6 +7,9 @@ dist
 .env.*
 !.env.example
 
+# Local Supabase personal access token used only by the operator CLI.
+stripe-app/supabase-access-token-local.md
+
 .test-build/
 *.tsbuildinfo
 

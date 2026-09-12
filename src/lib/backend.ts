@@ -81,3 +81,6 @@ export const startCheckout = () => invoke<{ url?: string; pending?: boolean; pro
 export const getProvisionedWorkspace = (reveal = false) => invoke<ProvisionedWorkspace | { status: 'pending' }>('apex-workspace', { reveal });
 export const getStripeConnection = () => invoke<StripeConnection>('apex-stripe-connect', { action: 'status' });
 export const startStripeConnect = () => invoke<{ url?: string; status: 'pending' | 'connected'; stripeAccountId?: string }>('apex-stripe-connect', { action: 'start' });
+export type ManualStripeWebhook = { configured: boolean; endpoint: string | null };
+export const getManualStripeWebhook = () => invoke<ManualStripeWebhook>('apex-manual-stripe-setup', { action: 'status' });
+export const configureManualStripeWebhook = (signingSecret: string) => invoke<ManualStripeWebhook>('apex-manual-stripe-setup', { action: 'configure', signingSecret });
