@@ -1,6 +1,6 @@
 id: com.graymatter.apex
 name: APEX
-version: 0.1.0
+version: 0.2.0
 declarations:
   distribution_type: public
   sandbox_install_compatible: true
@@ -11,4 +11,10 @@ declarations:
     permissions:
       - permission: connected_account_read
         purpose: Confirm which Stripe account is linked to this APEX workspace.
+      - permission: event_read
+        purpose: Receive and audit the Stripe events that keep APEX product state synchronized.
+      - permission: payment_intent_read
+        purpose: Turn successful configured payments into source-attributed APEX credit grants.
+      - permission: charge_read
+        purpose: Apply Stripe refunds to the originating APEX credit grant without affecting other purchases.
 extensions: []
