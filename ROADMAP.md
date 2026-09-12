@@ -22,6 +22,52 @@ If not, it is not core APEX work without a strong reason.
 
 See `docs/BUSINESS_MODEL.md` for the canonical commercial model.
 
+## September 12, 2026 execution update — current status override
+
+The Stripe webhook pilot completed a real sandbox Checkout-to-credit proof:
+
+```text
+Stripe Checkout (paid)
+  → Stripe-signed checkout.session.completed
+  → workspace-specific Supabase Edge Function endpoint
+  → persisted stripe_webhook_events receipt
+  → idempotent source-attributed grant_credits(+1000)
+  → open credit_grant / projected balance
+```
+
+Evidence: the Stripe event had no pending webhook deliveries; APEX recorded it as `processed` with no
+error; exactly one open 1,000-credit grant was tied to the payment intent. This satisfies a **test-pilot
+payment → grant proof**, not the whole frozen-v1 acceptance gate. Any older wording below that says ingress
+is “not wired” applies only to the unaccepted Stripe Apps OAuth path, not this verified manual pilot.
+
+### Lessons learned
+
+1. Separate APEX billing from a customer’s Stripe events in code, event destinations, secrets, and proof.
+2. A successful Checkout is not acceptance by itself. Require Stripe payment, persisted webhook event, and
+   one source-attributed grant.
+3. Stripe App OAuth and direct Dashboard webhooks solve different distribution problems. The latter is the
+   shortest controlled-pilot path; the former is the scalable self-serve path.
+4. Never place a Stripe webhook signing secret, Supabase PAT, service key, or APEX secret API key in the
+   browser or repository. Rotate the PAT exposed during this session and rotate the demo webhook secret
+   before sharing the project.
+5. Remote Supabase migration history has legacy version drift. Apply only reviewed migrations and do not run
+   bulk `supabase db push --include-all` until that history is reconciled.
+
+### Ordered next steps
+
+1. **Security cleanup:** rotate the exposed Supabase PAT and demo webhook secret.
+2. **Finish pilot acceptance:** consume from the 1,000-credit grant, refund the Stripe payment, verify only
+   unspent credits are clawed back, then replay both event deliveries.
+3. **Remove guided-demo coupling:** use encrypted, per-workspace Dashboard secrets and server-side
+   product/price mappings rather than Checkout metadata for normal pilot customers.
+4. **Automate the proof:** add an isolated integration test and runbook for payment, duplicate event,
+   consume, refund, refund replay, and ledger reconciliation.
+5. **Publish the thin SDK:** add package tests and release provenance; keep it server-only.
+6. **Build scalable onboarding:** create a public Stripe App under an eligible developer owner, enable
+   sandbox/External test, register connected-account events, and repeat the full acceptance proof.
+7. **Operator visibility:** build a live, tenant-scoped dashboard for connection health, event failures,
+   balance/grant history, and support replay.
+
 ## Canonical product statement
 
 APEX is a hosted payment-and-product-state layer for SaaS products that use Stripe.

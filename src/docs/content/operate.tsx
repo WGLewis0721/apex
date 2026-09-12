@@ -7,6 +7,14 @@ const CONSOLE_NOTE = (
   </Callout>
 );
 
+const WEBHOOK_PILOT_NOTE = (
+  <Callout kind="tip" title="Test-pilot event evidence exists">
+    APEX has verified one Stripe sandbox Checkout event through the workspace-scoped manual webhook path,
+    persisted it as processed, and created one source-attributed 1,000-credit grant. The live operator UI
+    and the refund/replay proof remain future work.
+  </Callout>
+);
+
 /* ============================================================ customer-lookup */
 
 function CustomerLookup() {
@@ -118,6 +126,7 @@ function EventHistory() {
       <PageHeader eyebrow="OPERATE" title="Event history" lede="The credit ledger already explains wallet changes; the full operator timeline will join that with Stripe event/replay state." />
 
       <H2>What exists now</H2>
+      {WEBHOOK_PILOT_NOTE}
       <DataTable
         head={['Source', 'What it explains']}
         rows={[

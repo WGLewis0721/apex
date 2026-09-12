@@ -24,6 +24,19 @@ APEX earns recurring value when it helps a SaaS company:
 
 See [`docs/BUSINESS_MODEL.md`](docs/BUSINESS_MODEL.md) for the canonical commercial model and value filter.
 
+## September 12, 2026 — verified Stripe webhook pilot
+
+APEX now has a deployed **test-mode manual webhook pilot**. A Stripe Checkout Session carrying
+server-created `apex_credits` metadata was paid in a Stripe sandbox; APEX verified the signed event,
+persisted it once, and created exactly one source-attributed open 1,000-credit grant. This is a real
+Stripe → Supabase → APEX ledger proof, not a browser simulation.
+
+The pilot is intentionally not yet the general customer connection product. It uses a workspace-specific
+Stripe Dashboard endpoint and secret rather than self-serve Stripe Apps OAuth. The public Stripe App path
+remains a separate acceptance dependency. See
+[`docs/implementation/STRIPE_WEBHOOK_DEMO.md`](docs/implementation/STRIPE_WEBHOOK_DEMO.md) and
+[`ROADMAP.md`](ROADMAP.md) for the current acceptance boundary and ordered next steps.
+
 ## Who pays who
 
 ```text
