@@ -195,9 +195,11 @@ export default function Onboarding() {
     if (generation !== authGeneration.current) return;
     setStripeAccountId(result.stripeAccountId);
     if (result.status === 'connected') {
-      hydrateFromServer({ stack: 'javascript', paymentProviderStatus: 'connected' }, 'payments');
+      hydrateFromServer({ stack: 'javascript', paymentProviderStatus: 'connected' });
     } else if (result.status === 'pending') {
-      hydrateFromServer({ stack: 'javascript', paymentProviderStatus: 'connecting' }, 'payments');
+      // A redirect can be abandoned or rejected outside APEX. Never let a
+      // stale OAuth attempt displace a payment-verified workspace on restore.
+      hydrateFromServer({ stack: 'javascript', paymentProviderStatus: 'connecting' });
     } else {
       hydrateFromServer({ paymentProviderStatus: 'not_connected' });
     }
