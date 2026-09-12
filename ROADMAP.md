@@ -70,10 +70,9 @@ priority is to preserve this result in automated evidence and remove pilot-only 
 5. **Publish the thin SDK — engineering complete:** server-only client, validation, retry/timeout behavior,
    tests, package contents, and provenance workflow are complete. npm scope ownership and `NPM_TOKEN` are
    the remaining release credentials.
-6. **Build scalable onboarding — code complete, Stripe gate remains:** the eligible public app manifest is
-   aligned to `com.graymatter.apex-dev`, validates, and packages. Stripe currently returns `Forbidden` when
-   uploading version 0.2.0 from the owning account context; External-test selection and the first install
-   remain Dashboard/account-authorized actions.
+6. **Build scalable onboarding — upload complete, Dashboard gate remains:** public app version 0.2.0 is
+   uploaded and ready under the eligible `apex test dev` owner. External-test selection, generated OAuth
+   configuration, and the first install remain Dashboard/account-authorized actions.
 7. **Operator visibility — complete for v1:** `apex-operator` is deployed with confirmed-user plus workspace-
    owner checks, and the console now shows hosted connection, event, balance, and ledger evidence.
 
@@ -195,7 +194,7 @@ Do not invent a queue vendor, new database, new cloud runtime, cache, framework,
 | 2 | Accounts + backend foundation | ✅ Complete |
 | 3 | APEX's own Stripe billing | ✅ Real in test mode |
 | 4 | Paid workspace provisioning | ✅ Real |
-| 5 | Connect customer's Stripe | 🟡 Public OAuth implementation ready; Stripe upload/External-test authorization remains |
+| 5 | Connect customer's Stripe | 🟡 Public OAuth app 0.2.0 uploaded; External-test selection and first install remain |
 | 6 | Hosted product-state core | ✅ Manual pilot accepted; public connected-account acceptance remains |
 | 7 | SDK + customer balance integration | 🟡 SDK release-ready; npm publication credential remains |
 | 8 | Connected Stripe end-to-end proof | ✅ Manual lifecycle automated; public OAuth-connected repetition remains |
