@@ -17,7 +17,13 @@ export async function handler(req: Request): Promise<Response> {
   const connection = checked(await db.from("stripe_connections")
     .select("id,workspace_id").eq("stripe_account_id", event.account).eq("status", "connected").maybeSingle());
   if (!connection) return Response.json({ ignored: true });
-  const payload = { account: event.account, object_id: (event.data.object as { id?: string }).id ?? null };
+  // Durable receipt carries the whole verified event so a retry can reprocess
+  // from APEX's own record rather than re-trusting the network.
+  const payload = {
+    account: event.account,
+    object_id: (event.data.object as { id?: string }).id ?? null,
+    event: event as unknown as Record<string, unknown>,
+  };
   await db.rpc("receive_connected_stripe_event", {
     p_connection_id: connection.id, p_event_id: event.id, p_event_type: event.type,
     p_payload: payload,

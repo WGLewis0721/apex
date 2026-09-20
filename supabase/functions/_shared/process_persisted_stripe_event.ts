@@ -7,6 +7,9 @@ type PersistedPayload = {
   account?: string | null;
   object_id?: string | null;
   mode?: string | null;
+  // The whole Stripe-signature-verified event, stored so a retry can reprocess
+  // from APEX's own record. Absent on receipts written before this was added.
+  event?: Record<string, unknown> | null;
 };
 
 export type PersistedStripeReceipt = {
@@ -19,7 +22,11 @@ export type PersistedStripeReceipt = {
 };
 
 export type ProcessorOutcome =
-  | { kind: "processed" | "replayed" | "ignored" }
+  // Split per kind so callers narrow to the failure members after excluding
+  // the settled ones.
+  | { kind: "processed" }
+  | { kind: "replayed" }
+  | { kind: "ignored" }
   | { kind: "pending_settlement"; reason: string }
   | { kind: "failed"; reason: string; failureClass: "retryable" | "needs_configuration" | "needs_operator" };
 
@@ -52,6 +59,8 @@ export function classifyProcessorFailure(message: string): ProcessorOutcome {
     "manual_checkout_metadata_incomplete",
     "manual_payment_metadata_incomplete",
     "manual_refund_customer_missing",
+    "payment_has_no_mapped_lines",
+    "customer_not_in_workspace",
   ];
   const operator = [
     "refund_source_ambiguous",
@@ -59,6 +68,8 @@ export function classifyProcessorFailure(message: string): ProcessorOutcome {
     "live_mode_event_blocked",
     "stripe_account_mismatch",
     "event_workspace_mismatch",
+    "refund_credit_amount_invalid",
+    "unsupported_ingress_action",
   ];
   if (configuration.some((code) => token.includes(code))) {
     return { kind: "failed", reason: token, failureClass: "needs_configuration" };
@@ -130,7 +141,7 @@ async function loadStripeObject(
 ) {
   if (liveEvent) {
     if (liveEvent.livemode) throw new Error("live_mode_event_blocked");
-    return liveEvent.data.object as Record<string, unknown>;
+    return liveEvent.data.object as unknown as Record<string, unknown>;
   }
   const objectId = receipt.payload.object_id;
   if (!objectId) throw new Error("payment_mapping_incomplete");
@@ -144,7 +155,7 @@ async function loadStripeObject(
     return await stripe.paymentIntents.retrieve(objectId) as unknown as Record<string, unknown>;
   }
   if (receipt.event_type === "charge.refunded") {
-    return await stripe.charges.retrieve(objectId) as unknown as Record<string, unknown>;
+    return await stripe.charges.retrieve(objectId, { expand: ["refunds"] }) as unknown as Record<string, unknown>;
   }
   return { id: objectId };
 }
@@ -160,12 +171,73 @@ async function processConnectedPayment(receipt: PersistedStripeReceipt, session:
   if (!customer || !idOf(session.payment_intent) || grants.length === 0) {
     throw new Error("checkout_mapping_incomplete");
   }
-  const result = checked(await admin().rpc("process_connected_stripe_event", {
+  // Business-action scoped: several Stripe event ids describing this one
+  // purchase produce exactly one ledger effect. Credit amounts come only from
+  // the workspace's server-owned price mappings.
+  const result = checked(await admin().rpc("process_connected_stripe_ingress", {
     p_connection_id: receipt.stripe_connection_id,
     p_event_id: receipt.stripe_event_id,
-    p_customer_id: customer,
-    p_payment_id: idOf(session.payment_intent),
-    p_grants: grants,
+    p_action: {
+      kind: "payment",
+      customer_id: customer,
+      payment_id: idOf(session.payment_intent),
+      lines: (session.line_items?.data ?? [])
+        .map((line: CheckoutLine & { quantity?: number | null }) => ({
+          line_id: line.id,
+          price_id: idOf(line.price),
+          quantity: Number(line.quantity ?? 1),
+        }))
+        .filter((line) => line.price_id),
+    },
+  })) as { replayed?: boolean } | null;
+  return { kind: result?.replayed ? "replayed" : "processed" } satisfies ProcessorOutcome;
+}
+
+/**
+ * A connected purchase described by `payment_intent.succeeded` rather than a
+ * checkout session. It resolves to the same business action, so it can never
+ * add a second grant for a purchase a checkout event already granted.
+ */
+async function processConnectedPaymentIntent(receipt: PersistedStripeReceipt, payment: Stripe.PaymentIntent) {
+  if (payment.status !== "succeeded" || (payment.amount_received ?? 0) <= 0) {
+    return { kind: "pending_settlement", reason: "payment_not_settled" } satisfies ProcessorOutcome;
+  }
+  const stripe = await connectedStripe(receipt.workspace_id);
+  const sessions = await stripe.checkout.sessions.list({
+    payment_intent: payment.id,
+    limit: 1,
+    expand: ["data.line_items"],
+  });
+  const session = sessions.data[0];
+  if (!session) throw new Error("payment_mapping_incomplete");
+  return await processConnectedPayment(receipt, session);
+}
+
+/**
+ * Connected refunds reverse credits in proportion to the money actually
+ * refunded, so a partial refund cannot claw back a full purchase. The credit
+ * quantity itself is derived in Postgres from the originating payment's own
+ * grants, never from this caller.
+ */
+async function processConnectedRefundAction(receipt: PersistedStripeReceipt, charge: Stripe.Charge) {
+  if (!charge.refunded && Number(charge.amount_refunded ?? 0) <= 0) {
+    return { kind: "ignored" } satisfies ProcessorOutcome;
+  }
+  const paymentId = idOf(charge.payment_intent);
+  const refund = (charge.refunds?.data ?? []).find((item) => item.status === "succeeded");
+  if (!paymentId) throw new Error("refund_mapping_incomplete");
+  if (!refund) return { kind: "pending_settlement", reason: "refund_not_settled" } satisfies ProcessorOutcome;
+
+  const result = checked(await admin().rpc("process_connected_stripe_ingress", {
+    p_connection_id: receipt.stripe_connection_id,
+    p_event_id: receipt.stripe_event_id,
+    p_action: {
+      kind: "refund",
+      refund_id: refund.id,
+      payment_id: paymentId,
+      refunded_minor: Number(charge.amount_refunded ?? refund.amount),
+      paid_minor: Number(charge.amount_captured || charge.amount),
+    },
   })) as { replayed?: boolean } | null;
   return { kind: result?.replayed ? "replayed" : "processed" } satisfies ProcessorOutcome;
 }
@@ -261,8 +333,11 @@ export async function processPersistedStripeReceipt(
     ) {
       return await processConnectedPayment(receipt, object as unknown as Stripe.Checkout.Session);
     }
+    if (receipt.event_type === "payment_intent.succeeded") {
+      return await processConnectedPaymentIntent(receipt, object as unknown as Stripe.PaymentIntent);
+    }
     if (receipt.event_type === "charge.refunded") {
-      return await processConnectedRefund(receipt, object as unknown as Stripe.Charge);
+      return await processConnectedRefundAction(receipt, object as unknown as Stripe.Charge);
     }
     checked(await admin().rpc("process_connected_stripe_event", {
       p_connection_id: receipt.stripe_connection_id,

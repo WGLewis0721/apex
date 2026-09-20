@@ -101,3 +101,28 @@ marked passed — free evaluators still run them.
 3. Stripe Dashboard: External-test selection, first install, and creating the connected event destination.
 4. Configure at least one `stripe_credit_price_mappings` row per workspace — without it, no connected
    payment grants anything, by design.
+
+## Convergence pass statuses
+
+| Check ID | Status | Note |
+| --- | --- | --- |
+| OPUS-INGRESS-12 | READY_FOR_FREE_EVALUATION | Static check, no credentials needed. |
+| OPUS-INGRESS-13 | IMPLEMENTED_PENDING_EVALUATION | Migration `phase_6_2_persisted_event_retry` applied live and `apex-stripe-event-retry` deployed; unauthenticated call returns 401 as designed. Credentialed paths not exercised. |
+| OPUS-INGRESS-14 | IMPLEMENTED_PENDING_EVALUATION | Proportional reversal implemented in `process_connected_stripe_ingress`; not run against a real partial refund. |
+| OPUS-INGRESS-15 | IMPLEMENTED_PENDING_EVALUATION | Connected `payment_intent.succeeded` now resolves through the same business action key; not run end to end. |
+
+**Superseded by this pass:** OPUS-INGRESS-09 and OPUS-INGRESS-10 described a `/retry` route on the
+connected webhook, guarded by `APEX_INTERNAL_RETRY_KEY`. That route was removed in favour of the
+`apex-stripe-event-retry` function, so evaluate OPUS-INGRESS-13 instead of those two, and
+`APEX_INTERNAL_RETRY_KEY` is no longer needed. OPUS-INGRESS-03 is also superseded: mode isolation is
+now the handler's blanket refusal of any `livemode` event rather than a per-connection comparison.
+
+**Second deployment record:** applied migration `phase_6_2_persisted_event_retry`; deployed
+`apex-connected-stripe-webhook` (v7) and `apex-stripe-event-retry` (v1). Live smoke: unsigned webhook →
+400, uncredentialed retry → 401. One deliberate difference from the repo file: the live backfill used
+`coalesce(received_at, now())` where the file uses `coalesce(received_at, created_at, now())`; both
+columns exist, and the backfill only touched rows with a null `received_at`.
+
+**Five pre-existing type errors** in the retry layer (`ProcessorOutcome` narrowing and a Stripe object
+cast) were present on the incoming commit and are fixed here; `deno check` is now clean for the
+connected webhook, the retry function, and `apex-api`.

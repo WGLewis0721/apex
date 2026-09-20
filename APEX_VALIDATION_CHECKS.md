@@ -288,3 +288,45 @@ Substitutions: `$WS` workspace uuid, `$CONN` `stripe_connections.id`, `$FN` the 
 - **Command:** Deliver a signed `account.application.deauthorized` for `$CONN`.
 - **Expected:** `stripe_connections.status='disconnected'`, receipt `processed`, no ledger effect.
 - **Required:** Connected test-mode Stripe account.
+
+---
+
+# Convergence pass — checks added this run (OPUS-INGRESS-12+)
+
+The two connected-webhook implementations were merged into one path: the retry/claim layer and
+`processPersistedStripeReceipt` entry point are kept, and its connected branches now call
+`process_connected_stripe_ingress`. `_shared/connected_stripe_ingress.ts` and the `/retry` route it
+carried were deleted, so there is exactly one server-only processing entry point.
+
+## OPUS-INGRESS-12 — One entry point serves delivery and retry
+- **Purpose:** No second processing path exists.
+- **Command:** `grep -rn "process_connected_stripe_ingress\|processPersistedStripeReceipt" supabase/functions/`
+- **Expected:** Only `_shared/process_persisted_stripe_event.ts` calls the ingress RPC; only the
+  connected webhook and `apex-stripe-event-retry` call the entry point. No
+  `_shared/connected_stripe_ingress.ts` exists.
+- **Required:** None (static check).
+
+## OPUS-INGRESS-13 — Retry claim layer is live and authenticated
+- **Purpose:** The durable retry layer works against the deployed schema.
+- **Command:** `curl -X POST -d '{"limit":1}' $FN_RETRY` with no credential, then with a valid
+  `apex_sk_*` key, then with `x-apex-retry-secret: $APEX_EVENT_RETRY_SECRET`.
+- **Expected:** 401 without credentials; with a key, a JSON claim result scoped to that workspace;
+  with the retry secret, an unscoped claim result. `claim_stripe_webhook_events`,
+  `fail_stripe_webhook_event`, and `request_stripe_event_replay` all resolve.
+- **Required:** `apex_sk_*` key and/or the `APEX_EVENT_RETRY_SECRET` function secret.
+
+## OPUS-INGRESS-14 — Partial refunds reverse credits proportionally
+- **Purpose:** A 50% refund must not claw back a full purchase.
+- **Command:** Grant 1000 from a purchase, then refund half the charge in Stripe test mode and let the
+  event process.
+- **Expected:** ~500 credits reversed, not 1000; the frozen rules still hold (source-aware, never
+  negative, already-consumed credits stay consumed and are recorded as unrecoverable).
+- **Required:** Connected test-mode Stripe account with a mapped price.
+
+## OPUS-INGRESS-15 — Connected payment_intent.succeeded resolves to the same purchase
+- **Purpose:** The added connected `payment_intent.succeeded` branch cannot double-grant.
+- **Command:** Deliver `checkout.session.completed` and `payment_intent.succeeded` for one purchase in
+  either order.
+- **Expected:** Exactly one grant for that payment intent; the second event marks its own receipt
+  processed and reports a replay.
+- **Required:** Connected test-mode Stripe account with a mapped price.
