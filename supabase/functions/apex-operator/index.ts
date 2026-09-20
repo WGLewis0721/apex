@@ -29,28 +29,6 @@ export async function handler(req: Request): Promise<Response> {
   try {
     const workspaceId = await ownedWorkspace(req);
     const db = admin();
-    const body = await req.json().catch(() => ({})) as { action?: string; event_id?: string };
-    if (body.action === "replay_event") {
-      if (!body.event_id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.event_id)) {
-        return response({ error: "event_id must be a stripe_webhook_events row uuid" }, 400);
-      }
-      checked(await db.rpc("request_stripe_event_replay", {
-        p_workspace_id: workspaceId,
-        p_event_row_id: body.event_id,
-      }));
-      const forwarded = await fetch(new URL("/functions/v1/apex-stripe-event-retry", Deno.env.get("SUPABASE_URL") || req.url), {
-        method: "POST",
-        headers: {
-          Authorization: req.headers.get("Authorization") ?? "",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ event_id: body.event_id, limit: 1 }),
-      });
-      return new Response(await forwarded.text(), {
-        status: forwarded.status,
-        headers: { "content-type": forwarded.headers.get("content-type") ?? "application/json", "Cache-Control": "no-store" },
-      });
-    }
     const [workspaceResult, connectionsResult, customersResult, accountsResult,
       grantsResult, ledgerResult, eventsResult] = await Promise.all([
       db.from("workspaces").select("id,name,status,created_at").eq("id", workspaceId).single(),

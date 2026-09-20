@@ -71,6 +71,6 @@ verify_jwt = false
 # verifies paid workspace ownership and scopes every query server-side.
 verify_jwt = true
 
-[functions.apex-stripe-event-retry]
-# Scheduler/operator retry. Signature and API-key checks happen in the handler.
+[functions.apex-connected-stripe-retry]
+# Custom scheduler token verified via a service-only Postgres hash check.
 verify_jwt = false

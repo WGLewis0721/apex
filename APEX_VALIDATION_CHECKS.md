@@ -288,3 +288,23 @@ Substitutions: `$WS` workspace uuid, `$CONN` `stripe_connections.id`, `$FN` the 
 - **Command:** Deliver a signed `account.application.deauthorized` for `$CONN`.
 - **Expected:** `stripe_connections.status='disconnected'`, receipt `processed`, no ledger effect.
 - **Required:** Connected test-mode Stripe account.
+
+## ASTRA-RETRY checks — Phase 6.2
+
+Only new retry/replay work is covered. No prior ledger or lifecycle re-evaluation.
+
+| ID | Purpose | Command / manual action | Expected | Stripe credentials / Dashboard / free evaluator |
+| --- | --- | --- | --- | --- |
+| ASTRA-RETRY-001 | Changed server code compiles | `npx deno check --node-modules-dir=manual --config supabase/functions/deno.json supabase/functions/apex-connected-stripe-retry/index.ts supabase/functions/apex-connected-stripe-webhook/index.ts` | Exit 0 | No / No / optional independent rerun |
+| ASTRA-RETRY-002 | Claims, timeout recovery and stale-worker fencing | In an isolated DB fixture, run `claim_connected_stripe_retries(5)` concurrently; age a claim five minutes; reclaim; invoke `process_claimed_stripe_retry` with the old token | Disjoint claims; new claim replaces abandoned claim; stale token cannot mutate ledger | No / DB access / yes |
+| ASTRA-RETRY-003 | Bounded retry and operator recovery | With isolated receipts, call `finish_connected_stripe_retry`; inspect retry_attempts, next_retry_at, last_error, retry_operator_action; exhaust eight attempts, then call service-only `requeue_connected_stripe_retry(receipt_id,workspace_id)` after fixing configuration | 60-second initial backoff doubling to one hour; eight-attempt cap; operator failures stop automatic claims; active leases/processed rows cannot be requeued | No / DB access / yes |
+| ASTRA-RETRY-004 | Account, workspace and mode binding | In isolated fixtures, mismatch the receipt account/workspace/mode with the connection/token; invoke retry; attempt RPCs with anon/authenticated roles | Operator action recorded, no ledger effect; privileged RPCs denied to public clients | Yes for provider path / DB access / yes |
+| ASTRA-RETRY-005 | Safe retry provenance and mapping failure | Use a failed signed test receipt; restore its customer/price configuration and requeue. Confirm `events.retrieve` uses persisted ID and the shared processor. Use an unknown price first | Unknown mapping never grants; failure sanitized; corrected receipt uses existing atomic processor; secrets absent from persisted payload/logs | Yes / Stripe access / yes |
+| ASTRA-RETRY-006 | Deployment and scheduler activation | Apply only the two retry migrations; deploy retry and webhook functions; invoke `enable_connected_stripe_retry(project_url)`; inspect cron job and its HTTP result | Active per-minute job; authenticated request reaches retry function and returns 200 | Existing server secrets / Supabase access / optional independent review |
+
+Legacy receipts without installation-mode provenance remain flagged
+`receipt_binding_missing`; automatic retry does not guess their original mode.
+Manual-pilot and APEX-own-billing events are excluded. Stripe event retrieval depends on
+provider retention and existing event-read OAuth permission. Repeated provider failures
+stop after eight attempts for operator handling.
+

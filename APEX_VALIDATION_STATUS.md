@@ -101,3 +101,42 @@ marked passed — free evaluators still run them.
 3. Stripe Dashboard: External-test selection, first install, and creating the connected event destination.
 4. Configure at least one `stripe_credit_price_mappings` row per workspace — without it, no connected
    payment grants anything, by design.
+
+## ASTRA-RETRY — Phase 6.2
+
+| Check ID | Phase | Status | Evidence / limitation |
+| --- | --- | --- | --- |
+| ASTRA-RETRY-001 | 6.2 | READY_FOR_FREE_EVALUATION | Targeted Deno check executed successfully after installing pinned function dependencies and passing null to Stripe account retrieval. Initial command lacked node_modules; automatic Deno download was interrupted; manual-node-modules command succeeded. |
+| ASTRA-RETRY-002 | 6.2 | IMPLEMENTED_PENDING_EVALUATION | SKIP LOCKED claims, five-minute lease recovery, and transactional token fencing implemented. Concurrency fixtures not executed. |
+| ASTRA-RETRY-003 | 6.2 | IMPLEMENTED_PENDING_EVALUATION | Bounded backoff, eight-attempt cap, sanitized errors, operator stop and service-only requeue implemented. Fault fixtures not executed. |
+| ASTRA-RETRY-004 | 6.2 | IMPLEMENTED_PENDING_EVALUATION | Receipt binding checked before provider retrieval and again under transaction locks; service-only grants. Isolation fixtures not executed. |
+| ASTRA-RETRY-005 | 6.2 | IMPLEMENTED_PENDING_EVALUATION | Existing normalization extracted once into `_shared/connected_event.ts`; initial delivery and retries reuse it. No lifecycle proof run. |
+| ASTRA-RETRY-006 | 6.2 | READY_FOR_FREE_EVALUATION | Two migrations applied to fnmxlmjrkgojowpzrcwa; retry v1 and webhook v4 deployed ACTIVE; cron job 1 enabled every minute. First scheduled HTTP invocation returned 200, timed_out=false, body {"attempted":0}. This proves idle scheduler reachability, not event/lifecycle acceptance. |
+
+### Exact deployment / activation handoff
+
+Target: `fnmxlmjrkgojowpzrcwa` (Apex). Project recovered from RESTORING during this run.
+Applied individually, without bulk history reconciliation:
+- `20260920231219_connected_event_retry.sql`
+- `20260920231711_retry_claim_recovery.sql`
+
+Deployed `apex-connected-stripe-retry` and `apex-connected-stripe-webhook` with their
+shared core, credentials and connected-event module. Custom scheduler authentication
+is enforced before any claim; gateway JWT verification is disabled for that function.
+Token generated inside Postgres, encrypted in Vault, with only a verification hash
+stored in the server-only RLS table. No secret is committed or returned to the caller.
+
+Activated with:
+`select public.enable_connected_stripe_retry('https://fnmxlmjrkgojowpzrcwa.supabase.co');`
+Named job: `apex-connected-stripe-retry`, schedule `* * * * *`, batch 5 (DB maximum 10).
+Calling enable again rotates the scheduler token and updates the named job.
+To stop: `select cron.unschedule('apex-connected-stripe-retry');`.
+To requeue after correcting configuration, use the privileged
+`requeue_connected_stripe_retry(receipt_id, workspace_id)` RPC. It cannot upgrade old
+receipts lacking original mode provenance. Existing ledger functions are unchanged.
+
+Commands: Supabase CLI migration new (twice), pinned function `npm ci`, targeted Deno
+check, `git diff --check`, git commit/push; Supabase apply_migration, deploy_edge_function,
+and the scheduler activation SQL. No broad tests, real purchases/refunds, or Phase 8 proof.
+Previous local Phase 5 work was preserved in its original checkout, not included here.
+

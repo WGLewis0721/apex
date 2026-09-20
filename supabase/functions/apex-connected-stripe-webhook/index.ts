@@ -1,6 +1,6 @@
 import Stripe from "npm:stripe@22.4.0";
 import { admin, checked, env } from "../_shared/core.ts";
-import { processPersistedStripeReceipt } from "../_shared/process_persisted_stripe_event.ts";
+import { processConnectedEvent } from "../_shared/connected_event.ts";
 
 export async function handler(req: Request): Promise<Response> {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
@@ -17,37 +17,28 @@ export async function handler(req: Request): Promise<Response> {
   const connection = checked(await db.from("stripe_connections")
     .select("id,workspace_id").eq("stripe_account_id", event.account).eq("status", "connected").maybeSingle());
   if (!connection) return Response.json({ ignored: true });
-  const payload = { account: event.account, object_id: (event.data.object as { id?: string }).id ?? null };
+  const token = checked(await db.from("stripe_oauth_tokens")
+    .select("install_mode,livemode").eq("workspace_id", connection.workspace_id).maybeSingle());
   await db.rpc("receive_connected_stripe_event", {
     p_connection_id: connection.id, p_event_id: event.id, p_event_type: event.type,
-    p_payload: payload,
+    p_payload: { account: event.account, object_id: (event.data.object as { id?: string }).id ?? null,
+      ingress: "connected_v1", livemode: event.livemode,
+      install_mode: token?.livemode === false ? token.install_mode : null },
   }).then(checked);
 
-  const outcome = await processPersistedStripeReceipt({
-    id: event.id,
-    workspace_id: connection.workspace_id,
-    stripe_connection_id: connection.id,
-    stripe_event_id: event.id,
-    event_type: event.type,
-    payload,
-  }, event);
-
-  if (outcome.kind === "processed" || outcome.kind === "replayed" || outcome.kind === "ignored") {
-    return Response.json({ received: true, outcome: outcome.kind });
+  try {
+    return await processConnectedEvent(event, connection, async (args) =>
+      checked(await db.rpc("process_connected_stripe_event", args)));
+  } catch {
+    // The receipt RPC committed before processing begins. Keep this failure
+    // replayable without retaining provider or customer data in the error.
+    await db.from("stripe_webhook_events").update({
+      status: "failed", last_error: "connected_event_processing_failed",
+      updated_at: new Date().toISOString(),
+    }).eq("stripe_connection_id", connection.id).eq("stripe_event_id", event.id);
+    console.error("APEX connected Stripe webhook processing failed", event.id);
+    return new Response("Processing failed; retry required", { status: 500 });
   }
-
-  const row = checked(await db.from("stripe_webhook_events").select("id")
-    .eq("stripe_connection_id", connection.id).eq("stripe_event_id", event.id).single());
-  if (row?.id) {
-    await db.rpc("fail_stripe_webhook_event", {
-      p_event_row_id: row.id,
-      p_reason: outcome.reason,
-      p_failure_class: outcome.kind === "pending_settlement" ? "pending_settlement" : outcome.failureClass,
-    });
-  }
-  if (outcome.kind === "pending_settlement") return Response.json({ pending: true });
-  console.error("APEX connected Stripe webhook processing failed", event.id);
-  return new Response("Processing failed; retry required", { status: 500 });
 }
 
 if (import.meta.main) Deno.serve(handler);
