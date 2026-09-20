@@ -808,10 +808,14 @@ function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContin
         <button className="ob-primary" style={{ marginTop: 12 }} onClick={onSaveManualWebhook} disabled={manualBusy || !manualSecret.trim()}>{manualBusy ? <><Loader2 size={15} className="ob-spin" /> Saving…</> : <>Save webhook connection <ArrowRight size={15} /></>}</button>
         {manualWebhook?.configured && <div className="ob-celebrate" style={{ marginTop: 20 }}><CheckCircle2 size={20} /> Stripe webhook connected. Create a test Checkout Session with <code>apex_credits</code> metadata to grant credits.</div>}
       </div>}
-      <div className="ob-preview-note"><Info size={15} /><span>{backendConfigured ? 'APEX sends you to Stripe’s hosted install page. APEX never receives your Stripe password or secret API key; Stripe returns scoped OAuth credentials to APEX after you approve the app.' : 'This is an interactive preview of the connection state. No Stripe account is actually linked.'}</span></div>
+      <div className="ob-preview-note"><Info size={15} /><span>{backendConfigured
+        ? (manualWebhook?.configured
+          ? 'This pilot connection uses your signed Stripe test webhook. APEX stores the webhook secret encrypted and uses verified Stripe events to drive product state.'
+          : 'Connect Stripe through the available test integration. APEX never needs your Stripe password.')
+        : 'This is an interactive preview of the connection state. No Stripe account is actually linked.'}</span></div>
       {backendConfigured ? (
         connected ? <>
-          <div className="ob-celebrate" style={{ marginTop: 20 }}><CheckCircle2 size={20} /> Stripe account connected. Step 5 is complete.</div>
+          <div className="ob-celebrate" style={{ marginTop: 20 }}><CheckCircle2 size={20} /> {manualWebhook?.configured && !stripeAccountId ? 'Stripe webhook connected. Pilot Step 5 is complete.' : 'Stripe account connected. Step 5 is complete.'}</div>
           <button className="ob-primary" style={{ marginTop: 20 }} onClick={onContinue}>Continue to Install APEX <ArrowRight size={15} /></button>
         </> : <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 }}>
           <button className="ob-primary" onClick={onFinishDemo}>Payment test complete <ArrowRight size={15} /></button>
