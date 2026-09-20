@@ -275,7 +275,9 @@ export default function Onboarding() {
   const progress = checklistProgress(state);
 
   function goto(step: OnboardingStep) {
-    if (backendConfigured && stepIndex(step) > stepIndex('payments')) return;
+    // Backend users may enter the Install step once Stripe is connected.
+    // Go-live remains gated until the real install/verification path exists.
+    if (backendConfigured && stepIndex(step) > stepIndex('launcher')) return;
     if (stepIndex(step) > stepIndex(furthest)) return;
     dispatch({ type: 'goto', step });
   }
@@ -594,14 +596,18 @@ export default function Onboarding() {
             />
           )}
 
-          {state.step === 'launcher' && !backendConfigured && (
-            <LauncherStep
-              launcherStage={state.launcherStage}
-              email={state.account?.email ?? null}
-              workspaceId={state.workspaceId}
-              onProgress={(stage) => dispatch({ type: 'launcher_progress', stage })}
-              onOpenDashboard={() => dispatch({ type: 'enter_complete' })}
-            />
+          {state.step === 'launcher' && (
+            backendConfigured ? (
+              <BackendInstallStep workspaceId={state.workspaceId} />
+            ) : (
+              <LauncherStep
+                launcherStage={state.launcherStage}
+                email={state.account?.email ?? null}
+                workspaceId={state.workspaceId}
+                onProgress={(stage) => dispatch({ type: 'launcher_progress', stage })}
+                onOpenDashboard={() => dispatch({ type: 'enter_complete' })}
+              />
+            )
           )}
 
           {state.step === 'complete' && !backendConfigured && (
@@ -806,7 +812,7 @@ function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContin
       {backendConfigured ? (
         connected ? <>
           <div className="ob-celebrate" style={{ marginTop: 20 }}><CheckCircle2 size={20} /> Stripe account connected. Step 5 is complete.</div>
-          <button className="ob-primary" style={{ marginTop: 20 }} disabled>Install APEX — next step</button>
+          <button className="ob-primary" style={{ marginTop: 20 }} onClick={onContinue}>Continue to Install APEX <ArrowRight size={15} /></button>
         </> : <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 }}>
           <button className="ob-primary" onClick={onFinishDemo}>Payment test complete <ArrowRight size={15} /></button>
           <span className="ob-note">Connecting Stripe is optional for this test.</span>
@@ -814,6 +820,25 @@ function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContin
       ) : (
         <button className="ob-primary" style={{ marginTop: 20 }} disabled={!connected} onClick={onContinue}>Continue to install <ArrowRight size={15} /></button>
       )}
+    </>
+  );
+}
+
+function BackendInstallStep({ workspaceId }: { workspaceId: string | null }) {
+  return (
+    <>
+      <p className="ob-eyebrow">{stepEyebrow('launcher', 'INSTALL APEX')}</p>
+      <h1>Install APEX.</h1>
+      <p className="ob-lede">Your APEX workspace and Stripe connection are ready. The hosted APEX API is live; the remaining client-install gate is package distribution.</p>
+      <ArchitectureStrip />
+      <div className="ob-celebrate"><CheckCircle2 size={20} /> Workspace linked{workspaceId ? <> · <code>{workspaceId}</code></> : null}</div>
+      <CodeBlock label="Server SDK (when published)" code="npm install @apex/sdk" />
+      <CodeBlock label="Guided CLI (when published)" code="npx @apex/cli init" />
+      <div className="ob-preview-note">
+        <Info size={15} />
+        <span><strong>Install package publication is the remaining gate.</strong> The SDK code is release-ready, but <code>@apex/sdk</code> and <code>@apex/cli</code> are not published to npm yet. APEX will not mark Go live complete until the real package can be installed and verified.</span>
+      </div>
+      <p className="ob-note">This is now a real onboarding step, not a dead end. Once npm publication is available, this screen can execute the real install/verification flow without changing the Stripe connection you already completed.</p>
     </>
   );
 }
