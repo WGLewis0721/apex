@@ -70,3 +70,7 @@ verify_jwt = false
 # Browser access requires a confirmed Supabase session; the handler also
 # verifies paid workspace ownership and scopes every query server-side.
 verify_jwt = true
+
+[functions.apex-stripe-event-retry]
+# Scheduler/operator retry. Signature and API-key checks happen in the handler.
+verify_jwt = false
