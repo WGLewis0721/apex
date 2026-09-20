@@ -195,7 +195,7 @@ Do not invent a queue vendor, new database, new cloud runtime, cache, framework,
 | 3 | APEX's own Stripe billing | ✅ Real in test mode |
 | 4 | Paid workspace provisioning | ✅ Real |
 | 5 | Connect customer's Stripe | 🟡 Public OAuth app 0.2.0 uploaded; External-test selection and first install remain |
-| 6 | Hosted product-state core | ✅ Manual pilot accepted; public connected-account acceptance remains |
+| 6 | Hosted product-state core | ✅ Manual pilot accepted; 6.4 expiry reconciliation and 6.5 support timeline implemented pending evaluation; public connected-account acceptance remains |
 | 7 | SDK + customer balance integration | 🟡 SDK release-ready; npm publication credential remains |
 | 8 | Connected Stripe end-to-end proof | ✅ Manual lifecycle automated; public OAuth-connected repetition remains |
 | 9 | Live operator dashboard | ✅ Tenant-scoped hosted event and ledger view deployed |
@@ -405,9 +405,11 @@ Planned capabilities include:
 
 ### Expiry boundary
 
-`credit_grants.expires_at` already exists and consume skips expired grants, but v1 does **not** yet reconcile expired grant remainder out of `credit_accounts.remaining`. Therefore expiring grants are not a supported production feature yet. Frozen v1 grants should be non-expiring until expiry reconciliation is implemented and tested.
+`credit_grants.expires_at` already exists and consume skips expired grants. Expiry reconciliation is now implemented: `expire_credit_grants` moves an expired grant's remainder out of `credit_accounts.remaining` inside the same transactional boundary used by grant/consume/refund, appends an `expire` ledger entry, and is replay-safe because an expired grant is closed to `remaining_amount = 0 / status = 'expired'`. `check_credit_reconciliation` reports the projection against open grant remainders and flags pending expiry work. Both are exposed through `apex-api` (`POST /v1/maintenance/expire-grants`, `GET /v1/customers/:id/reconciliation`), so ordinary Supabase/Postgres scheduling can drive it; no queue product was added.
 
-**Status:** ⏳ Planned after core ingress proof/customer need.
+Expiring grants remain unaccepted in production until the hosted reconciliation checks are evaluated against real data. Recurring allowance grants, rollover policy, failed-payment recovery state, Stripe↔APEX reconciliation, and broader usage counters are still planned and still gated on customer need.
+
+**Status:** 🟡 Expiry reconciliation implemented and deployed-ready (pending evaluation); renewals/rollover/broader metering remain planned.
 
 ---
 
@@ -428,7 +430,11 @@ The append-only ledger already provides the core credit audit. Future operator v
 
 Every meaningful state change should answer: **what happened, to whom, why, from which Stripe/APEX event, and when?**
 
-**Status:** 🟡 Core credit ledger exists; operator/support timeline remains planned.
+`get_customer_timeline` now answers exactly that question for one customer by merging, in time order, the customer's verified Stripe webhook events, source-attributed grants, append-only credit ledger entries (including `unrecoverable` and `expire`), and access decisions with their machine-readable DENY reason. It is read-only, tenant-scoped, service-role only, creates no second source of truth, and is served at `GET /v1/customers/:id/timeline`.
+
+Still planned: recurring grant history, entitlement/access change history, and manual corrections — each only when the underlying capability exists.
+
+**Status:** 🟡 Customer support/audit timeline implemented (pending evaluation); recurring/entitlement-change/manual-correction history remains planned.
 
 ### Frozen Phase 6 v1 acceptance
 

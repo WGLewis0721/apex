@@ -45,3 +45,31 @@ test('retries transient responses and returns structured terminal errors', async
 test('rejects browser-style or malformed credentials', () => {
   assert.throws(() => new ApexClient({ apiKey: 'pk_test_public' }), /server-side/);
 });
+
+test('timeline requests the audit history with a bounded limit', async () => {
+  let request;
+  const client = new ApexClient({ apiKey: key, fetch: async (url, init) => {
+    request = { url, init };
+    return json({ customer_id: 'c', remaining: 0, version: 4, entry_count: 0, limit: 25, entries: [], as_of: 'now' });
+  }});
+  assert.equal((await client.timeline('11111111-1111-4111-8111-111111111111', 25)).limit, 25);
+  assert.match(request.url, /\/timeline\?limit=25$/);
+  assert.equal(request.init.method, undefined);
+  assert.throws(() => client.timeline('id', 0), /between 1 and 500/);
+  assert.throws(() => client.timeline('id', 501), /between 1 and 500/);
+});
+
+test('reconciliation reports pending expiry reconciliation', async () => {
+  let request;
+  const client = new ApexClient({ apiKey: key, fetch: async (url, init) => {
+    request = { url, init };
+    return json({
+      customer_id: 'c', projected_remaining: 1000, spendable_grant_remaining: 0,
+      expired_unreconciled_remaining: 1000, reconciled: true,
+      expiry_reconciliation_pending: true, as_of: 'now',
+    });
+  }});
+  const result = await client.reconciliation('11111111-1111-4111-8111-111111111111');
+  assert.equal(result.expiry_reconciliation_pending, true);
+  assert.match(request.url, /\/reconciliation$/);
+});

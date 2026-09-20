@@ -188,11 +188,16 @@ Refunding A cannot steal credits from grant B. Already-consumed product work rem
 GET  /v1/customers/:id/balance
 GET  /v1/customers/:id/entitlements
 POST /v1/customers/:id/consume
+GET  /v1/customers/:id/timeline
+GET  /v1/customers/:id/reconciliation
+POST /v1/maintenance/expire-grants
 ```
 
 `GET /entitlements` is read-only and includes `remaining`, `version`, and `as_of`. It may inform UI/preflight behavior but does not authorize scarce-credit spend.
 
 `POST /consume` is the current authoritative spend boundary.
+
+`GET /timeline` (Phase 6.5) is a read-only support/audit explanation of one customer's Stripe events, grants, credit ledger entries, and access decisions, including the machine-readable reason for every DENY. `GET /reconciliation` and `POST /maintenance/expire-grants` (Phase 6.4) report and reconcile expired grant remainders against the balance projection. None of these are spend authorizations.
 
 ## The connected Stripe proof APEX must demonstrate
 

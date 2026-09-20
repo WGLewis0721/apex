@@ -13,6 +13,31 @@ export type ConsumeResult = Balance & {
   replayed: boolean;
 };
 
+export type TimelineEntry = {
+  occurred_at: string;
+  event_type: string;
+  explanation: string;
+  detail: Record<string, unknown>;
+};
+export type Timeline = {
+  customer_id: string;
+  remaining: number;
+  version: number;
+  entry_count: number;
+  limit: number;
+  entries: TimelineEntry[];
+  as_of: string;
+};
+export type Reconciliation = {
+  customer_id: string;
+  projected_remaining: number;
+  spendable_grant_remaining: number;
+  expired_unreconciled_remaining: number;
+  reconciled: boolean;
+  expiry_reconciliation_pending: boolean;
+  as_of: string;
+};
+
 export type ApexClientOptions = {
   apiKey: string;
   baseUrl?: string;
@@ -95,6 +120,17 @@ export class ApexClient {
 
   entitlements(customerId: string): Promise<Entitlements> {
     return this.request(`/v1/customers/${encodeURIComponent(customerId)}/entitlements`);
+  }
+
+  /** Read-only support/audit history. Advisory, like entitlements: never a spend authorization. */
+  timeline(customerId: string, limit = 100): Promise<Timeline> {
+    if (!Number.isInteger(limit) || limit <= 0 || limit > 500) throw new Error("limit must be an integer between 1 and 500");
+    return this.request(`/v1/customers/${encodeURIComponent(customerId)}/timeline?limit=${limit}`);
+  }
+
+  /** Read-only comparison of the balance projection against open grant remainders. */
+  reconciliation(customerId: string): Promise<Reconciliation> {
+    return this.request(`/v1/customers/${encodeURIComponent(customerId)}/reconciliation`);
   }
 
   consume(customerId: string, amount: number, idempotencyKey: string): Promise<ConsumeResult> {
