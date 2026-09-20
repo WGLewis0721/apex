@@ -24,6 +24,24 @@ APEX earns recurring value when it helps a SaaS company:
 
 See [`docs/BUSINESS_MODEL.md`](docs/BUSINESS_MODEL.md) for the canonical commercial model and value filter.
 
+## September 12, 2026 — automated Stripe lifecycle pilot
+
+APEX now has a deployed **test-mode manual webhook pilot**. A Stripe Checkout Session carrying
+server-created `apex_credits` metadata was paid in a Stripe sandbox; APEX verified the signed event,
+persisted it once, and created exactly one source-attributed open 1,000-credit grant. This is a real
+Stripe → Supabase → APEX ledger proof, not a browser simulation.
+
+The same lifecycle is now reproducible with `scripts/run-stripe-lifecycle-proof.ps1`, including consume,
+refund, payment replay, refund replay, and final-ledger assertions. An authenticated **Live Operations**
+console reads the hosted tenant-scoped event and credit history. The pilot is intentionally not yet the
+general customer connection product. It uses a workspace-specific
+Stripe Dashboard endpoint and secret rather than self-serve Stripe Apps OAuth. The public Stripe App path
+remains a separate acceptance dependency. See
+[`docs/implementation/STRIPE_WEBHOOK_DEMO.md`](docs/implementation/STRIPE_WEBHOOK_DEMO.md) and
+[`ROADMAP.md`](ROADMAP.md) for the current acceptance boundary and ordered next steps.
+The remaining public-app account action is isolated in
+[`docs/implementation/STRIPE_PUBLIC_APP_HANDOFF.md`](docs/implementation/STRIPE_PUBLIC_APP_HANDOFF.md).
+
 ## Who pays who
 
 ```text
@@ -71,7 +89,7 @@ Frozen v1 does **not** include public `/check`, reservations/finalize/cancel, si
 
 See [`docs/architecture/APEX_V1_LEDGER.md`](docs/architecture/APEX_V1_LEDGER.md).
 
-## Current implementation status — September 9, 2026
+## Current implementation status — September 12, 2026
 
 | Capability | Status |
 | --- | --- |
@@ -86,14 +104,22 @@ See [`docs/architecture/APEX_V1_LEDGER.md`](docs/architecture/APEX_V1_LEDGER.md)
 | Per-grant credit attribution + append-only ledger | ✅ Deployed |
 | Source-aware non-negative refund RPC | ✅ Deployed; connected Stripe refund ingress not wired |
 | Hosted concurrency proof | ✅ Passed — parallel 750/750 against 1000 produced one ALLOW, one DENY, remaining 250 |
-| Connected Stripe payment → grant ingress | ⏳ Not wired |
-| Connected Stripe refund → clawback ingress | ⏳ Not wired |
-| First public `@apex/sdk` | ⏳ Planned |
+| Manual Stripe payment → grant ingress | ✅ Deployed and automation-proven |
+| Manual Stripe refund → clawback ingress | ✅ Deployed and automation-proven |
+| Public connected-account ingress | 🟡 Deployed code; External-test install still required |
+| First public `@apex/sdk` | 🟡 Built, tested, pack-ready; npm authentication/ownership required to publish |
 | Signed/local entitlement evaluation | ⏳ v1.1+ only if customer need justifies it |
 | Reservations | ⏳ Not v1; only if start-now/finish-later workload requires them |
 | Expiring grants | ⏳ Not production-supported until projection reconciliation exists |
 | End-to-end connected Stripe proof | ⏳ Pending Phase 5 + ingress |
-| Live operator dashboard | ⏳ Planned |
+| Live operator dashboard | ✅ Deployed API and authenticated console view |
+
+### Status clarification
+
+The legacy phase table below describes the still-unaccepted **Stripe Apps OAuth / connected-account** route.
+The separate manual Dashboard-webhook pilot has now proved payment, grant, consume, refund, payment replay,
+and refund replay against hosted APEX state. It is complete demo evidence, but not production acceptance for
+multi-workspace self-service onboarding.
 
 ## What is proven now
 
@@ -162,11 +188,16 @@ Refunding A cannot steal credits from grant B. Already-consumed product work rem
 GET  /v1/customers/:id/balance
 GET  /v1/customers/:id/entitlements
 POST /v1/customers/:id/consume
+GET  /v1/customers/:id/timeline
+GET  /v1/customers/:id/reconciliation
+POST /v1/maintenance/expire-grants
 ```
 
 `GET /entitlements` is read-only and includes `remaining`, `version`, and `as_of`. It may inform UI/preflight behavior but does not authorize scarce-credit spend.
 
 `POST /consume` is the current authoritative spend boundary.
+
+`GET /timeline` (Phase 6.5) is a read-only support/audit explanation of one customer's Stripe events, grants, credit ledger entries, and access decisions, including the machine-readable reason for every DENY. `GET /reconciliation` and `POST /maintenance/expire-grants` (Phase 6.4) report and reconcile expired grant remainders against the balance projection. None of these are spend authorizations.
 
 ## The connected Stripe proof APEX must demonstrate
 

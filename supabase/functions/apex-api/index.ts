@@ -27,13 +27,40 @@ export async function handler(req: Request): Promise<Response> {
   try {
     const identity = await authenticateApexApi(req);
     const parts = routeParts(req);
-    if (parts[0] !== "v1" || parts[1] !== "customers" || !isUuid(parts[2])) {
+    if (parts[0] !== "v1") return json({ error: "Not found" }, 404);
+    const db = admin();
+
+    // Phase 6.4 maintenance: reconcile expired grant remainders out of the
+    // balance projection. Replay-safe, so a scheduler may call it repeatedly.
+    if (parts[1] === "maintenance" && parts[2] === "expire-grants") {
+      if (req.method !== "POST") return json({ error: "Not found" }, 404);
+      const body = await req.json().catch(() => null) as
+        | { customer_id?: string; limit?: number }
+        | null;
+      const maintenanceCustomerId = body?.customer_id;
+      if (maintenanceCustomerId !== undefined && !isUuid(maintenanceCustomerId)) {
+        return json({ error: "customer_id must be a customer uuid" }, 400);
+      }
+      const limit = body?.limit;
+      if (limit !== undefined && (!Number.isInteger(limit) || limit <= 0 || limit > 500)) {
+        return json({ error: "limit must be an integer between 1 and 500" }, 400);
+      }
+
+      const { data, error } = await db.rpc("expire_credit_grants", {
+        p_workspace_id: identity.workspaceId,
+        p_customer_id: maintenanceCustomerId ?? null,
+        p_limit: limit ?? 500,
+      });
+      if (error) throw error;
+      return json(data);
+    }
+
+    if (parts[1] !== "customers" || !isUuid(parts[2])) {
       return json({ error: "Not found" }, 404);
     }
 
     const customerId = parts[2];
     const action = parts[3];
-    const db = admin();
 
     if (req.method === "GET" && action === "balance") {
       const { data, error } = await db.rpc("get_credit_balance", {
@@ -46,6 +73,32 @@ export async function handler(req: Request): Promise<Response> {
 
     if (req.method === "GET" && action === "entitlements") {
       const { data, error } = await db.rpc("get_customer_entitlements", {
+        p_workspace_id: identity.workspaceId,
+        p_customer_id: customerId,
+      });
+      if (error) throw error;
+      return json(data);
+    }
+
+    // Phase 6.5 support/audit timeline. Read-only; never a spend authorization.
+    if (req.method === "GET" && action === "timeline") {
+      const limitParam = new URL(req.url).searchParams.get("limit");
+      const limit = limitParam === null ? 100 : Number(limitParam);
+      if (!Number.isInteger(limit) || limit <= 0 || limit > 500) {
+        return json({ error: "limit must be an integer between 1 and 500" }, 400);
+      }
+      const { data, error } = await db.rpc("get_customer_timeline", {
+        p_workspace_id: identity.workspaceId,
+        p_customer_id: customerId,
+        p_limit: limit,
+      });
+      if (error) throw error;
+      return json(data);
+    }
+
+    // Phase 6.4 read-only reconciliation view of the balance projection.
+    if (req.method === "GET" && action === "reconciliation") {
+      const { data, error } = await db.rpc("check_credit_reconciliation", {
         p_workspace_id: identity.workspaceId,
         p_customer_id: customerId,
       });

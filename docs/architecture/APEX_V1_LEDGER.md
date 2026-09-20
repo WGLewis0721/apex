@@ -43,6 +43,9 @@ POST /stripe/webhook
 GET  /v1/customers/:id/balance
 GET  /v1/customers/:id/entitlements
 POST /v1/customers/:id/consume
+GET  /v1/customers/:id/timeline
+GET  /v1/customers/:id/reconciliation
+POST /v1/maintenance/expire-grants
 ```
 
 `GET /entitlements` includes `remaining`, `version`, and `as_of` so the same document can later become a signed v1.1 snapshot without changing its basic shape.
