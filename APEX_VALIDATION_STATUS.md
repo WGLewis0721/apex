@@ -74,3 +74,30 @@ event describing the same purchase reached `grant_credits` with a different stor
 rejected as `idempotency_key_reused` instead of replaying. The processor now returns the recorded outcome
 from `credit_operations` for an action already effected, so one purchase yields exactly one grant. This was
 observed and re-verified locally.
+
+## Deployment record (hosted, this run)
+
+Applied to Supabase project `fnmxlmjrkgojowpzrcwa` and deployed from this session:
+
+- migrations applied: `phase_6_4_expiry_reconciliation`, `phase_6_5_customer_timeline`,
+  `connected_stripe_ingress_normalization` (all reported success; applied individually, not via
+  `db push --include-all`).
+- edge functions deployed: `apex-api` (v6), `apex-connected-stripe-webhook` (v5).
+- privilege check against the live database: `expire_credit_grants`, `check_credit_reconciliation`,
+  `get_customer_timeline`, `process_connected_stripe_ingress`, and `resolve_stripe_price_credits` are
+  executable by `service_role` only (`anon` and `authenticated` have no execute privilege).
+- live smoke responses observed: unsigned connected webhook → `400 Invalid signature`; unauthenticated
+  `apex-api` timeline → `401 Unauthorized`; `/retry` without a configured key → `503 Retry entry point is
+  not configured`.
+
+This records deployment only. It is not lifecycle acceptance, and no OPUS-INGRESS or APEX-* check above is
+marked passed — free evaluators still run them.
+
+**Remaining configuration/user actions:**
+
+1. Set the `APEX_INTERNAL_RETRY_KEY` function secret before the retry entry point can serve the scheduler
+   (it currently refuses every call with 503 by design).
+2. Set `STRIPE_CONNECTED_WEBHOOK_SECRET` to the connected event destination's signing secret.
+3. Stripe Dashboard: External-test selection, first install, and creating the connected event destination.
+4. Configure at least one `stripe_credit_price_mappings` row per workspace — without it, no connected
+   payment grants anything, by design.
