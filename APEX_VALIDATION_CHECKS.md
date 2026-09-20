@@ -192,6 +192,102 @@ Substitutions used below:
 - **Evaluator type:** Automated (CLI + HTTP).
 - **Credentials / user action required:** Supabase project access with Edge Function deploy rights.
 
+---
+
+# Phase 6.2 connected Stripe ingress — checks added this run (OPUS-INGRESS-*)
+
+Files under test: `supabase/migrations/20260920140000_connected_stripe_ingress_normalization.sql`,
+`supabase/functions/_shared/connected_stripe_ingress.ts`,
+`supabase/functions/apex-connected-stripe-webhook/index.ts`.
+
+Substitutions: `$WS` workspace uuid, `$CONN` `stripe_connections.id`, `$FN` the deployed
+`apex-connected-stripe-webhook` URL.
+
+## OPUS-INGRESS-01 — Ingress migration applies and keeps the pilot path intact
+- **Purpose:** Confirm the new normalization objects install without disturbing the accepted manual pilot.
+- **Command:** Apply `supabase/migrations/20260920140000_connected_stripe_ingress_normalization.sql` alone.
+- **Expected:** Applies cleanly. `process_connected_stripe_ingress` and `resolve_stripe_price_credits` exist
+  (service_role execute only); `stripe_connections.livemode` exists defaulting to false; the pre-existing
+  `receive_connected_stripe_event` and `process_connected_stripe_event` are unchanged.
+- **Required:** Supabase migration access.
+
+## OPUS-INGRESS-02 — Unsigned or tampered bodies are rejected before interpretation
+- **Purpose:** Raw-body signature verification precedes any parsing or ledger effect.
+- **Command:** `curl -X POST -d '{"type":"payment_intent.succeeded"}' $FN` and again with a valid body but a
+  mutated `stripe-signature` header.
+- **Expected:** `400 Invalid signature` both times; no `stripe_webhook_events` row is created.
+- **Required:** Deployed function URL. No Stripe account needed.
+
+## OPUS-INGRESS-03 — Live events cannot be attributed to a test connection
+- **Purpose:** Explicit test/live isolation.
+- **Command:** Send a correctly signed connected event with `livemode: true` for a connection whose
+  `livemode` is false (Stripe CLI or a signed fixture).
+- **Expected:** The event is acknowledged as ignored, no receipt is processed, and no grant is created.
+- **Required:** Connected webhook signing secret.
+
+## OPUS-INGRESS-04 — Durable receipt exists before any ledger work
+- **Purpose:** Prove the receipt is written first and survives processing failure.
+- **Command:** Deliver a signed connected event for a price that has no mapping, then
+  `select status,attempt_count,last_error,payload is not null from stripe_webhook_events where stripe_event_id='<evt>'`.
+- **Expected:** Row exists with the full verified payload, `status='failed'`,
+  `last_error='unconfigured_stripe_price'`, and no `credit_grants` row. Redelivering increments
+  `attempt_count` and still creates no grant.
+- **Required:** Connected test-mode Stripe account with an unmapped price.
+
+## OPUS-INGRESS-05 — Unknown price mappings never grant
+- **Purpose:** Server-owned mappings are the only credit authority.
+- **Command:** `select public.process_connected_stripe_ingress('$CONN','<evt>','{"kind":"payment","customer_id":"<cust>","payment_id":"pi_x","lines":[{"line_id":"li_x","price_id":"price_unmapped","quantity":1}]}'::jsonb);`
+- **Expected:** Raises `unconfigured_stripe_price`; transaction rolls back; no grant, no ledger row, event
+  still replayable.
+- **Required:** Supabase SQL access to a test workspace.
+
+## OPUS-INGRESS-06 — Customer-supplied credit amounts are ignored
+- **Purpose:** No customer application can set how many credits a payment grants.
+- **Command:** Create a test payment whose `metadata.apex_credits` is 999999 on a price mapped to 1000
+  credits, deliver the event, then read the resulting grant.
+- **Expected:** Exactly one grant for 1000 credits (the mapped amount). The metadata value appears nowhere in
+  `credit_grants` or `credit_ledger`.
+- **Required:** Connected test-mode Stripe account and one configured price mapping.
+
+## OPUS-INGRESS-07 — One ledger effect per business action across different event ids
+- **Purpose:** The core Phase 6.2 requirement.
+- **Command:** For one purchase, process both `checkout.session.completed` and `payment_intent.succeeded`
+  (different Stripe event ids, same payment intent). Then
+  `select count(*),sum(amount) from credit_grants where source_payment_id='<pi>'`.
+- **Expected:** Exactly one grant; the second event returns `replayed: true` for that line and marks its own
+  receipt `processed`; balance reflects one grant only. Same for a refund described by `charge.refunded`
+  and `refund.created`/`refund.updated`: exactly one adjustment.
+- **Required:** Connected test-mode Stripe account, or SQL fixtures calling the RPC directly.
+
+## OPUS-INGRESS-08 — Refund stays source-aware, non-negative, and replay-safe
+- **Purpose:** The frozen refund policy is unchanged by the new ingress path.
+- **Command:** Grant 1000 from purchase A, consume 750, refund A fully, then redeliver the refund event.
+- **Expected:** `clawed_back 250`, `unrecoverable_spent 750`, `remaining 0`; purchase B's credits untouched;
+  the redelivery creates no second adjustment.
+- **Required:** Connected test-mode Stripe account.
+
+## OPUS-INGRESS-09 — Retry entry point requires the internal key and never accepts a grant
+- **Purpose:** The reusable processing entry point is server-only.
+- **Command:** `curl -X POST $FN/retry -d '{"connection_id":"$CONN","stripe_event_id":"<evt>"}'` with no
+  key, then with a wrong key, then with `x-apex-internal-key: $APEX_INTERNAL_RETRY_KEY`, and finally with a
+  body that also contains `{"amount":5000,"customer_id":"..."}`.
+- **Expected:** 401, 401, then a settled outcome (`processed` / `already_processed` / `failed`); the extra
+  amount and customer fields are ignored entirely — no grant reflects them.
+- **Required:** `APEX_INTERNAL_RETRY_KEY` configured as a function secret.
+
+## OPUS-INGRESS-10 — Retry reprocesses from the persisted receipt only
+- **Purpose:** Replays use verified persisted receipts plus trusted Stripe retrieval.
+- **Command:** Force a transient failure (temporarily remove the price mapping), deliver the event, restore
+  the mapping, then call `$FN/retry` for that event id.
+- **Expected:** The retry succeeds using the stored payload without a new Stripe delivery; the receipt flips
+  `failed → processed`; exactly one grant exists.
+- **Required:** Supabase access plus `APEX_INTERNAL_RETRY_KEY`.
+
+## OPUS-INGRESS-11 — Deauthorization closes the connection
+- **Purpose:** `account.application.deauthorized` is handled through the same transactional path.
+- **Command:** Deliver a signed `account.application.deauthorized` for `$CONN`.
+- **Expected:** `stripe_connections.status='disconnected'`, receipt `processed`, no ledger effect.
+- **Required:** Connected test-mode Stripe account.
 
 ## ASTRA-RETRY checks — Phase 6.2
 
@@ -211,3 +307,4 @@ Legacy receipts without installation-mode provenance remain flagged
 Manual-pilot and APEX-own-billing events are excluded. Stripe event retrieval depends on
 provider retention and existing event-read OAuth permission. Repeated provider failures
 stop after eight attempts for operator handling.
+
