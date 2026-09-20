@@ -46,58 +46,41 @@ Two genuine ambiguities are recorded rather than resolved by invention:
 the projection, so `reconciled` stays true while `expiry_reconciliation_pending` flags the work.
 Evaluators should not read `reconciled: true` as "no expiry work due".
 
----
 
-# Phase 6.2 connected Stripe ingress — statuses for OPUS-INGRESS-* (this run)
+## ASTRA-RETRY — Phase 6.2
 
-| Check ID | Status | Note |
-| --- | --- | --- |
-| OPUS-INGRESS-01 | IMPLEMENTED_PENDING_EVALUATION | Migration applied cleanly on a local PostgreSQL 16 harness in this run; hosted application not performed here. |
-| OPUS-INGRESS-02 | IMPLEMENTED_PENDING_EVALUATION | Signature verification runs on the raw body before any parsing; not exercised against a deployed URL in this run. |
-| OPUS-INGRESS-03 | IMPLEMENTED_PENDING_EVALUATION | `resolveConnection` compares `event.livemode` to `stripe_connections.livemode` and refuses a mismatch. Not exercised with a signed live fixture. |
-| OPUS-INGRESS-04 | IMPLEMENTED_PENDING_EVALUATION | Receipt (full verified payload) is persisted before the processor runs; failures only flip status and `last_error`. |
-| OPUS-INGRESS-05 | IMPLEMENTED_PENDING_EVALUATION | Verified locally: an unmapped price raised `unconfigured_stripe_price` and produced no grant. |
-| OPUS-INGRESS-06 | IMPLEMENTED_PENDING_EVALUATION | Credit amounts are read only from `stripe_credit_price_mappings`; the previous metadata-driven amount path was removed. Needs a hosted Stripe run to confirm end to end. |
-| OPUS-INGRESS-07 | IMPLEMENTED_PENDING_EVALUATION | Verified locally against the real `grant_credits`: two different event ids for one payment intent produced exactly one 1000-credit grant, the second reporting `replayed: true`. Hosted repetition still required. |
-| OPUS-INGRESS-08 | IMPLEMENTED_PENDING_EVALUATION | Reuses `refund_unspent_credits` unchanged; refund credits are derived from the originating payment's own grants. Not run end to end here. |
-| OPUS-INGRESS-09 | IMPLEMENTED_PENDING_EVALUATION | Implemented with a constant-time key comparison; requires `APEX_INTERNAL_RETRY_KEY` to be set before it can be evaluated. |
-| OPUS-INGRESS-10 | IMPLEMENTED_PENDING_EVALUATION | Retry path reads the persisted receipt and re-retrieves from Stripe with APEX credentials; not exercised here. |
-| OPUS-INGRESS-11 | IMPLEMENTED_PENDING_EVALUATION | Handled as a `deauthorize` action inside the same transactional processor. |
+| Check ID | Phase | Status | Evidence / limitation |
+| --- | --- | --- | --- |
+| ASTRA-RETRY-001 | 6.2 | READY_FOR_FREE_EVALUATION | Targeted Deno check executed successfully after installing pinned function dependencies and passing null to Stripe account retrieval. Initial command lacked node_modules; automatic Deno download was interrupted; manual-node-modules command succeeded. |
+| ASTRA-RETRY-002 | 6.2 | IMPLEMENTED_PENDING_EVALUATION | SKIP LOCKED claims, five-minute lease recovery, and transactional token fencing implemented. Concurrency fixtures not executed. |
+| ASTRA-RETRY-003 | 6.2 | IMPLEMENTED_PENDING_EVALUATION | Bounded backoff, eight-attempt cap, sanitized errors, operator stop and service-only requeue implemented. Fault fixtures not executed. |
+| ASTRA-RETRY-004 | 6.2 | IMPLEMENTED_PENDING_EVALUATION | Receipt binding checked before provider retrieval and again under transaction locks; service-only grants. Isolation fixtures not executed. |
+| ASTRA-RETRY-005 | 6.2 | IMPLEMENTED_PENDING_EVALUATION | Existing normalization extracted once into `_shared/connected_event.ts`; initial delivery and retries reuse it. No lifecycle proof run. |
+| ASTRA-RETRY-006 | 6.2 | READY_FOR_FREE_EVALUATION | Two migrations applied to fnmxlmjrkgojowpzrcwa; retry v1 and webhook v4 deployed ACTIVE; cron job 1 enabled every minute. First scheduled HTTP invocation returned 200, timed_out=false, body {"attempted":0}. This proves idle scheduler reachability, not event/lifecycle acceptance. |
 
-**External blocker (unchanged by this run):** the Stripe Dashboard External-test selection, the first app
-install, the connected event destination, and its signing secret are account-authorized actions. Every
-OPUS-INGRESS check that needs a real connected account is gated behind them. Implementation did not stop for
-this; only the hosted acceptance run is blocked.
+### Exact deployment / activation handoff
 
-**Defect found and fixed during implementation:** with business-action-scoped idempotency, a second Stripe
-event describing the same purchase reached `grant_credits` with a different stored request document and was
-rejected as `idempotency_key_reused` instead of replaying. The processor now returns the recorded outcome
-from `credit_operations` for an action already effected, so one purchase yields exactly one grant. This was
-observed and re-verified locally.
+Target: `fnmxlmjrkgojowpzrcwa` (Apex). Project recovered from RESTORING during this run.
+Applied individually, without bulk history reconciliation:
+- `20260920231219_connected_event_retry.sql`
+- `20260920231711_retry_claim_recovery.sql`
 
-## Deployment record (hosted, this run)
+Deployed `apex-connected-stripe-retry` and `apex-connected-stripe-webhook` with their
+shared core, credentials and connected-event module. Custom scheduler authentication
+is enforced before any claim; gateway JWT verification is disabled for that function.
+Token generated inside Postgres, encrypted in Vault, with only a verification hash
+stored in the server-only RLS table. No secret is committed or returned to the caller.
 
-Applied to Supabase project `fnmxlmjrkgojowpzrcwa` and deployed from this session:
+Activated with:
+`select public.enable_connected_stripe_retry('https://fnmxlmjrkgojowpzrcwa.supabase.co');`
+Named job: `apex-connected-stripe-retry`, schedule `* * * * *`, batch 5 (DB maximum 10).
+Calling enable again rotates the scheduler token and updates the named job.
+To stop: `select cron.unschedule('apex-connected-stripe-retry');`.
+To requeue after correcting configuration, use the privileged
+`requeue_connected_stripe_retry(receipt_id, workspace_id)` RPC. It cannot upgrade old
+receipts lacking original mode provenance. Existing ledger functions are unchanged.
 
-- migrations applied: `phase_6_4_expiry_reconciliation`, `phase_6_5_customer_timeline`,
-  `connected_stripe_ingress_normalization` (all reported success; applied individually, not via
-  `db push --include-all`).
-- edge functions deployed: `apex-api` (v6), `apex-connected-stripe-webhook` (v5).
-- privilege check against the live database: `expire_credit_grants`, `check_credit_reconciliation`,
-  `get_customer_timeline`, `process_connected_stripe_ingress`, and `resolve_stripe_price_credits` are
-  executable by `service_role` only (`anon` and `authenticated` have no execute privilege).
-- live smoke responses observed: unsigned connected webhook → `400 Invalid signature`; unauthenticated
-  `apex-api` timeline → `401 Unauthorized`; `/retry` without a configured key → `503 Retry entry point is
-  not configured`.
-
-This records deployment only. It is not lifecycle acceptance, and no OPUS-INGRESS or APEX-* check above is
-marked passed — free evaluators still run them.
-
-**Remaining configuration/user actions:**
-
-1. Set the `APEX_INTERNAL_RETRY_KEY` function secret before the retry entry point can serve the scheduler
-   (it currently refuses every call with 503 by design).
-2. Set `STRIPE_CONNECTED_WEBHOOK_SECRET` to the connected event destination's signing secret.
-3. Stripe Dashboard: External-test selection, first install, and creating the connected event destination.
-4. Configure at least one `stripe_credit_price_mappings` row per workspace — without it, no connected
-   payment grants anything, by design.
+Commands: Supabase CLI migration new (twice), pinned function `npm ci`, targeted Deno
+check, `git diff --check`, git commit/push; Supabase apply_migration, deploy_edge_function,
+and the scheduler activation SQL. No broad tests, real purchases/refunds, or Phase 8 proof.
+Previous local Phase 5 work was preserved in its original checkout, not included here.
