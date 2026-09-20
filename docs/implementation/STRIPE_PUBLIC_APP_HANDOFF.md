@@ -30,3 +30,62 @@ first install remain Dashboard-driven acceptance steps.
 Never commit or paste the developer key, webhook signing secret, OAuth refresh token, Supabase PAT, or APEX
 secret API key. External-test selection and account authorization are Stripe Dashboard controls and cannot
 be honestly replaced with the manual-pilot webhook.
+
+---
+
+## Connected ingress processor contract (Phase 6.2)
+
+This is the single server-only entry point for connected-account event processing. Initial webhook
+delivery and any later retry run exactly the same code path.
+
+**Signature**
+
+```ts
+// supabase/functions/_shared/connected_stripe_ingress.ts
+processConnectedStripeEvent(input: {
+  connectionId: string;    // stripe_connections.id (workspace-bound)
+  stripeEventId: string;   // stripe_webhook_events.stripe_event_id
+}): Promise<{
+  status: "processed" | "already_processed" | "failed";
+  kind?: "payment" | "refund" | "deauthorize" | "noop";
+  replayed?: boolean;
+  error?: string;          // short machine-readable code
+  permanent?: boolean;     // true = another attempt cannot help
+  result?: unknown;
+}>
+```
+
+**Input provenance.** The only accepted inputs are a connection id and an event id APEX has already
+persisted. Credit amounts, customer ids, and grant documents are never accepted from a caller. The
+processor re-reads the Stripe-signature-verified event APEX stored, and re-retrieves canonical
+payment/refund data from Stripe with APEX's own credentials (stored OAuth grant, else platform key
+with the connected-account header). Credits come only from `stripe_credit_price_mappings`.
+
+**Transaction boundary.** All ledger work happens inside one call to
+`public.process_connected_stripe_ingress(p_connection_id, p_event_id, p_action)`. That function locks
+the receipt row, resolves server-owned price mappings, calls the existing `grant_credits` /
+`refund_unspent_credits`, and marks the event `processed` — all in one transaction. Any failure rolls
+the whole thing back and leaves the receipt replayable.
+
+**Idempotency / one effect per business action.** Ledger idempotency keys are scoped to the business
+action, not the event id:
+
+- payment: `stripe:<connection_id>:payment:<payment_intent_id>:line:<line_item_id>`
+- refund:  `stripe:<connection_id>:refund:<refund_id>`
+
+So `checkout.session.completed` and `payment_intent.succeeded` for one purchase produce one grant, and
+`charge.refunded` / `refund.created` / `refund.updated` for one refund produce one adjustment. When a
+second event describes an action already recorded, the processor returns the original outcome from
+`credit_operations` instead of calling the ledger function again (the ledger function would otherwise
+reject the reused key, because its stored request document carries the first event's id).
+
+**Retry semantics for the scheduler (SuperGrok owns *when*, this owns *what*).**
+
+- Retry candidates: `stripe_webhook_events` rows with `stripe_connection_id is not null` and
+  `status = 'failed'` (also `'received'` rows older than a delivery window).
+- Invoke either in-process (`processConnectedStripeEvent`) or over HTTP:
+  `POST <apex-connected-stripe-webhook-url>/retry`, header `x-apex-internal-key: $APEX_INTERNAL_RETRY_KEY`,
+  body `{"connection_id": "...", "stripe_event_id": "..."}`. There is no unsigned grant request.
+- `status: "already_processed"` or `permanent: true` → stop retrying. `status: "failed"` with
+  `permanent` unset → retry later; `attempt_count` and `last_error` are already maintained.
+- The processor is safe to call concurrently and repeatedly; it never double-grants.

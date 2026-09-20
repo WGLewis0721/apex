@@ -45,3 +45,32 @@ Two genuine ambiguities are recorded rather than resolved by invention:
 `check_credit_reconciliation`: an unreconciled expired remainder is still internally consistent with
 the projection, so `reconciled` stays true while `expiry_reconciliation_pending` flags the work.
 Evaluators should not read `reconciled: true` as "no expiry work due".
+
+---
+
+# Phase 6.2 connected Stripe ingress — statuses for OPUS-INGRESS-* (this run)
+
+| Check ID | Status | Note |
+| --- | --- | --- |
+| OPUS-INGRESS-01 | IMPLEMENTED_PENDING_EVALUATION | Migration applied cleanly on a local PostgreSQL 16 harness in this run; hosted application not performed here. |
+| OPUS-INGRESS-02 | IMPLEMENTED_PENDING_EVALUATION | Signature verification runs on the raw body before any parsing; not exercised against a deployed URL in this run. |
+| OPUS-INGRESS-03 | IMPLEMENTED_PENDING_EVALUATION | `resolveConnection` compares `event.livemode` to `stripe_connections.livemode` and refuses a mismatch. Not exercised with a signed live fixture. |
+| OPUS-INGRESS-04 | IMPLEMENTED_PENDING_EVALUATION | Receipt (full verified payload) is persisted before the processor runs; failures only flip status and `last_error`. |
+| OPUS-INGRESS-05 | IMPLEMENTED_PENDING_EVALUATION | Verified locally: an unmapped price raised `unconfigured_stripe_price` and produced no grant. |
+| OPUS-INGRESS-06 | IMPLEMENTED_PENDING_EVALUATION | Credit amounts are read only from `stripe_credit_price_mappings`; the previous metadata-driven amount path was removed. Needs a hosted Stripe run to confirm end to end. |
+| OPUS-INGRESS-07 | IMPLEMENTED_PENDING_EVALUATION | Verified locally against the real `grant_credits`: two different event ids for one payment intent produced exactly one 1000-credit grant, the second reporting `replayed: true`. Hosted repetition still required. |
+| OPUS-INGRESS-08 | IMPLEMENTED_PENDING_EVALUATION | Reuses `refund_unspent_credits` unchanged; refund credits are derived from the originating payment's own grants. Not run end to end here. |
+| OPUS-INGRESS-09 | IMPLEMENTED_PENDING_EVALUATION | Implemented with a constant-time key comparison; requires `APEX_INTERNAL_RETRY_KEY` to be set before it can be evaluated. |
+| OPUS-INGRESS-10 | IMPLEMENTED_PENDING_EVALUATION | Retry path reads the persisted receipt and re-retrieves from Stripe with APEX credentials; not exercised here. |
+| OPUS-INGRESS-11 | IMPLEMENTED_PENDING_EVALUATION | Handled as a `deauthorize` action inside the same transactional processor. |
+
+**External blocker (unchanged by this run):** the Stripe Dashboard External-test selection, the first app
+install, the connected event destination, and its signing secret are account-authorized actions. Every
+OPUS-INGRESS check that needs a real connected account is gated behind them. Implementation did not stop for
+this; only the hosted acceptance run is blocked.
+
+**Defect found and fixed during implementation:** with business-action-scoped idempotency, a second Stripe
+event describing the same purchase reached `grant_credits` with a different stored request document and was
+rejected as `idempotency_key_reused` instead of replaying. The processor now returns the recorded outcome
+from `credit_operations` for an action already effected, so one purchase yields exactly one grant. This was
+observed and re-verified locally.

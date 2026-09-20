@@ -358,7 +358,13 @@ refund A 1000
 → remaining 0
 ```
 
-**Status:** ⏳ Not wired. Begin after Phase 5 External-test OAuth acceptance so the connected-account path can be proven for real.
+**Status:** 🟡 Implemented pending evaluation. Direct connected-account ingress is wired end to end:
+raw-body signature verification, workspace-bound account attribution with explicit test/live isolation,
+durable receipt before any ledger work, canonical payment/refund normalization from the verified event plus
+trusted Stripe retrieval, server-owned price mappings (an unconfigured price never grants), and one ledger
+effect per business action even when several Stripe event ids describe the same purchase or refund. One
+reusable server-only processing entry point serves both initial delivery and retry; the retry *scheduler* is
+owned separately. The acceptance run itself still needs the Stripe Dashboard External-test install.
 
 ---
 
