@@ -1,5 +1,18 @@
 # Public Stripe App acceptance handoff
 
+## September 20, 2026 blocker: Connect-enabled live account
+
+Attempting to upload the canonical public app from `Apex · live` (`acct_1UDVhGCpWLixBiNT`) fails with Stripe's explicit error:
+
+`Because your account is a Connect platform, you cannot choose the public distribution at this time.`
+
+Stripe's current OAuth Stripe Apps documentation states that a Connect-enabled Stripe account cannot publish a Stripe App and that developers in this situation must create/use a **separate Stripe account** for the public app. Therefore:
+
+- `Apex · live` cannot own the public APEX Stripe App while Connect remains enabled.
+- `apex test dev` is only a sandbox development artifact and cannot substitute for the required live public-app owner.
+- The supported next step is a new/other **verified live Stripe account with Connect not enabled**, then upload `com.graymatter.apex` version `0.3.0` there.
+- Do not enable Stripe Connect on that dedicated app-publisher account.
+
 ## Correct External-test ownership model
 
 Stripe's current sandbox-support documentation requires the public app version used for External testing to be uploaded from the **live/main developer account**, not from a sandbox-created app.
