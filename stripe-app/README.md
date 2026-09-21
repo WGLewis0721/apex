@@ -14,7 +14,7 @@ it is deployed and exercised through a real connected-account test transaction.
 
 > **Publisher account requirement:** Stripe currently blocks public Stripe Apps on Connect-enabled accounts. The existing `Apex · live` account is Connect-enabled and rejects public upload. Use a separate verified live Stripe account with Connect **not** enabled as the public app publisher. Do not use the `apex test dev` sandbox as a substitute for that live publisher account.
 
-**Important:** External testing must be owned by the live/main developer account. The old `com.graymatter.apex-dev` sandbox app is retained only as a development artifact. Version `0.3.0` of `com.graymatter.apex` is the canonical live-account app for External testing.
+**Important:** External testing must be owned by the live/main developer account. The dedicated publisher account is `Apex-Public`; the canonical globally unique app ID is `com.graymattertechllc.apex`. The old `com.graymattertechllc.apex-dev` sandbox app is retained only as a development artifact. Version `0.3.0` of `com.graymattertechllc.apex` is the canonical live-account app for External testing.
 
 Stripe Apps External testing is available only for **public** apps. Upload the public APEX app from an eligible Stripe developer account, then configure External test from that account. Stripe generates separate OAuth links for Test Mode and general Sandboxes.
 
