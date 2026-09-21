@@ -93,7 +93,7 @@ export type OperatorSnapshot = {
   accounts: Array<{ customer_id: string; remaining: number; version: number; updated_at: string }>;
   grants: Array<{ id: string; customer_id: string; amount: number; consumed_amount: number; remaining_amount: number; status: string; reason: string; source_stripe_event_id: string | null; source_payment_id: string | null; created_at: string }>;
   ledger: Array<{ id: string; customer_id: string; credit_grant_id: string | null; entry_type: string; amount: number; idempotency_key: string; created_at: string }>;
-  events: Array<{ id: string; stripe_connection_id: string; stripe_event_id: string; event_type: string; status: string; attempt_count: number; last_error: string | null; received_at: string; processed_at: string | null; updated_at: string }>;
+  events: Array<{ id: string; stripe_connection_id: string; stripe_event_id: string; event_type: string; status: string; attempt_count: number; last_error: string | null; retry_operator_action?: string | null; received_at: string; processed_at: string | null; updated_at: string }>;
   mappings?: Array<{ id: string; stripe_price_id: string; credit_amount: number; is_active: boolean; updated_at: string }>;
   mappingNeeded?: boolean;
 };
