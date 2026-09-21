@@ -107,7 +107,7 @@ See [`docs/architecture/APEX_V1_LEDGER.md`](docs/architecture/APEX_V1_LEDGER.md)
 | Manual Stripe payment → grant ingress | ✅ Deployed and automation-proven |
 | Manual Stripe refund → clawback ingress | ✅ Deployed and automation-proven |
 | Public connected-account ingress | 🟡 Deployed code; External-test install still required |
-| First public `@apex/sdk` | 🟡 Built, tested, pack-ready; npm authentication/ownership required to publish |
+| First public `@wlgewis-gmtc/apex-sdk` | ✅ Published to npm as `0.1.0`; installable with `npm install @wlgewis-gmtc/apex-sdk` |
 | Signed/local entitlement evaluation | ⏳ v1.1+ only if customer need justifies it |
 | Reservations | ⏳ Not v1; only if start-now/finish-later workload requires them |
 | Expiring grants | ⏳ Not production-supported until projection reconciliation exists |
