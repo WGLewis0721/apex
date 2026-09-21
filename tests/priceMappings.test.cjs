@@ -59,8 +59,14 @@ describe("price mapping validation", () => {
     assert.equal(on.length, 1);
   });
 
-  it("treats unconfigured_stripe_price as operator-action-needed", () => {
+  it("treats unconfigured_stripe_price and mapping_required as operator-action-needed", () => {
     assert.equal(mappingNeeded([{ last_error: null }]), false);
     assert.equal(mappingNeeded([{ last_error: "unconfigured_stripe_price" }]), true);
+    assert.equal(mappingNeeded([{ last_error: "mapping_required", retry_operator_action: "mapping_required" }]), true);
+    assert.equal(mappingNeeded([{ last_error: "transient", retry_operator_action: "mapping_required" }]), true);
+  });
+
+  it("does not impose an arbitrary credit cap", () => {
+    assert.equal(validateCreditAmount(100001), null);
   });
 });

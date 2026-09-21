@@ -7,7 +7,6 @@ export type PriceMapping = {
 };
 
 export const PRICE_ID_PATTERN = /^price_[A-Za-z0-9_]+$/;
-export const MAX_CREDIT_AMOUNT = 100_000;
 
 export function normalizePriceId(value: string): string {
   return value.trim();
@@ -26,12 +25,25 @@ export function validateCreditAmount(value: unknown): string | null {
   const amount = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(amount) || Number.isNaN(amount)) return "Credit amount must be a number.";
   if (!Number.isSafeInteger(amount) || amount <= 0) return "Credit amount must be a whole number greater than zero.";
-  if (amount > MAX_CREDIT_AMOUNT) return `Credit amount cannot exceed ${MAX_CREDIT_AMOUNT.toLocaleString()}.`;
   return null;
 }
 
-export function mappingNeeded(events: Array<{ last_error: string | null }>): boolean {
-  return events.some((event) => (event.last_error ?? "").includes("unconfigured_stripe_price"));
+export function eventNeedsMapping(event: {
+  last_error?: string | null;
+  retry_operator_action?: string | null;
+}): boolean {
+  const error = event.last_error ?? "";
+  const action = event.retry_operator_action ?? "";
+  return error.includes("unconfigured_stripe_price")
+    || error.includes("mapping_required")
+    || action === "mapping_required";
+}
+
+export function mappingNeeded(events: Array<{
+  last_error?: string | null;
+  retry_operator_action?: string | null;
+}>): boolean {
+  return events.some(eventNeedsMapping);
 }
 
 export function applyMappingChange(
