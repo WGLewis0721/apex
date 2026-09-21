@@ -102,13 +102,14 @@ See [`docs/architecture/APEX_V1_LEDGER.md`](docs/architecture/APEX_V1_LEDGER.md)
 | Hosted entitlements API | ✅ Deployed |
 | Hosted atomic consume API | ✅ Deployed |
 | Per-grant credit attribution + append-only ledger | ✅ Deployed |
-| Source-aware non-negative refund RPC | ✅ Deployed; connected Stripe refund ingress not wired |
+| Source-aware non-negative refund RPC | ✅ Deployed; connected refund ingress implemented, OAuth-connected acceptance pending |
 | Hosted concurrency proof | ✅ Passed — parallel 750/750 against 1000 produced one ALLOW, one DENY, remaining 250 |
 | Manual Stripe payment → grant ingress | ✅ Deployed and automation-proven |
 | Manual Stripe refund → clawback ingress | ✅ Deployed and automation-proven |
 | Public connected-account ingress | 🟡 Deployed with one canonical processor + scheduled retry; External-test OAuth install/proof still required |
 | First public `@wlgewis-gmtc/apex-sdk` | ✅ Published to npm as `0.1.0`; installable with `npm install @wlgewis-gmtc/apex-sdk` |
 | Guided `@wlgewis-gmtc/apex` CLI (`apex init`) | ✅ Published to npm as `0.1.1`; verified from a fresh Node project with `npx @wlgewis-gmtc/apex init` against hosted `/v1/whoami` |
+| Stripe Price → credit mapping management | 🟡 Implemented in Phase 7.1.2; hosted `apex-operator` deployment/evaluation still required |
 | Signed/local entitlement evaluation | ⏳ v1.1+ only if customer need justifies it |
 | Reservations | ⏳ Not v1; only if start-now/finish-later workload requires them |
 | Expiring grants | 🟡 Expiry reconciliation is implemented; hosted acceptance against real data remains |
@@ -144,9 +145,9 @@ This proves the wallet does not double-spend. It does **not** yet prove money au
 
 ## Immediate next work
 
-### 1. Build the Stripe price-mapping console — next net-new slice
+### 1. Deploy/evaluate the Stripe price-mapping console
 
-The backend already enforces server-owned `stripe_credit_price_mappings`; an unmapped Stripe Price grants nothing. The missing product surface is a tenant-scoped setup UI/API that lets a workspace owner:
+The backend already enforces server-owned `stripe_credit_price_mappings`; an unmapped Stripe Price grants nothing. The tenant-scoped workspace-owner setup UI/API is implemented and now needs hosted deployment/evaluation. It lets a workspace owner:
 
 - list existing active/inactive mappings
 - enter a Stripe Price ID and positive APEX credit amount
@@ -154,7 +155,7 @@ The backend already enforces server-owned `stripe_credit_price_mappings`; an unm
 - see which workspace/connection the mapping applies to
 - see a clear operator-action-needed state when a payment cannot proceed because a mapping is missing
 
-This removes SQL/manual-demo coupling without creating another ledger or ingress path.
+This removes SQL/manual-demo coupling without creating another ledger or ingress path. Acceptance requires one hosted `mapping_required` receipt to be requeued after mapping setup and then processed by the existing scheduler/processor.
 
 ### 2. Finish Phase 5 External-test OAuth acceptance
 
