@@ -837,28 +837,26 @@ function BackendInstallStep({ workspaceId }: { workspaceId: string | null }) {
       <ArchitectureStrip />
       <div className="ob-celebrate"><CheckCircle2 size={20} /> Workspace linked{workspaceId ? <> · <code>{workspaceId}</code></> : null}</div>
       <CodeBlock label="Published server SDK" code="npm install @wlgewis-gmtc/apex-sdk" />
-      <CodeBlock label="Recommended once published: guided CLI" code="npx @wlgewis-gmtc/apex init" />
+      <CodeBlock label="Recommended: guided CLI" code="npx @wlgewis-gmtc/apex init" />
       <div className="ob-preview-note">
         <Info size={15} />
-        <span><strong>The server SDK is published.</strong> <code>@wlgewis-gmtc/apex-sdk@0.1.0</code> is published to npm. The guided <code>@wlgewis-gmtc/apex</code> CLI is implemented and pack-ready but not published to npm yet. APEX will not mark Go live complete until the real package can be installed and verified.</span>
+        <span><strong>The SDK and guided CLI are published.</strong> <code>@wlgewis-gmtc/apex-sdk@0.1.0</code> and <code>@wlgewis-gmtc/apex@0.1.1</code> are public on npm. The CLI installs the server SDK, configures <code>APEX_SECRET_KEY</code>, and verifies the workspace against hosted <code>/v1/whoami</code>.</span>
       </div>
-      <p className="ob-note">This is now a real onboarding step, not a dead end. The direct SDK install works today. The next step is publishing the guided CLI so <code>npx @wlgewis-gmtc/apex init</code> works end to end.</p>
+      <p className="ob-note">This is a real onboarding path. Use the guided CLI for normal setup, or install the SDK directly when you want to wire the integration by hand.</p>
     </>
   );
 }
 
 const CLI_INIT = 'npx @wlgewis-gmtc/apex init';
 const NPM_INSTALL = 'npm install @wlgewis-gmtc/apex-sdk';
-const QUICKSTART = `import { Apex } from "@wlgewis-gmtc/apex-sdk";
+const QUICKSTART = `import { ApexClient } from "@wlgewis-gmtc/apex-sdk";
 
-const apex = new Apex({ apiKey: process.env.APEX_SECRET_KEY });
+const apex = new ApexClient({ apiKey: process.env.APEX_SECRET_KEY! });
+const state = await apex.entitlements(customerId);
 
-const decision = await apex.access.check({
-  customer: session.customerId,
-  action: "generate_content",
-});
-
-if (decision.outcome !== "allow") return denyRequest(decision.reason);`;
+if (state.remaining > 0) {
+  await apex.consume(customerId, 1, requestId);
+}`;
 const COMPONENTS = `<ApexUsage />
 <ApexBilling />
 <ApexUpgrade />`;
@@ -882,9 +880,9 @@ function staticDetailFor(n: number, email: string | null, workspaceId: string | 
   switch (n) {
     case 1: return `Signed in as ${email ?? 'you'} · workspace ${workspaceId}`;
     case 2: return 'Project scan complete';
-    case 3: return 'Node.js 20 · React · TypeScript';
+    case 3: return 'Node.js 22 · React · TypeScript';
     case 4: return '@wlgewis-gmtc/apex-sdk@0.1.0';
-    case 5: return '.env.local (APEX_PUBLISHABLE_KEY, APEX_SECRET_KEY)';
+    case 5: return '.env.local (APEX_SECRET_KEY)';
     case 6: return `Linked to ${workspaceId}`;
     case 7: return 'Stripe connection confirmed (demo)';
     case 8: return 'Webhook listener ready (preview)';
@@ -974,7 +972,7 @@ function LauncherStep({ launcherStage, email, workspaceId, onProgress, onOpenDas
       <p className="ob-lede">Sit back — APEX is preparing your application to connect to hosted APEX Cloud. This remains an interactive product preview: no real operations run.</p>
       <ArchitectureStrip />
       <CodeBlock label="Recommended: guided setup" code={CLI_INIT} />
-      <p className="ob-preview-flag"><Code2 size={13} /> CLI design preview · @wlgewis-gmtc/apex is not published yet.</p>
+      <p className="ob-preview-flag"><Code2 size={13} /> CLI live · @wlgewis-gmtc/apex@0.1.1 is published on npm.</p>
 
       <div className="ob-launcher">
         <div className="ob-launcher-legend">
@@ -1003,7 +1001,7 @@ function LauncherStep({ launcherStage, email, workspaceId, onProgress, onOpenDas
       {allDone ? (
         <>
           <div className="ob-celebrate is-ready"><CheckCircle2 size={22} /> APEX IS READY.</div>
-          <p className="ob-note">Nothing above called a real backend — @wlgewis-gmtc/apex, @wlgewis-gmtc/apex-sdk, and the APEX Cloud API are all previews.</p>
+          <p className="ob-note">The staged launcher animation above is still a product preview. The npm CLI, server SDK, and hosted APEX API are real.</p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <button className="ob-ghost" onClick={verifyAgain} disabled={reverifying}>
               {reverifying ? <><Loader2 size={15} className="ob-spin" /> Checking…</> : 'Verify APEX'}
@@ -1023,7 +1021,7 @@ function LauncherStep({ launcherStage, email, workspaceId, onProgress, onOpenDas
 
       <CodeBlock label="Or install the SDK directly" code={NPM_INSTALL} />
       <CodeBlock label="Server-side quickstart" code={QUICKSTART} />
-      <p className="ob-preview-flag"><Code2 size={13} /> SDK live · @wlgewis-gmtc/apex-sdk@0.1.0 is published. Guided CLI still pending.</p>
+      <p className="ob-preview-flag"><Code2 size={13} /> SDK + CLI live · @wlgewis-gmtc/apex-sdk@0.1.0 and @wlgewis-gmtc/apex@0.1.1 are published.</p>
       <CodeBlock label="Optional embedded components" code={COMPONENTS} />
       <p className="ob-preview-flag"><Code2 size={13} /> API design preview · these components are not published yet.</p>
       <div className="ob-mini">

@@ -76,6 +76,17 @@ priority is to preserve this result in automated evidence and remove pilot-only 
 7. **Operator visibility — complete for v1:** `apex-operator` is deployed with confirmed-user plus workspace-
    owner checks, and the console now shows hosted connection, event, balance, and ledger evidence.
 
+## September 20, 2026 distribution update
+
+Phase 7.1 distribution is now externally proven:
+
+- `@wlgewis-gmtc/apex-sdk@0.1.0` is public on npm
+- `@wlgewis-gmtc/apex@0.1.1` is public on npm
+- `npx @wlgewis-gmtc/apex init` was run from a fresh Node project
+- the CLI installed the SDK, wrote the server-side environment file, preserved gitignore/idempotency behavior, resolved `ApexClient`, and authenticated a real workspace credential through hosted `GET /v1/whoami`
+
+This closes the install/distribution gap. Stripe Price → APEX credit mapping management is now implemented in Phase 7.1.2 and awaits hosted deployment/evaluation; the next acceptance gap is External-test OAuth-connected lifecycle proof.
+
 ## Canonical product statement
 
 APEX is a hosted payment-and-product-state layer for SaaS products that use Stripe.
@@ -196,11 +207,11 @@ Do not invent a queue vendor, new database, new cloud runtime, cache, framework,
 | 4 | Paid workspace provisioning | ✅ Real |
 | 5 | Connect customer's Stripe | 🟡 Public OAuth app 0.2.0 uploaded; External-test selection and first install remain |
 | 6 | Hosted product-state core | ✅ Manual pilot accepted; 6.4 expiry reconciliation and 6.5 support timeline implemented pending evaluation; public connected-account acceptance remains |
-| 7 | SDK + customer balance integration | 🟡 SDK `0.1.0` published; guided CLI pack-ready but not yet published; customer balance UI remains |
+| 7 | Install + merchant integration | 🟡 SDK `0.1.0` and guided CLI `0.1.1` are published; Stripe price-mapping setup is implemented pending hosted evaluation; customer balance UI remains |
 | 8 | Connected Stripe end-to-end proof | ✅ Manual lifecycle automated; public OAuth-connected repetition remains |
 | 9 | Live operator dashboard | ✅ Tenant-scoped hosted event and ledger view deployed |
 
-The hosted wallet proof does **not** depend on Phase 5 and has already passed. Customer-facing onboarding still stops at Connect Stripe until Phase 5 acceptance passes.
+The hosted wallet proof does **not** depend on Phase 5 and has already passed. SDK/CLI installation is now externally proven; self-serve connected-account acceptance still depends on Phase 5 External-test OAuth.
 
 ---
 
@@ -315,7 +326,7 @@ Phase 6 is the first production layer that directly proves why a SaaS company sh
 
 The first proof attempt exposed a legacy Supabase service-role JWT clock issue. PR #19 changed server clients to prefer the current Supabase server secret-key model; the fresh hosted proof then passed.
 
-**Status:** ✅ Implemented, deployed, and concurrency-proven. This is not full Phase 6 acceptance because Stripe ingress is not wired.
+**Status:** ✅ Implemented, deployed, and concurrency-proven. Full self-serve Phase 6 acceptance still depends on the External-test OAuth-connected lifecycle proof.
 
 ---
 
@@ -477,7 +488,7 @@ Later SDK responsibilities may add signed local entitlement evaluation, purchase
 
 Do not put APEX secret credentials in browser-only code.
 
-**Status:** ✅ `@wlgewis-gmtc/apex-sdk@0.1.0` is published to npm and installable. The guided CLI and customer balance UI remain separate Phase 7 work.
+**Status:** ✅ `@wlgewis-gmtc/apex-sdk@0.1.0` is published to npm and installable. The guided CLI is also published; price-mapping setup and customer balance UI remain Phase 7 work.
 
 ## 7.1.1 Guided CLI (`@wlgewis-gmtc/apex`)
 
@@ -485,11 +496,32 @@ Do not put APEX secret credentials in browser-only code.
 
 `apex init` installs the published SDK, obtains and stores `APEX_SECRET_KEY` in the right server-side env file, keeps it out of git, and verifies the credential against the hosted API.
 
-**Status:** 🟡 Implemented, tested, and pack-ready (`packages/cli`). Not yet published to npm. Recommended once it is:
+**Status:** ✅ Published to npm as `@wlgewis-gmtc/apex@0.1.1`. The real customer command has been verified from a fresh Node project against hosted `GET /v1/whoami`:
 
 ```bash
 npx @wlgewis-gmtc/apex init
 ```
+
+## 7.1.2 Stripe price-mapping setup
+
+**Business value:** remove the last operator/SQL step between "Stripe is connected" and "a configured purchase reliably becomes product value."
+
+Connected ingress already reads credit quantities only from server-owned `stripe_credit_price_mappings`; customer metadata cannot decide grant amounts. The missing capability is a workspace-owner configuration surface over that existing source of truth.
+
+Minimum v1 scope:
+
+- list mappings for the current workspace
+- create a mapping from a Stripe Price ID to a positive APEX credit amount
+- update the credit amount
+- deactivate/reactivate a mapping without deleting history
+- prevent cross-workspace mutation
+- make missing mappings obvious as operator-action-needed
+- use the existing table and ingress behavior; do not create a second mapping store or second grant path
+
+**Done when:** a workspace owner can configure a Stripe Price from the APEX product surface, then a connected test purchase using that Price reaches the existing ingress without SQL or `apex_credits` metadata.
+
+**Status:** 🟡 **Implemented, pending hosted deployment/evaluation.** Workspace-owner management UI/API and mapping-required requeue integration are implemented over the existing mapping table and retry path. Acceptance still requires deploying `apex-operator` and proving one blocked mapping-required receipt is requeued and processed by the existing scheduler/processor.
+
 
 ## 7.2 Customer balance UI
 
@@ -581,10 +613,9 @@ Later views may add usage counters, renewals, access-decision history, reservati
 
 # Immediate next actions
 
-1. Finish **Phase 5 External-test OAuth acceptance**:
-   `stripe apps upload` → External test registration → configure `STRIPE_APP_CLIENT_ID` → complete one real test OAuth connection → confirm persisted connected account.
-2. Wire connected `stripe_webhook_events` → `grant_credits` / `refund_unspent_credits` with replay-safe processing.
-3. Run the connected payment/refund acceptance flow.
-4. Only then mark frozen Phase 6 v1 accepted.
+1. **Deploy/evaluate Phase 7.1.2 Stripe price-mapping setup**: deploy the updated `apex-operator`, configure an active mapping, and prove one `mapping_required` receipt is requeued and then processed through the existing retry/processor path.
+2. Finish **Phase 5 External-test OAuth acceptance**: complete one real test OAuth connection and confirm the persisted connected account is bound to the expected workspace.
+3. Run **Phase 8 through the OAuth-connected account** using the existing canonical connected-event processor and retry path: payment → grant → consume → DENY → replay → refund → replay → final ledger explanation.
+4. Build **Phase 7.2 merchant customer balance/history** from the existing hosted balance, entitlements, and timeline APIs.
 
-Do not reopen cloud/runtime selection, add reservations, add `/check`, or build signed local evaluation unless a later explicit product/customer requirement justifies it.
+Do not reopen cloud/runtime selection, add reservations, add `/check`, signed local evaluation, recurring allowances, rollover, or a second write path unless later customer evidence justifies it.
