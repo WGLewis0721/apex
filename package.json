@@ -10,7 +10,10 @@
     "test": "node tests/run.mjs",
     "build:sdk": "npm --prefix packages/sdk run build",
     "test:sdk": "npm --prefix packages/sdk test",
-    "pack:sdk": "npm pack ./packages/sdk --dry-run"
+    "pack:sdk": "npm pack ./packages/sdk --dry-run",
+    "build:cli": "npm --prefix packages/cli run build",
+    "test:cli": "npm --prefix packages/cli test",
+    "pack:cli": "npm pack ./packages/cli --dry-run"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
