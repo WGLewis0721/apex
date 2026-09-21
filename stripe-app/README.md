@@ -12,20 +12,21 @@ it is deployed and exercised through a real connected-account test transaction.
 
 ## External test setup
 
+**Important:** External testing must be owned by the live/main developer account. The old `com.graymatter.apex-dev` sandbox app is retained only as a development artifact. Version `0.3.0` of `com.graymatter.apex` is the canonical live-account app for External testing.
+
 Stripe Apps External testing is available only for **public** apps. Upload the public APEX app from an eligible Stripe developer account, then configure External test from that account. Stripe generates separate OAuth links for Test Mode and general Sandboxes.
 
-1. Install/login to the Stripe CLI using the non-Connect APEX Stripe App developer account that owns `com.graymatter.apex-dev`.
-2. Make sure the Stripe CLI is authenticated to the **main/live developer account** that owns `com.graymatter.apex-dev` (not the managed sandbox).
-3. From this directory run:
+1. Authenticate the Stripe CLI to the **Apex · live** developer account.
+2. From this directory run:
 
    ```bash
-   stripe apps upload
+   stripe apps upload --live
    ```
 
-4. In Stripe Dashboard, open the uploaded **APEX** app → **External test** → **Get started** (or **Edit**) and select version `0.2.1`.
-5. If **External test** is missing, open **Create a release** and confirm the app uses **public** distribution.
-6. Copy the OAuth link for the environment being tested. If another APEX version is already installed in that tester environment, uninstall it first from **Settings → Installed Apps**.
-7. Configure Supabase Edge Function secrets for that environment:
+3. In the live Stripe Dashboard, open the uploaded **APEX** app → **External test** → **Get started** (or **Edit**) and select version `0.3.0`.
+4. If **External test** is missing, open **Create a release** and confirm the app uses **public** distribution.
+5. Copy the OAuth link for the environment being tested. If another APEX version is already installed in that tester environment, uninstall it first from **Settings → Installed Apps**.
+6. Configure Supabase Edge Function secrets for that environment:
 
    ```text
    STRIPE_APP_OAUTH_MODE=test | sandbox
