@@ -156,7 +156,8 @@ export async function handler(req: Request): Promise<Response> {
       }, { onConflict: "workspace_id" }),
     );
 
-    const authorize = new URL("https://marketplace.stripe.com/oauth/v2/authorize");
+    const externalTestChannelId = "chnlink_61VRM88U6D5Ety5bb41CoLTpL33rRA4u";
+    const authorize = new URL(`https://marketplace.stripe.com/oauth/v2/${externalTestChannelId}/authorize`);
     authorize.searchParams.set("client_id", clientId);
     authorize.searchParams.set("redirect_uri", callbackUrl());
     authorize.searchParams.set("state", state);
