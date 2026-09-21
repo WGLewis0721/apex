@@ -7,7 +7,7 @@
 // swapped for the real thing without touching the funnel components.
 //
 // None of these ever run APEX's own backend on the customer's machine.
-// The real shape is always: customer app -> @apex/sdk or @apex/cli ->
+// The real shape is always: customer app -> @wlgewis-gmtc/apex-sdk or @apex/cli ->
 // hosted APEX Cloud -> the customer's payment provider. What's simulated
 // here stands in for network calls to APEX Cloud and to npm/PyPI, not for
 // software that would otherwise install locally.
@@ -68,7 +68,7 @@ export interface InstallerProvider {
 // - A real CLI would sign into the workspace with the demo/live secret
 //   key, detect the project's package.json and framework, and write the
 //   resolved SDK version back for `writeEnvConfig` to use.
-// - `installSdk` stands in for `npm install @apex/sdk`; APEX Cloud itself
+// - `installSdk` stands in for the now-published `npm install @wlgewis-gmtc/apex-sdk`; APEX Cloud itself
 //   never runs on the customer's machine, only this thin client does.
 export function createSimulatedInstaller(): InstallerProvider {
   return {
@@ -78,7 +78,7 @@ export function createSimulatedInstaller(): InstallerProvider {
     },
     async installSdk() {
       await delay(900);
-      return { pkg: '@apex/sdk', version: '0.1.0-preview' };
+      return { pkg: '@wlgewis-gmtc/apex-sdk', version: '0.1.0' };
     },
   };
 }
@@ -119,7 +119,7 @@ export interface VerificationProvider {
 // TODO(real integration):
 // - These four calls stand in for `apex.customers.identify`,
 //   `apex.entitlements.grant`, `apex.usage.record`, and
-//   `apex.access.check` against the hosted API once `@apex/sdk` is
+//   `apex.access.check` against the hosted API once `@wlgewis-gmtc/apex-sdk` is
 //   published — see the Step 7 code sample.
 // - A real check must run server-side with the secret key; never expose
 //   an access decision that trusts client-reported state.
