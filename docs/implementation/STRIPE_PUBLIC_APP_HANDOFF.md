@@ -1,38 +1,41 @@
 # Public Stripe App acceptance handoff
 
-The public OAuth implementation is built and deployed. The repository manifest targets the eligible public
-app `com.graymatter.apex-dev`, requests only the read/event permissions needed by APEX, supports sandbox
-installs, returns successful installs to APEX onboarding, and points OAuth at the deployed Supabase callback.
+## Correct External-test ownership model
 
-## Uploaded version
+Stripe's current sandbox-support documentation requires the public app version used for External testing to be uploaded from the **live/main developer account**, not from a sandbox-created app.
 
-`0.2.0` was uploaded previously, but a later merge conflict regressed the repository manifest back to `com.graymatter.apex` and dropped permissions required by the connected processor. Version `0.2.1` restores the uploaded public app id `com.graymatter.apex-dev`, sandbox compatibility, post-install return, and the full read permissions used by connected ingress.
+The prior sandbox app `com.graymatter.apex-dev` version `0.2.1` remains a development artifact. Its Dashboard correctly shows that External testing is unavailable there until business verification, and Stripe does not promote that globally unique app ID into the live account.
 
-For this existing app ID, Stripe CLI confirms the owning developer context is the `apex test dev` sandbox (`acct_1UDyaOCu4VfuBF6D`); upload of `0.2.1` succeeded there on September 20, 2026. Do not recreate the globally unique app ID from the separate `Apex · live` account. External-test selection and installation remain Dashboard-driven controls.
+The canonical live External-test app now uses:
+
+- app id: `com.graymatter.apex`
+- version: `0.3.0`
+- distribution: public
+- auth: OAuth
+- sandbox installs: enabled
+- callback: `https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-stripe-connect-callback`
+
+Upload this manifest from the verified **Apex · live** developer account. The app ID becomes permanent after its first successful upload.
 
 ## Finish in Stripe
 
-1. Use the Stripe CLI context that owns `com.graymatter.apex-dev`: `apex test dev` (`acct_1UDyaOCu4VfuBF6D`). Version `0.2.1` is now uploaded successfully.
-2. Open the APEX app's **External test** tab in Stripe Dashboard, click **Get Started** (or **Edit**), and select `0.2.1`. If the External test tab is missing, use **Create a release** and confirm **public** distribution first.
-3. For OAuth, use the generated **sandbox** install link. If a published/private version is already installed in the tester environment, uninstall it first from **Settings → Installed Apps**.
-4. Copy the generated sandbox OAuth client ID and configure `STRIPE_APP_SANDBOX_CLIENT_ID`,
-   `STRIPE_APP_SANDBOX_SECRET_KEY`, and `STRIPE_APP_OAUTH_MODE=sandbox` as Supabase function secrets. The sandbox secret key must come from the app's **managed sandbox**.
-5. In the managed sandbox Workbench, create a connected-account event destination for `checkout.session.completed`,
-   `checkout.session.async_payment_succeeded`, and `charge.refunded`, pointing at:
+1. Switch Stripe CLI to **Apex · live**.
+2. From `stripe-app/`, upload with `stripe apps upload --live`.
+3. In the live Dashboard, open **Developers → Apps / Created apps → APEX → External test** and select `0.3.0`.
+4. If External test is not visible, use **Create a release** and confirm **Public** distribution.
+5. Use the generated sandbox OAuth link to install into a separate tester sandbox.
+6. For general sandbox installs, use the public app's **managed sandbox** API key for the OAuth code exchange and create the connected-account event destination in that managed sandbox.
+7. Point the destination at:
+   `https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-connected-stripe-webhook`
+8. Subscribe to `checkout.session.completed`, `checkout.session.async_payment_succeeded`, and `charge.refunded`.
+9. Store the managed-sandbox OAuth client/key and destination signing secret in Supabase as the existing mode-specific secrets.
+10. Install through APEX onboarding and confirm the OAuth-connected account persists before running Phase 8.
 
-   ```text
-   https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-connected-stripe-webhook
-   ```
-
-6. Store that destination's signing secret as `APEX_CONNECTED_STRIPE_WEBHOOK_SECRET`.
-7. Install the External-test app into a **separate tester sandbox/account** using the generated invite/OAuth link. Do not use the managed sandbox as the customer install target.
-8. Return to APEX, complete the OAuth connection, configure one Stripe Price mapping, and repeat the lifecycle proof through the connected account.
-
-Never commit or paste the developer key, webhook signing secret, OAuth refresh token, Supabase PAT, or APEX
-secret API key. External-test selection and account authorization are Stripe Dashboard controls and cannot
-be honestly replaced with the manual-pilot webhook.
+Do not commit or paste Stripe secret keys, webhook signing secrets, OAuth refresh tokens, Supabase PATs, or APEX secret keys.
 
 ---
+
+
 
 ## Connected ingress processor contract (Phase 6.2)
 
