@@ -10,6 +10,12 @@ Successfully uploaded to `Apex-Public` (`acct_1UHy0wCoLTpL33rR`):
 - auth: OAuth
 - upload result: successful
 
+External-test OAuth client IDs (non-secret):
+
+- live: `ca_VIZIZkCf4uOVYDN4Kf09EJwO16u7NBgu`
+- sandbox: `ca_VIZIlnmITkpUK1IMS99RdI8MLCI6M019`
+- test mode: `ca_VIZIguaoDPfYgmN0shFhXref18uKVVMq`
+
 Next gate is Stripe Dashboard External test configuration for version `0.3.0`, followed by install into a separate tester sandbox and hosted OAuth/webhook proof.
 
 ## September 20, 2026 blocker: Connect-enabled live account
@@ -29,7 +35,7 @@ Stripe's current OAuth Stripe Apps documentation states that a Connect-enabled S
 
 Stripe's current sandbox-support documentation requires the public app version used for External testing to be uploaded from the **live/main developer account**, not from a sandbox-created app.
 
-The prior sandbox app `com.graymattertechllc.apex-dev` version `0.2.1` remains a development artifact. Its Dashboard correctly shows that External testing is unavailable there until business verification, and Stripe does not promote that globally unique app ID into the live account.
+The prior sandbox app `com.graymatter.apex-dev` version `0.2.1` remains a development artifact. Its Dashboard correctly shows that External testing is unavailable there until business verification, and Stripe does not promote that globally unique app ID into the live account.
 
 The canonical live External-test app now uses:
 
