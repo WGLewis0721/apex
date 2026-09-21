@@ -520,7 +520,7 @@ Minimum v1 scope:
 
 **Done when:** a workspace owner can configure a Stripe Price from the APEX product surface, then a connected test purchase using that Price reaches the existing ingress without SQL or `apex_credits` metadata.
 
-**Status:** 🟡 **Implemented, pending hosted deployment/evaluation.** Workspace-owner management UI/API and mapping-required requeue integration are implemented over the existing mapping table and retry path. Acceptance still requires deploying `apex-operator` and proving one blocked mapping-required receipt is requeued and processed by the existing scheduler/processor.
+**Status:** 🟡 **Deployed, pending hosted end-to-end evaluation.** Workspace-owner management UI/API and mapping-required requeue integration are merged, and `apex-operator` v3 is deployed. The database requeue contract has been exercised successfully in a rollback transaction. Final Phase 7.1.2 acceptance still requires one real mapping-required connected receipt to be requeued after configuration and then processed by the existing scheduler/processor; that proof depends on the remaining External-test OAuth connection gate.
 
 
 ## 7.2 Customer balance UI
@@ -613,7 +613,7 @@ Later views may add usage counters, renewals, access-decision history, reservati
 
 # Immediate next actions
 
-1. **Deploy/evaluate Phase 7.1.2 Stripe price-mapping setup**: deploy the updated `apex-operator`, configure an active mapping, and prove one `mapping_required` receipt is requeued and then processed through the existing retry/processor path.
+1. **Finish hosted Phase 7.1.2 evaluation**: with an External-test OAuth-connected account, configure an active mapping and prove one `mapping_required` receipt is requeued and then processed through the existing retry/processor path. `apex-operator` v3 is already deployed.
 2. Finish **Phase 5 External-test OAuth acceptance**: complete one real test OAuth connection and confirm the persisted connected account is bound to the expected workspace.
 3. Run **Phase 8 through the OAuth-connected account** using the existing canonical connected-event processor and retry path: payment → grant → consume → DENY → replay → refund → replay → final ledger explanation.
 4. Build **Phase 7.2 merchant customer balance/history** from the existing hosted balance, entitlements, and timeline APIs.
