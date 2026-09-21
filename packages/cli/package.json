@@ -1,10 +1,10 @@
 {
   "name": "@wlgewis-gmtc/apex",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CLI for the hosted APEX API. `npx @wlgewis-gmtc/apex init` wires an existing Node project up to APEX.",
   "type": "module",
   "bin": {
-    "apex": "./dist/bin.js"
+    "apex": "dist/bin.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
