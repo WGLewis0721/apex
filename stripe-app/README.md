@@ -15,15 +15,17 @@ it is deployed and exercised through a real connected-account test transaction.
 Stripe Apps External testing is available only for **public** apps. Upload the public APEX app from an eligible Stripe developer account, then configure External test from that account. Stripe generates separate OAuth links for Test Mode and general Sandboxes.
 
 1. Install/login to the Stripe CLI using the non-Connect APEX Stripe App developer account that owns `com.graymatter.apex-dev`.
-2. From this directory run:
+2. Make sure the Stripe CLI is authenticated to the **main/live developer account** that owns `com.graymatter.apex-dev` (not the managed sandbox).
+3. From this directory run:
 
    ```bash
    stripe apps upload
    ```
 
-3. In Stripe Dashboard, open the uploaded **APEX** app → **External test** → **Get started**.
-4. Copy the OAuth link for the environment being tested.
-5. Configure Supabase Edge Function secrets for that environment:
+4. In Stripe Dashboard, open the uploaded **APEX** app → **External test** → **Get started** (or **Edit**) and select version `0.2.1`.
+5. If **External test** is missing, open **Create a release** and confirm the app uses **public** distribution.
+6. Copy the OAuth link for the environment being tested. If another APEX version is already installed in that tester environment, uninstall it first from **Settings → Installed Apps**.
+7. Configure Supabase Edge Function secrets for that environment:
 
    ```text
    STRIPE_APP_OAUTH_MODE=test | sandbox
@@ -37,7 +39,7 @@ Callback URI — must match exactly:
 
 `https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-stripe-connect-callback`
 
-The OAuth client IDs are not secrets. Stripe secret keys and OAuth refresh tokens are secrets and must never be committed or exposed in browser code.
+The OAuth client IDs are not secrets. Stripe secret keys and OAuth refresh tokens are secrets and must never be committed or exposed in browser code. For a general sandbox install, the exchange key comes from the app's managed sandbox; upload/release management stays in the main/live developer account.
 
 APEX binds the selected OAuth mode into the one-time CSRF `state`. The callback then uses the matching Stripe key for the authorization-code exchange. Stripe requires the developer test key for a Test Mode link and the app's managed-sandbox key for a general Sandbox link.
 
