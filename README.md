@@ -82,14 +82,14 @@ Connected Stripe events
         ↓
 verified + persisted
         ↓
-transactional grant/refund processing (next ingress step)
+transactional grant/refund processing + persisted retry
 ```
 
 Frozen v1 does **not** include public `/check`, reservations/finalize/cancel, signed snapshots, local SDK evaluation, Redis, Kafka, ClickHouse, AWS runtime migration, a dedicated worker service, or a new queue product.
 
 See [`docs/architecture/APEX_V1_LEDGER.md`](docs/architecture/APEX_V1_LEDGER.md).
 
-## Current implementation status — September 12, 2026
+## Current implementation status — September 20, 2026
 
 | Capability | Status |
 | --- | --- |
@@ -106,13 +106,13 @@ See [`docs/architecture/APEX_V1_LEDGER.md`](docs/architecture/APEX_V1_LEDGER.md)
 | Hosted concurrency proof | ✅ Passed — parallel 750/750 against 1000 produced one ALLOW, one DENY, remaining 250 |
 | Manual Stripe payment → grant ingress | ✅ Deployed and automation-proven |
 | Manual Stripe refund → clawback ingress | ✅ Deployed and automation-proven |
-| Public connected-account ingress | 🟡 Deployed code; External-test install still required |
+| Public connected-account ingress | 🟡 Deployed with one canonical processor + scheduled retry; External-test OAuth install/proof still required |
 | First public `@wlgewis-gmtc/apex-sdk` | ✅ Published to npm as `0.1.0`; installable with `npm install @wlgewis-gmtc/apex-sdk` |
-| Guided `@wlgewis-gmtc/apex` CLI (`apex init`) | 🟡 Implemented and pack-ready; not yet published. Recommended once live: `npx @wlgewis-gmtc/apex init` |
+| Guided `@wlgewis-gmtc/apex` CLI (`apex init`) | ✅ Published to npm as `0.1.1`; verified from a fresh Node project with `npx @wlgewis-gmtc/apex init` against hosted `/v1/whoami` |
 | Signed/local entitlement evaluation | ⏳ v1.1+ only if customer need justifies it |
 | Reservations | ⏳ Not v1; only if start-now/finish-later workload requires them |
-| Expiring grants | ⏳ Not production-supported until projection reconciliation exists |
-| End-to-end connected Stripe proof | ⏳ Pending Phase 5 + ingress |
+| Expiring grants | 🟡 Expiry reconciliation is implemented; hosted acceptance against real data remains |
+| End-to-end connected Stripe proof | 🟡 Manual lifecycle automated and accepted; OAuth-connected repetition remains |
 | Live operator dashboard | ✅ Deployed API and authenticated console view |
 
 ### Status clarification
@@ -142,31 +142,33 @@ The first hosted attempt exposed a legacy Supabase service-role JWT clock error.
 
 This proves the wallet does not double-spend. It does **not** yet prove money automatically becomes product value from a customer's connected Stripe account.
 
-## Immediate acceptance gates
+## Immediate next work
 
-### 1. Finish Phase 5 Connect Stripe
+### 1. Build the Stripe price-mapping console — next net-new slice
 
-- `stripe apps upload`
-- register External test
-- configure `STRIPE_APP_CLIENT_ID`
-- complete one live test OAuth authorization from APEX onboarding
-- confirm `stripe_connections.status = 'connected'` for the expected connected account
+The backend already enforces server-owned `stripe_credit_price_mappings`; an unmapped Stripe Price grants nothing. The missing product surface is a tenant-scoped setup UI/API that lets a workspace owner:
 
-### 2. Wire connected Stripe ingress
+- list existing active/inactive mappings
+- enter a Stripe Price ID and positive APEX credit amount
+- create/update/deactivate a mapping safely
+- see which workspace/connection the mapping applies to
+- see a clear operator-action-needed state when a payment cannot proceed because a mapping is missing
 
-```text
-verified connected payment event
-→ persist event once
-→ configured source mapping
-→ grant_credits exactly once
+This removes SQL/manual-demo coupling without creating another ledger or ingress path.
 
-verified connected refund event
-→ persist event once
-→ refund_unspent_credits for the originating purchase
-→ replay-safe result
-```
+### 2. Finish Phase 5 External-test OAuth acceptance
 
-Only after that connected lifecycle passes should frozen Phase 6 v1 be called accepted.
+Complete one real test OAuth installation and confirm the expected connected account is persisted and workspace-bound.
+
+### 3. Repeat Phase 8 through the OAuth-connected account
+
+Run the already-proven payment → grant → consume → deny → replay → refund → replay flow through the connected-account destination. Initial delivery and retry must continue using the same canonical persisted-event processor.
+
+### 4. Build the merchant-facing customer balance/history surface
+
+Use the existing hosted balance, entitlements, and timeline APIs. Do not create a second source of truth.
+
+Only after the OAuth-connected lifecycle passes should frozen Phase 6 self-serve acceptance be called complete.
 
 ## Frozen refund policy
 
@@ -186,6 +188,7 @@ Refunding A cannot steal credits from grant B. Already-consumed product work rem
 ## v1 API
 
 ```text
+GET  /v1/whoami
 GET  /v1/customers/:id/balance
 GET  /v1/customers/:id/entitlements
 POST /v1/customers/:id/consume
@@ -263,7 +266,7 @@ See APEX
   → Dashboard
 ```
 
-Real paid onboarding currently stops at Connect Stripe until Phase 5 External-test OAuth acceptance passes.
+The SDK and CLI install path is now real and externally verified. Self-serve connected-account onboarding still requires Phase 5 External-test OAuth acceptance.
 
 ## Documentation map
 
