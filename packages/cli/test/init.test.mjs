@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runInit } from '../dist/index.js';
@@ -55,6 +55,7 @@ test('a fresh project: installs, writes .env, ignores it, verifies', async () =>
     assert.equal(installCalls, 1);
     assert.equal(readFileSync(join(dir, '.env'), 'utf8'), 'APEX_SECRET_KEY=apex_sk_test_abc123\n');
     assert.equal(readFileSync(join(dir, '.gitignore'), 'utf8'), '.env\n');
+    assert.ok(existsSync(join(dir, 'apex-example.mjs')));
     assert.ok(report.steps.every((s) => s.status === 'ok'));
   });
 });
@@ -217,5 +218,90 @@ test('never writes the secret anywhere other than .env', async () => {
     assert.equal(report.success, true);
     for (const step of report.steps) assert.doesNotMatch(step.detail, /apex_sk_test_shouldnotleak/);
     for (const line of lines) assert.doesNotMatch(line, /apex_sk_test_shouldnotleak/);
+    assert.doesNotMatch(readFileSync(join(dir, 'apex-example.mjs'), 'utf8'), /apex_sk_test_shouldnotleak/);
+  });
+});
+
+test('a Next.js project gets .env.local and a server-side-only warning', async () => {
+  await withTempDir(async (dir) => {
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 'demo-app', dependencies: { next: '^15.0.0', '@wlgewis-gmtc/apex-sdk': '^0.1.0' } }),
+    );
+    const report = await runInit(baseOptions(dir, { env: { APEX_SECRET_KEY: 'apex_sk_test_abc123' } }));
+    assert.equal(report.success, true);
+    assert.equal(readFileSync(join(dir, '.env.local'), 'utf8'), 'APEX_SECRET_KEY=apex_sk_test_abc123\n');
+    assert.equal(existsSync(join(dir, '.env')), false);
+    assert.equal(readFileSync(join(dir, '.gitignore'), 'utf8'), '.env.local\n');
+    const note = report.steps.find((s) => s.name === 'framework-note');
+    assert.ok(note);
+    assert.match(note.detail, /server-side only/);
+    assert.match(note.detail, /NEXT_PUBLIC_/);
+  });
+});
+
+test('a Vite project gets .env.local and a server-side-only warning naming VITE_', async () => {
+  await withTempDir(async (dir) => {
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 'demo-app', devDependencies: { vite: '^5.0.0' }, dependencies: { react: '^18.0.0', '@wlgewis-gmtc/apex-sdk': '^0.1.0' } }),
+    );
+    const report = await runInit(baseOptions(dir, { env: { APEX_SECRET_KEY: 'apex_sk_test_abc123' } }));
+    assert.equal(report.success, true);
+    assert.equal(readFileSync(join(dir, '.env.local'), 'utf8'), 'APEX_SECRET_KEY=apex_sk_test_abc123\n');
+    const note = report.steps.find((s) => s.name === 'framework-note');
+    assert.match(note.detail, /VITE_/);
+  });
+});
+
+test('a generic Node project has no framework-note step and uses plain .env', async () => {
+  await withTempDir(async (dir) => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'demo-app', dependencies: { express: '^4.0.0', '@wlgewis-gmtc/apex-sdk': '^0.1.0' } }));
+    const report = await runInit(baseOptions(dir, { env: { APEX_SECRET_KEY: 'apex_sk_test_abc123' } }));
+    assert.equal(report.steps.some((s) => s.name === 'framework-note'), false);
+    assert.ok(existsSync(join(dir, '.env')));
+  });
+});
+
+test('does not overwrite an existing apex-example.mjs on rerun', async () => {
+  await withTempDir(async (dir) => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'demo-app', dependencies: { '@wlgewis-gmtc/apex-sdk': '^0.1.0' } }));
+    writeFileSync(join(dir, 'apex-example.mjs'), '// hand-edited by the customer\n');
+    const report = await runInit(baseOptions(dir, { env: { APEX_SECRET_KEY: 'apex_sk_test_abc123' } }));
+    assert.equal(report.success, true);
+    assert.equal(readFileSync(join(dir, 'apex-example.mjs'), 'utf8'), '// hand-edited by the customer\n');
+    const exampleStep = report.steps.find((s) => s.name === 'example');
+    assert.match(exampleStep.detail, /already exists/);
+  });
+});
+
+test('forwards a --base-url override to verification', async () => {
+  await withTempDir(async (dir) => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'demo-app', dependencies: { '@wlgewis-gmtc/apex-sdk': '^0.1.0' } }));
+    let receivedOptions;
+    const report = await runInit(
+      baseOptions(dir, {
+        env: { APEX_SECRET_KEY: 'apex_sk_test_abc123' },
+        baseUrl: 'https://example.test/apex-api',
+        verify: async (secret, opts) => {
+          receivedOptions = opts;
+          return 'valid';
+        },
+      }),
+    );
+    assert.equal(report.success, true);
+    assert.equal(receivedOptions.baseUrl, 'https://example.test/apex-api');
+  });
+});
+
+test('consolidates a hand-duplicated APEX_SECRET_KEY down to one line', async () => {
+  await withTempDir(async (dir) => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'demo-app', dependencies: { '@wlgewis-gmtc/apex-sdk': '^0.1.0' } }));
+    writeFileSync(join(dir, '.env'), 'APEX_SECRET_KEY=apex_sk_test_first\nPORT=3000\nAPEX_SECRET_KEY=apex_sk_test_second\n');
+    const report = await runInit(baseOptions(dir, { env: { APEX_SECRET_KEY: 'apex_sk_test_authoritative' } }));
+    assert.equal(report.success, true);
+    const content = readFileSync(join(dir, '.env'), 'utf8');
+    assert.equal((content.match(/APEX_SECRET_KEY=/g) ?? []).length, 1);
+    assert.match(content, /APEX_SECRET_KEY=apex_sk_test_authoritative/);
   });
 });

@@ -62,6 +62,26 @@ export function detectFrameworkHint(packageJson: { dependencies?: Record<string,
   return FRAMEWORK_HINTS.find((name) => name in deps) ?? null;
 }
 
+export type ProjectKind = "next" | "vite" | "node";
+
+/**
+ * Drives which env file gets the secret and whether to warn about browser
+ * exposure. Next and Vite both ship a dev server that inlines specially
+ * prefixed env vars into client bundles, so both get `.env.local` (their
+ * own convention) and the same "server-side only" warning; anything else
+ * is treated as a plain Node process using `.env`.
+ */
+export function detectProjectKind(cwd: string, packageJson: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> }): ProjectKind {
+  const deps = { ...packageJson.dependencies, ...packageJson.devDependencies };
+  if ("next" in deps) return "next";
+  if ("vite" in deps || existsSync(join(cwd, "vite.config.ts")) || existsSync(join(cwd, "vite.config.js"))) return "vite";
+  return "node";
+}
+
+export function envFileNameFor(kind: ProjectKind): string {
+  return kind === "node" ? ".env" : ".env.local";
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -74,7 +94,13 @@ export function extractEnvValue(content: string, key: string): string | null {
 export type EnvMergeAction = "created" | "appended" | "updated" | "unchanged";
 export type EnvMergeResult = { content: string; action: EnvMergeAction };
 
-/** Updates `key` in an existing env file's text in place, or appends it, without disturbing any other line. */
+/**
+ * Updates `key` in an existing env file's text in place, or appends it,
+ * without disturbing any other line. If `key` somehow appears more than
+ * once (hand-edited file, merge artifact, etc.), keeps exactly one
+ * authoritative entry at the first occurrence and drops the rest, rather
+ * than leaving conflicting duplicates behind.
+ */
 export function mergeEnvFile(existingContent: string | null, key: string, value: string): EnvMergeResult {
   if (existingContent === null || existingContent.trim() === "") {
     return { content: `${key}=${value}\n`, action: "created" };
@@ -84,18 +110,24 @@ export function mergeEnvFile(existingContent: string | null, key: string, value:
   if (endedWithNewline && lines[lines.length - 1] === "") lines.pop();
 
   const pattern = new RegExp(`^[ \\t]*${escapeRegExp(key)}[ \\t]*=`);
-  const index = lines.findIndex((line) => pattern.test(line));
-  if (index === -1) {
+  const matchIndexes: number[] = [];
+  lines.forEach((line, i) => {
+    if (pattern.test(line)) matchIndexes.push(i);
+  });
+
+  if (matchIndexes.length === 0) {
     lines.push(`${key}=${value}`);
     return { content: lines.join("\n") + "\n", action: "appended" };
   }
 
-  const currentValue = lines[index].slice(lines[index].indexOf("=") + 1).trim();
-  if (currentValue === value) {
+  const [firstIndex, ...duplicateIndexes] = matchIndexes;
+  const currentValue = lines[firstIndex].slice(lines[firstIndex].indexOf("=") + 1).trim();
+  if (currentValue === value && duplicateIndexes.length === 0) {
     return { content: existingContent, action: "unchanged" };
   }
-  lines[index] = `${key}=${value}`;
-  return { content: lines.join("\n") + "\n", action: "updated" };
+  lines[firstIndex] = `${key}=${value}`;
+  const deduped = lines.filter((_, i) => !duplicateIndexes.includes(i));
+  return { content: deduped.join("\n") + "\n", action: "updated" };
 }
 
 export type GitignoreAction = "created" | "appended" | "unchanged";
@@ -116,15 +148,13 @@ export function ensureGitignoreEntry(existingContent: string | null, entry: stri
 export type VerificationResult = "valid" | "invalid" | "unknown";
 
 export function classifyVerificationStatus(status: number): VerificationResult {
-  // The hosted apex-api function authenticates the bearer token before it
-  // routes the request (supabase/functions/_shared/apex_api_auth.ts): an
-  // invalid/revoked key always throws UNAUTHORIZED -> 401, and a route that
-  // doesn't match any known handler only ever produces 404 *after* auth
-  // succeeds. Hitting a path that deliberately matches no handler is
-  // therefore a legitimate, side-effect-free way to check a credential
-  // without needing a real customer id.
+  // GET /v1/whoami authenticates through the same path as every other
+  // apex-api route and returns only safe identity info (workspace_id,
+  // environment_id, mode) -- never the credential. Verification succeeds
+  // only on an authenticated 200; 401 means invalid/inactive; anything else
+  // is a network/server failure, distinct from an invalid credential.
+  if (status === 200) return "valid";
   if (status === 401) return "invalid";
-  if (status === 404) return "valid";
   return "unknown";
 }
 
@@ -137,13 +167,44 @@ export async function verifyCredential(
   const baseUrl = (options?.baseUrl ?? DEFAULT_APEX_BASE_URL).replace(/\/$/, "");
   const fetcher = options?.fetch ?? globalThis.fetch;
   try {
-    const response = await fetcher(`${baseUrl}/v1/__apex_cli_verify__`, {
+    const response = await fetcher(`${baseUrl}/v1/whoami`, {
       headers: { authorization: `Bearer ${apiKey}` },
     });
     return classifyVerificationStatus(response.status);
   } catch {
     return "unknown";
   }
+}
+
+export const EXAMPLE_FILE_NAME = "apex-example.mjs";
+
+/**
+ * A small, non-destructive example of the real SDK surface -- entitlements()
+ * and consume() -- for the customer to read, run, or delete. `.mjs` runs as
+ * ESM under Node regardless of the target project's own "type", so it needs
+ * no build step. This file is only ever written, never executed by the CLI.
+ */
+export function buildExampleContent(envFileName: string): string {
+  return `// Example usage for @wlgewis-gmtc/apex-sdk, generated once by \`apex init\`.
+// Edit or delete this file freely -- it is yours, not part of the SDK.
+//
+// APEX_SECRET_KEY comes from the environment, not a bundler, so load your
+// env file when running this directly:
+//   node --env-file=${envFileName} ${EXAMPLE_FILE_NAME}
+import { ApexClient } from "@wlgewis-gmtc/apex-sdk";
+
+const apex = new ApexClient({ apiKey: process.env.APEX_SECRET_KEY });
+
+// Replace with a real customer id from your own system.
+const customerId = "replace-with-a-real-customer-id";
+
+const entitlements = await apex.entitlements(customerId);
+console.log(entitlements);
+
+// consume() spends credits -- uncomment only when you actually mean to.
+// const result = await apex.consume(customerId, 1, \`example:\${Date.now()}\`);
+// console.log(result);
+`;
 }
 
 export type ResolveResult = { resolvable: boolean; detail?: string };
@@ -209,9 +270,28 @@ export function promptForSecret(
 export type StepStatus = "ok" | "warn" | "error";
 export type StepResult = { name: string; status: StepStatus; detail: string };
 
+/**
+ * Parses `apex init [--base-url <url>]`. Normal users never need this --
+ * it overrides the built-in hosted endpoint for development/testing only.
+ */
+export function parseInitArgs(argv: string[]): { baseUrl?: string } {
+  const options: { baseUrl?: string } = {};
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--base-url") {
+      options.baseUrl = argv[i + 1];
+      i++;
+    } else if (arg.startsWith("--base-url=")) {
+      options.baseUrl = arg.slice("--base-url=".length);
+    }
+  }
+  return options;
+}
+
 export type InitOptions = {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
+  baseUrl?: string;
   promptForSecret?: typeof promptForSecret;
   runInstall?: typeof runPackageManagerInstall;
   verify?: typeof verifyCredential;
@@ -262,7 +342,19 @@ export async function runInit(options: InitOptions = {}): Promise<InitReport> {
 
   const manager = detectPackageManager(cwd);
   const framework = detectFrameworkHint(packageJson);
-  record("detect", "ok", `Package manager: ${manager}.${framework ? ` Framework: ${framework}.` : ""}`);
+  const projectKind = detectProjectKind(cwd, packageJson);
+  const envFileName = envFileNameFor(projectKind);
+  const projectKindLabel = projectKind === "next" ? "Next.js" : projectKind === "vite" ? "Vite" : "Node";
+  record("detect", "ok", `Package manager: ${manager}. Project type: ${projectKindLabel}.${framework ? ` Framework: ${framework}.` : ""}`);
+
+  if (projectKind === "next" || projectKind === "vite") {
+    const forbiddenPrefix = projectKind === "next" ? "NEXT_PUBLIC_" : "VITE_";
+    record(
+      "framework-note",
+      "ok",
+      `${projectKindLabel} detected: ApexClient is server-side only. Never import it from client components or anything bundled for the browser, and never prefix ${ENV_KEY} with ${forbiddenPrefix}.`,
+    );
+  }
 
   const alreadyDeclared = Boolean(packageJson.dependencies?.[SDK_PACKAGE_NAME] || packageJson.devDependencies?.[SDK_PACKAGE_NAME]);
   if (alreadyDeclared) {
@@ -277,15 +369,15 @@ export async function runInit(options: InitOptions = {}): Promise<InitReport> {
     record("install", "ok", `Installed ${SDK_PACKAGE_NAME} with ${manager}.`);
   }
 
-  const envFilePath = join(cwd, ".env");
+  const envFilePath = join(cwd, envFileName);
   const existingEnvContent = existsSync(envFilePath) ? readFileSync(envFilePath, "utf8") : null;
   const existingFileValue = existingEnvContent ? extractEnvValue(existingEnvContent, ENV_KEY) : null;
 
   let secret: string | null = env[ENV_KEY]?.trim() || null;
-  let secretSource: "environment" | "existing .env" | "prompt" = "environment";
+  let secretSource: string = "environment";
   if (!secret && existingFileValue && isValidKeyFormat(existingFileValue)) {
     secret = existingFileValue;
-    secretSource = "existing .env";
+    secretSource = `existing ${envFileName}`;
   }
   if (!secret) {
     try {
@@ -310,23 +402,31 @@ export async function runInit(options: InitOptions = {}): Promise<InitReport> {
   if (envMerge.action !== "unchanged") writeFileSync(envFilePath, envMerge.content, "utf8");
   const envDetail =
     envMerge.action === "created"
-      ? `Created .env with ${ENV_KEY}.`
+      ? `Created ${envFileName} with ${ENV_KEY}.`
       : envMerge.action === "unchanged"
-        ? `.env already has the right ${ENV_KEY}.`
-        : `Updated ${ENV_KEY} in .env.`;
+        ? `${envFileName} already has the right ${ENV_KEY}.`
+        : `Updated ${ENV_KEY} in ${envFileName}.`;
   record("env-file", "ok", envDetail);
 
   const gitignorePath = join(cwd, ".gitignore");
   const existingGitignore = existsSync(gitignorePath) ? readFileSync(gitignorePath, "utf8") : null;
-  const gitignoreResult = ensureGitignoreEntry(existingGitignore, ".env");
+  const gitignoreResult = ensureGitignoreEntry(existingGitignore, envFileName);
   if (gitignoreResult.action !== "unchanged") writeFileSync(gitignorePath, gitignoreResult.content, "utf8");
   const gitignoreDetail =
     gitignoreResult.action === "unchanged"
-      ? ".gitignore already ignores .env."
+      ? `.gitignore already ignores ${envFileName}.`
       : gitignoreResult.action === "created"
-        ? "Created .gitignore ignoring .env."
-        : "Added .env to .gitignore.";
+        ? `Created .gitignore ignoring ${envFileName}.`
+        : `Added ${envFileName} to .gitignore.`;
   record("gitignore", "ok", gitignoreDetail);
+
+  const examplePath = join(cwd, EXAMPLE_FILE_NAME);
+  if (existsSync(examplePath)) {
+    record("example", "ok", `${EXAMPLE_FILE_NAME} already exists; leaving it alone.`);
+  } else {
+    writeFileSync(examplePath, buildExampleContent(envFileName), "utf8");
+    record("example", "ok", `Created ${EXAMPLE_FILE_NAME} showing entitlements()/consume() usage.`);
+  }
 
   const resolveResult = doResolveCheck(cwd, SDK_PACKAGE_NAME);
   if (resolveResult.resolvable) {
@@ -335,7 +435,7 @@ export async function runInit(options: InitOptions = {}): Promise<InitReport> {
     record("import", "warn", resolveResult.detail ?? "Could not confirm the SDK can be imported from this project.");
   }
 
-  const verification = await doVerify(secret);
+  const verification = await doVerify(secret, { baseUrl: options.baseUrl });
   if (verification === "valid") {
     record("verify", "ok", "APEX confirmed this credential is active.");
   } else if (verification === "invalid") {

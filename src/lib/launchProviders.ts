@@ -7,7 +7,7 @@
 // swapped for the real thing without touching the funnel components.
 //
 // None of these ever run APEX's own backend on the customer's machine.
-// The real shape is always: customer app -> @wlgewis-gmtc/apex-sdk or @apex/cli ->
+// The real shape is always: customer app -> @wlgewis-gmtc/apex-sdk or @wlgewis-gmtc/apex ->
 // hosted APEX Cloud -> the customer's payment provider. What's simulated
 // here stands in for network calls to APEX Cloud and to npm/PyPI, not for
 // software that would otherwise install locally.
@@ -63,7 +63,7 @@ export interface InstallerProvider {
 }
 
 // TODO(real integration):
-// - `npx @apex/cli init` is not a published command yet — this simulates
+// - `npx @wlgewis-gmtc/apex init` is not a published command yet — this simulates
 //   the network round trip it would make, not a local process spawn.
 // - A real CLI would sign into the workspace with the demo/live secret
 //   key, detect the project's package.json and framework, and write the

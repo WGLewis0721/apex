@@ -108,6 +108,7 @@ See [`docs/architecture/APEX_V1_LEDGER.md`](docs/architecture/APEX_V1_LEDGER.md)
 | Manual Stripe refund → clawback ingress | ✅ Deployed and automation-proven |
 | Public connected-account ingress | 🟡 Deployed code; External-test install still required |
 | First public `@wlgewis-gmtc/apex-sdk` | ✅ Published to npm as `0.1.0`; installable with `npm install @wlgewis-gmtc/apex-sdk` |
+| Guided `@wlgewis-gmtc/apex` CLI (`apex init`) | 🟡 Implemented and pack-ready; not yet published. Recommended once live: `npx @wlgewis-gmtc/apex init` |
 | Signed/local entitlement evaluation | ⏳ v1.1+ only if customer need justifies it |
 | Reservations | ⏳ Not v1; only if start-now/finish-later workload requires them |
 | Expiring grants | ⏳ Not production-supported until projection reconciliation exists |

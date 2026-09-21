@@ -1,17 +1,18 @@
 #!/usr/bin/env node
-import { runInit } from "./index.js";
+import { runInit, parseInitArgs } from "./index.js";
 
 async function main() {
   const command = process.argv[2];
 
   if (command === "init") {
-    const report = await runInit();
+    const { baseUrl } = parseInitArgs(process.argv.slice(3));
+    const report = await runInit({ baseUrl });
     process.exitCode = report.success ? 0 : 1;
     return;
   }
 
   if (!command || command === "--help" || command === "-h") {
-    console.log("Usage: apex init");
+    console.log("Usage: apex init [--base-url <url>]");
     process.exitCode = command ? 0 : 1;
     return;
   }

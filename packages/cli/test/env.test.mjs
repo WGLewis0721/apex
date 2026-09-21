@@ -34,3 +34,18 @@ test('handles a file with no trailing newline', () => {
   const result = mergeEnvFile(existing, 'APEX_SECRET_KEY', 'apex_sk_test_abc');
   assert.equal(result.content, 'PORT=3000\nAPEX_SECRET_KEY=apex_sk_test_abc\n');
 });
+
+test('consolidates duplicate keys down to exactly one authoritative entry', () => {
+  const existing = 'PORT=3000\nAPEX_SECRET_KEY=apex_sk_test_old\nOTHER=1\nAPEX_SECRET_KEY=apex_sk_test_stale\n';
+  const result = mergeEnvFile(existing, 'APEX_SECRET_KEY', 'apex_sk_test_new');
+  assert.equal(result.action, 'updated');
+  assert.equal(result.content, 'PORT=3000\nAPEX_SECRET_KEY=apex_sk_test_new\nOTHER=1\n');
+  assert.equal((result.content.match(/APEX_SECRET_KEY=/g) ?? []).length, 1);
+});
+
+test('still deduplicates even when the first duplicate already has the target value', () => {
+  const existing = 'APEX_SECRET_KEY=apex_sk_test_same\nAPEX_SECRET_KEY=apex_sk_test_other\n';
+  const result = mergeEnvFile(existing, 'APEX_SECRET_KEY', 'apex_sk_test_same');
+  assert.equal(result.action, 'updated');
+  assert.equal(result.content, 'APEX_SECRET_KEY=apex_sk_test_same\n');
+});
