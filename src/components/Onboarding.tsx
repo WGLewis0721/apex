@@ -782,7 +782,7 @@ function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContin
     <>
       <p className="ob-eyebrow">{stepEyebrow('payments', 'CONNECT STRIPE')}</p>
       <h1>Connect Stripe.</h1>
-      <p className="ob-lede">Stripe moves the money. This pilot uses a signed Stripe webhook, so there is no OAuth installation gate.</p>
+      <p className="ob-lede">Connect your existing Stripe account through the APEX Stripe App. OAuth gives APEX only the account, customer, Checkout, payment, refund, and event access required to keep credits and entitlements synchronized.</p>
       <ArchitectureStrip />
       <div className="ob-connect">
         <div className="ob-connect-icon"><CreditCard size={20} /></div>
@@ -793,37 +793,52 @@ function PaymentsStep({ status, connecting, stripeAccountId, onConnect, onContin
           </div>
           {backendConfigured && stripeAccountId && <small><code>{stripeAccountId}</code></small>}
         </div>
-        {!connected && !backendConfigured && (
+        {!connected && (
           <button className="ob-ghost" onClick={onConnect} disabled={connecting}>
-            {connecting ? <><Loader2 size={15} className="ob-spin" /> Connecting…</> : backendConfigured ? (status === 'connecting' ? 'Restart Stripe connection' : 'Connect Stripe') : 'Connect Stripe (demo)'}
+            {connecting
+              ? <><Loader2 size={15} className="ob-spin" /> Opening Stripe…</>
+              : backendConfigured
+                ? (status === 'connecting' ? 'Restart Stripe connection' : 'Connect Stripe')
+                : 'Connect Stripe (demo)'}
           </button>
         )}
       </div>
-      {backendConfigured && <div style={{ marginTop: 20 }}>
-        <p className="ob-note">1. In Stripe Test mode: Developers → Webhooks → Create event destination. Select <code>checkout.session.completed</code> and <code>charge.refunded</code>.</p>
-        <p className="ob-note">2. Paste this endpoint into Stripe:</p>
-        {manualWebhook?.endpoint ? <div className="ob-key-row"><code>{manualWebhook.endpoint}</code><CopyButton text={manualWebhook.endpoint} /></div> : <p className="ob-note">Preparing your secure endpoint…</p>}
-        <p className="ob-note">3. Reveal Stripe’s signing secret and paste it here:</p>
-        <div className="ob-field"><input aria-label="Stripe webhook signing secret" type="password" value={manualSecret} onChange={(e) => onManualSecretChange(e.target.value)} placeholder="whsec_…" autoComplete="off" /></div>
-        <button className="ob-primary" style={{ marginTop: 12 }} onClick={onSaveManualWebhook} disabled={manualBusy || !manualSecret.trim()}>{manualBusy ? <><Loader2 size={15} className="ob-spin" /> Saving…</> : <>Save webhook connection <ArrowRight size={15} /></>}</button>
-        {manualWebhook?.configured && <div className="ob-celebrate" style={{ marginTop: 20 }}><CheckCircle2 size={20} /> Stripe webhook connected. Create a test Checkout Session with <code>apex_credits</code> metadata to grant credits.</div>}
-      </div>}
-      <div className="ob-preview-note"><Info size={15} /><span>{backendConfigured
-        ? (manualWebhook?.configured
-          ? 'This pilot connection uses your signed Stripe test webhook. APEX stores the webhook secret encrypted and uses verified Stripe events to drive product state.'
-          : 'Connect Stripe through the available test integration. APEX never needs your Stripe password.')
-        : 'This is an interactive preview of the connection state. No Stripe account is actually linked.'}</span></div>
+
+      {backendConfigured && (
+        <div className="ob-preview-note">
+          <Info size={15} />
+          <span>
+            <strong>OAuth connection required.</strong> APEX will send you to Stripe to approve the APEX test app, then Stripe returns here after authorization.
+            {manualWebhook?.configured ? ' A legacy signed-webhook pilot is also configured on this workspace, but it does not count as the OAuth connection.' : ''}
+          </span>
+        </div>
+      )}
+
+      {backendConfigured && (
+        <details style={{ marginTop: 16 }}>
+          <summary className="ob-note" style={{ cursor: 'pointer' }}>Legacy signed-webhook pilot</summary>
+          <div style={{ marginTop: 12 }}>
+            <p className="ob-note">This fallback remains available for the older pilot path. It is not used for Stripe Apps OAuth acceptance.</p>
+            {manualWebhook?.endpoint && <div className="ob-key-row"><code>{manualWebhook.endpoint}</code><CopyButton text={manualWebhook.endpoint} /></div>}
+            <div className="ob-field"><input aria-label="Stripe webhook signing secret" type="password" value={manualSecret} onChange={(e) => onManualSecretChange(e.target.value)} placeholder="whsec_…" autoComplete="off" /></div>
+            <button className="ob-ghost" style={{ marginTop: 12 }} onClick={onSaveManualWebhook} disabled={manualBusy || !manualSecret.trim()}>
+              {manualBusy ? <><Loader2 size={15} className="ob-spin" /> Saving…</> : <>Save legacy webhook <ArrowRight size={15} /></>}
+            </button>
+          </div>
+        </details>
+      )}
+
       {backendConfigured ? (
         connected ? <>
-          <div className="ob-celebrate" style={{ marginTop: 20 }}><CheckCircle2 size={20} /> {manualWebhook?.configured && !stripeAccountId ? 'Stripe webhook connected. Pilot Step 5 is complete.' : 'Stripe account connected. Step 5 is complete.'}</div>
+          <div className="ob-celebrate" style={{ marginTop: 20 }}><CheckCircle2 size={20} /> Stripe account connected. Step 5 is complete.</div>
           <button className="ob-primary" style={{ marginTop: 20 }} onClick={onContinue}>Continue to Install APEX <ArrowRight size={15} /></button>
-        </> : <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 }}>
-          <button className="ob-primary" onClick={onFinishDemo}>Payment test complete <ArrowRight size={15} /></button>
-          <span className="ob-note">Connecting Stripe is optional for this test.</span>
-        </div>
+        </> : (
+          <p className="ob-note" style={{ marginTop: 20 }}>Complete the Stripe OAuth authorization above to continue.</p>
+        )
       ) : (
         <button className="ob-primary" style={{ marginTop: 20 }} disabled={!connected} onClick={onContinue}>Continue to install <ArrowRight size={15} /></button>
       )}
+      {!backendConfigured && <button type="button" style={{ display: 'none' }} onClick={onFinishDemo} aria-hidden="true" />}
     </>
   );
 }
