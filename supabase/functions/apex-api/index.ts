@@ -28,6 +28,16 @@ export async function handler(req: Request): Promise<Response> {
     const identity = await authenticateApexApi(req);
     const parts = routeParts(req);
     if (parts[0] !== "v1") return json({ error: "Not found" }, 404);
+
+    // Read-only identity check for integration tooling (e.g. the apex CLI)
+    // to confirm a credential is live without needing a customer id. Same
+    // auth path as every other route; never touches the database or
+    // returns the credential itself.
+    if (parts[1] === "whoami") {
+      if (req.method !== "GET") return json({ error: "Not found" }, 404);
+      return json({ workspace_id: identity.workspaceId, environment_id: identity.environmentId, mode: identity.mode });
+    }
+
     const db = admin();
 
     // Phase 6.4 maintenance: reconcile expired grant remainders out of the

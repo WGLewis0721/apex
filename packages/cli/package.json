@@ -1,0 +1,50 @@
+{
+  "name": "@wlgewis-gmtc/apex",
+  "version": "0.1.0",
+  "description": "CLI for the hosted APEX API. `npx @wlgewis-gmtc/apex init` wires an existing Node project up to APEX.",
+  "type": "module",
+  "bin": {
+    "apex": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WGLewis0721/apex.git",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "apex",
+    "cli",
+    "stripe",
+    "credits",
+    "entitlements",
+    "billing"
+  ],
+  "license": "MIT"
+}

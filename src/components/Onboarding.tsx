@@ -837,17 +837,17 @@ function BackendInstallStep({ workspaceId }: { workspaceId: string | null }) {
       <ArchitectureStrip />
       <div className="ob-celebrate"><CheckCircle2 size={20} /> Workspace linked{workspaceId ? <> · <code>{workspaceId}</code></> : null}</div>
       <CodeBlock label="Published server SDK" code="npm install @wlgewis-gmtc/apex-sdk" />
-      <CodeBlock label="Guided CLI (when published)" code="npx @apex/cli init" />
+      <CodeBlock label="Recommended once published: guided CLI" code="npx @wlgewis-gmtc/apex init" />
       <div className="ob-preview-note">
         <Info size={15} />
-        <span><strong>The server SDK is published.</strong> <code>@wlgewis-gmtc/apex-sdk@0.1.0</code> is published to npm. The guided <code>@apex/cli</code> is not published yet. APEX will not mark Go live complete until the real package can be installed and verified.</span>
+        <span><strong>The server SDK is published.</strong> <code>@wlgewis-gmtc/apex-sdk@0.1.0</code> is published to npm. The guided <code>@wlgewis-gmtc/apex</code> CLI is implemented and pack-ready but not published to npm yet. APEX will not mark Go live complete until the real package can be installed and verified.</span>
       </div>
-      <p className="ob-note">This is now a real onboarding step, not a dead end. The direct SDK install works today. The next step is the guided CLI install and verification flow.</p>
+      <p className="ob-note">This is now a real onboarding step, not a dead end. The direct SDK install works today. The next step is publishing the guided CLI so <code>npx @wlgewis-gmtc/apex init</code> works end to end.</p>
     </>
   );
 }
 
-const CLI_INIT = 'npx @apex/cli init';
+const CLI_INIT = 'npx @wlgewis-gmtc/apex init';
 const NPM_INSTALL = 'npm install @wlgewis-gmtc/apex-sdk';
 const QUICKSTART = `import { Apex } from "@wlgewis-gmtc/apex-sdk";
 
@@ -974,7 +974,7 @@ function LauncherStep({ launcherStage, email, workspaceId, onProgress, onOpenDas
       <p className="ob-lede">Sit back — APEX is preparing your application to connect to hosted APEX Cloud. This remains an interactive product preview: no real operations run.</p>
       <ArchitectureStrip />
       <CodeBlock label="Recommended: guided setup" code={CLI_INIT} />
-      <p className="ob-preview-flag"><Code2 size={13} /> CLI design preview · @apex/cli is not published yet.</p>
+      <p className="ob-preview-flag"><Code2 size={13} /> CLI design preview · @wlgewis-gmtc/apex is not published yet.</p>
 
       <div className="ob-launcher">
         <div className="ob-launcher-legend">
@@ -1003,7 +1003,7 @@ function LauncherStep({ launcherStage, email, workspaceId, onProgress, onOpenDas
       {allDone ? (
         <>
           <div className="ob-celebrate is-ready"><CheckCircle2 size={22} /> APEX IS READY.</div>
-          <p className="ob-note">Nothing above called a real backend — @apex/cli, @wlgewis-gmtc/apex-sdk, and the APEX Cloud API are all previews.</p>
+          <p className="ob-note">Nothing above called a real backend — @wlgewis-gmtc/apex, @wlgewis-gmtc/apex-sdk, and the APEX Cloud API are all previews.</p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <button className="ob-ghost" onClick={verifyAgain} disabled={reverifying}>
               {reverifying ? <><Loader2 size={15} className="ob-spin" /> Checking…</> : 'Verify APEX'}

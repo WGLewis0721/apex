@@ -12,6 +12,7 @@ stripe-app/supabase-access-token-local.md
 
 .test-build/
 *.tsbuildinfo
+*.tgz
 
 # Supabase CLI local dev state (created by `supabase start`)
 supabase/.branches

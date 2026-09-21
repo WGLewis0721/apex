@@ -11,6 +11,7 @@ async function sha256Hex(value: string) {
 export type ApexApiIdentity = {
   workspaceId: string;
   environmentId: string;
+  mode: "test" | "live";
 };
 
 export async function authenticateApexApi(req: Request): Promise<ApexApiIdentity> {
@@ -36,5 +37,10 @@ export async function authenticateApexApi(req: Request): Promise<ApexApiIdentity
     throw new Error("UNAUTHORIZED");
   }
 
-  return { workspaceId: key.workspace_id, environmentId: key.environment_id };
+  // api_keys has no separate mode column; the mode lives in the credential
+  // string itself (apex_sk_test_... / apex_sk_live_...), same as
+  // packages/sdk validates client-side.
+  const mode: ApexApiIdentity["mode"] = /^apex_sk_live_/.test(token) ? "live" : "test";
+
+  return { workspaceId: key.workspace_id, environmentId: key.environment_id, mode };
 }

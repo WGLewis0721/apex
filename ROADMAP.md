@@ -196,7 +196,7 @@ Do not invent a queue vendor, new database, new cloud runtime, cache, framework,
 | 4 | Paid workspace provisioning | ✅ Real |
 | 5 | Connect customer's Stripe | 🟡 Public OAuth app 0.2.0 uploaded; External-test selection and first install remain |
 | 6 | Hosted product-state core | ✅ Manual pilot accepted; 6.4 expiry reconciliation and 6.5 support timeline implemented pending evaluation; public connected-account acceptance remains |
-| 7 | SDK + customer balance integration | 🟡 SDK `0.1.0` published; guided CLI and customer balance UI remain |
+| 7 | SDK + customer balance integration | 🟡 SDK `0.1.0` published; guided CLI pack-ready but not yet published; customer balance UI remains |
 | 8 | Connected Stripe end-to-end proof | ✅ Manual lifecycle automated; public OAuth-connected repetition remains |
 | 9 | Live operator dashboard | ✅ Tenant-scoped hosted event and ledger view deployed |
 
@@ -478,6 +478,18 @@ Later SDK responsibilities may add signed local entitlement evaluation, purchase
 Do not put APEX secret credentials in browser-only code.
 
 **Status:** ✅ `@wlgewis-gmtc/apex-sdk@0.1.0` is published to npm and installable. The guided CLI and customer balance UI remain separate Phase 7 work.
+
+## 7.1.1 Guided CLI (`@wlgewis-gmtc/apex`)
+
+**Business value:** turn "install the SDK, then wire up an env file by hand" into one command.
+
+`apex init` installs the published SDK, obtains and stores `APEX_SECRET_KEY` in the right server-side env file, keeps it out of git, and verifies the credential against the hosted API.
+
+**Status:** 🟡 Implemented, tested, and pack-ready (`packages/cli`). Not yet published to npm. Recommended once it is:
+
+```bash
+npx @wlgewis-gmtc/apex init
+```
 
 ## 7.2 Customer balance UI
 
