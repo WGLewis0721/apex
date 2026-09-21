@@ -1,5 +1,17 @@
 # Public Stripe App acceptance handoff
 
+## September 20, 2026 publisher upload success
+
+Successfully uploaded to `Apex-Public` (`acct_1UHy0wCoLTpL33rR`):
+
+- app id: `com.graymattertechllc.apex`
+- version: `0.3.0`
+- distribution: public
+- auth: OAuth
+- upload result: successful
+
+Next gate is Stripe Dashboard External test configuration for version `0.3.0`, followed by install into a separate tester sandbox and hosted OAuth/webhook proof.
+
 ## September 20, 2026 blocker: Connect-enabled live account
 
 Attempting to upload the canonical public app from `Apex · live` (`acct_1UDVhGCpWLixBiNT`) fails with Stripe's explicit error:
