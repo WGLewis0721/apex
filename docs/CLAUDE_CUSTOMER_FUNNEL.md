@@ -129,10 +129,10 @@ Until that acceptance test passes, real users stop here.
 
 **Roadmap Phase 7 — not production yet.**
 
-The intended first SDK is TypeScript/Node:
+The first published SDK is TypeScript/Node:
 
 ```bash
-npm install @apex/sdk
+npm install @wlgewis-gmtc/apex-sdk
 ```
 
 The SDK is a thin **server-side** client over the hosted APEX API. It does not install APEX itself inside the customer's application.
