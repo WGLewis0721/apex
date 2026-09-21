@@ -96,7 +96,7 @@ export default function LiveOperations() {
       <section className="panel">
         <div className="panel-title"><div><CreditCard/><h3>What each Stripe Price unlocks</h3></div><span>{snapshot.workspace.name}{connection?.stripe_account_id ? ` · ${connection.stripe_account_id}` : ''}</span></div>
         <p style={{ margin: '0 0 12px', fontSize: 14 }}>Tell APEX what each Stripe Price unlocks. Example: price_123 → 1,000 credits. Unmapped prices grant nothing.</p>
-        {needsMapping && <div className="live-error" style={{ marginBottom: 12 }}><AlertTriangle size={18}/><div><strong>A purchase is waiting on a price setup</strong><p>A connected Stripe event could not grant credits because that Price is not configured. Add it below. Existing retry will pick it up; this does not invent a second processor.</p></div></div>}
+        {needsMapping && <div className="live-error" style={{ marginBottom: 12 }}><AlertTriangle size={18}/><div><strong>A purchase is waiting on a price setup</strong><p>A connected Stripe event is blocked until this Price is configured. Saving an active mapping requeues that event for the existing scheduled retry. It does not grant credits here.</p></div></div>}
         <form onSubmit={(event) => void saveMapping(event)} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr) auto', gap: 10, marginBottom: 16 }}>
           <label>Stripe Price ID
             <input value={priceId} onChange={(event) => setPriceId(event.target.value)} placeholder="price_test_example" autoComplete="off" />
@@ -126,9 +126,9 @@ export default function LiveOperations() {
       </section>
       <section className="panel">
         <div className="panel-title"><div><Activity/><h3>Stripe event deliveries</h3></div><span>As of {when(snapshot.asOf)}</span></div>
-        <div className="table-wrap"><table><thead><tr><th>Event</th><th>Type</th><th>Status</th><th>Attempts</th><th>Error</th><th>Received</th></tr></thead><tbody>
-          {snapshot.events.map(event => <tr key={event.id}><td><code title={event.stripe_event_id}>{short(event.stripe_event_id)}</code></td><td>{event.event_type}</td><td><span className={`status ${event.status === 'processed' ? 'active' : event.status}`}>{event.status}</span></td><td>{event.attempt_count}</td><td>{event.last_error ?? '—'}</td><td>{when(event.received_at)}</td></tr>)}
-          {!snapshot.events.length && <tr><td colSpan={6}>No Stripe events received yet.</td></tr>}
+        <div className="table-wrap"><table><thead><tr><th>Event</th><th>Type</th><th>Status</th><th>Attempts</th><th>Error</th><th>Action</th><th>Received</th></tr></thead><tbody>
+          {snapshot.events.map(event => <tr key={event.id}><td><code title={event.stripe_event_id}>{short(event.stripe_event_id)}</code></td><td>{event.event_type}</td><td><span className={`status ${event.status === 'processed' ? 'active' : event.status}`}>{event.status}</span></td><td>{event.attempt_count}</td><td>{event.last_error ?? '—'}</td><td>{event.retry_operator_action ?? '—'}</td><td>{when(event.received_at)}</td></tr>)}
+          {!snapshot.events.length && <tr><td colSpan={7}>No Stripe events received yet.</td></tr>}
         </tbody></table></div>
       </section>
       <section className="panel">
