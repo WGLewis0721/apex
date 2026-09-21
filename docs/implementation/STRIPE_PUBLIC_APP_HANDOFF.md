@@ -10,25 +10,25 @@ Stripe's current OAuth Stripe Apps documentation states that a Connect-enabled S
 
 - `Apex · live` cannot own the public APEX Stripe App while Connect remains enabled.
 - `apex test dev` is only a sandbox development artifact and cannot substitute for the required live public-app owner.
-- The supported next step is a new/other **verified live Stripe account with Connect not enabled**, then upload `com.graymatter.apex` version `0.3.0` there.
+- The supported next step is a new/other **verified live Stripe account with Connect not enabled**, then upload `com.graymattertechllc.apex` version `0.3.0` there.
 - Do not enable Stripe Connect on that dedicated app-publisher account.
 
 ## Correct External-test ownership model
 
 Stripe's current sandbox-support documentation requires the public app version used for External testing to be uploaded from the **live/main developer account**, not from a sandbox-created app.
 
-The prior sandbox app `com.graymatter.apex-dev` version `0.2.1` remains a development artifact. Its Dashboard correctly shows that External testing is unavailable there until business verification, and Stripe does not promote that globally unique app ID into the live account.
+The prior sandbox app `com.graymattertechllc.apex-dev` version `0.2.1` remains a development artifact. Its Dashboard correctly shows that External testing is unavailable there until business verification, and Stripe does not promote that globally unique app ID into the live account.
 
 The canonical live External-test app now uses:
 
-- app id: `com.graymatter.apex`
+- app id: `com.graymattertechllc.apex`
 - version: `0.3.0`
 - distribution: public
 - auth: OAuth
 - sandbox installs: enabled
 - callback: `https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-stripe-connect-callback`
 
-Upload this manifest from the verified **Apex · live** developer account. The app ID becomes permanent after its first successful upload.
+Upload this manifest from the verified **Apex · live** developer account. The app ID becomes permanent after its first successful upload. The prior `com.graymatter.apex` identifier was rejected as globally taken when uploading from the dedicated `Apex-Public` live account, so `com.graymattertechllc.apex` is the canonical publisher ID going forward.
 
 ## Finish in Stripe
 
