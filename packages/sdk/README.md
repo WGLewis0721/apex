@@ -1,9 +1,15 @@
-# @apex/sdk
+# @wlgewis-gmtc/apex-sdk
 
-Thin, server-only TypeScript client for the hosted APEX balance, entitlements, atomic credit-consumption, support-timeline, and reconciliation API.
+Published server-only TypeScript client for the hosted APEX balance, entitlements, atomic credit-consumption, support-timeline, and reconciliation API.
+
+Install:
+
+```bash
+npm install @wlgewis-gmtc/apex-sdk
+```
 
 ```ts
-import { ApexClient } from "@apex/sdk";
+import { ApexClient } from "@wlgewis-gmtc/apex-sdk";
 
 const apex = new ApexClient({ apiKey: process.env.APEX_API_KEY! });
 const before = await apex.balance(customerId);
