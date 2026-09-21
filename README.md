@@ -109,7 +109,7 @@ See [`docs/architecture/APEX_V1_LEDGER.md`](docs/architecture/APEX_V1_LEDGER.md)
 | Public connected-account ingress | 🟡 Deployed with one canonical processor + scheduled retry; External-test OAuth install/proof still required |
 | First public `@wlgewis-gmtc/apex-sdk` | ✅ Published to npm as `0.1.0`; installable with `npm install @wlgewis-gmtc/apex-sdk` |
 | Guided `@wlgewis-gmtc/apex` CLI (`apex init`) | ✅ Published to npm as `0.1.1`; verified from a fresh Node project with `npx @wlgewis-gmtc/apex init` against hosted `/v1/whoami` |
-| Stripe Price → credit mapping management | 🟡 Implemented in Phase 7.1.2; hosted `apex-operator` deployment/evaluation still required |
+| Stripe Price → credit mapping management | 🟡 Phase 7.1.2 merged; `apex-operator` v3 deployed; one real mapping-required connected receipt still needs end-to-end evaluation |
 | Signed/local entitlement evaluation | ⏳ v1.1+ only if customer need justifies it |
 | Reservations | ⏳ Not v1; only if start-now/finish-later workload requires them |
 | Expiring grants | 🟡 Expiry reconciliation is implemented; hosted acceptance against real data remains |
@@ -145,9 +145,9 @@ This proves the wallet does not double-spend. It does **not** yet prove money au
 
 ## Immediate next work
 
-### 1. Deploy/evaluate the Stripe price-mapping console
+### 1. Finish hosted evaluation of the Stripe price-mapping console
 
-The backend already enforces server-owned `stripe_credit_price_mappings`; an unmapped Stripe Price grants nothing. The tenant-scoped workspace-owner setup UI/API is implemented and now needs hosted deployment/evaluation. It lets a workspace owner:
+The backend already enforces server-owned `stripe_credit_price_mappings`; an unmapped Stripe Price grants nothing. The tenant-scoped workspace-owner setup UI/API is merged and `apex-operator` v3 is deployed. It lets a workspace owner:
 
 - list existing active/inactive mappings
 - enter a Stripe Price ID and positive APEX credit amount
@@ -155,7 +155,7 @@ The backend already enforces server-owned `stripe_credit_price_mappings`; an unm
 - see which workspace/connection the mapping applies to
 - see a clear operator-action-needed state when a payment cannot proceed because a mapping is missing
 
-This removes SQL/manual-demo coupling without creating another ledger or ingress path. Acceptance requires one hosted `mapping_required` receipt to be requeued after mapping setup and then processed by the existing scheduler/processor.
+This removes SQL/manual-demo coupling without creating another ledger or ingress path. The requeue RPC contract has passed a hosted rollback test. Final acceptance still requires one real `mapping_required` connected receipt to be requeued after mapping setup and then processed by the existing scheduler/processor; that proof is blocked on the remaining External-test OAuth connection.
 
 ### 2. Finish Phase 5 External-test OAuth acceptance
 
