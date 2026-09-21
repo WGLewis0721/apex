@@ -94,6 +94,20 @@ export type OperatorSnapshot = {
   grants: Array<{ id: string; customer_id: string; amount: number; consumed_amount: number; remaining_amount: number; status: string; reason: string; source_stripe_event_id: string | null; source_payment_id: string | null; created_at: string }>;
   ledger: Array<{ id: string; customer_id: string; credit_grant_id: string | null; entry_type: string; amount: number; idempotency_key: string; created_at: string }>;
   events: Array<{ id: string; stripe_connection_id: string; stripe_event_id: string; event_type: string; status: string; attempt_count: number; last_error: string | null; received_at: string; processed_at: string | null; updated_at: string }>;
+  mappings?: Array<{ id: string; stripe_price_id: string; credit_amount: number; is_active: boolean; updated_at: string }>;
+  mappingNeeded?: boolean;
 };
 
 export const getOperatorSnapshot = () => invoke<OperatorSnapshot>('apex-operator', { action: 'snapshot' });
+export const upsertPriceMapping = (stripePriceId: string, creditAmount: number) =>
+  invoke<{ mapping: NonNullable<OperatorSnapshot['mappings']>[number] }>('apex-operator', {
+    action: 'upsert_price_mapping',
+    stripe_price_id: stripePriceId,
+    credit_amount: creditAmount,
+  });
+export const setPriceMappingActive = (mappingId: string, isActive: boolean) =>
+  invoke<{ mapping: NonNullable<OperatorSnapshot['mappings']>[number] }>('apex-operator', {
+    action: 'set_price_mapping_active',
+    mapping_id: mappingId,
+    is_active: isActive,
+  });
