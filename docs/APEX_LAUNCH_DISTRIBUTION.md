@@ -32,21 +32,22 @@ The product value is not “another cloud.” The value is removing the repeated
 
 **Story:** discover APEX → choose a plan → create account → pay APEX → get workspace → connect Stripe → install → verify/go live.
 
-As of September 9, 2026:
+As of September 20, 2026:
 
 - APEX's own test billing/provisioning is real
-- customer Stripe Connect code is merged but still needs External-test OAuth acceptance
+- customer Stripe Connect ingress and persisted retry are deployed, but External-test OAuth acceptance still remains
 - the hosted credit ledger/balance/consume API is deployed
 - the hosted parallel-consume wallet proof has passed
-- connected Stripe payment/refund events are not yet wired into the ledger
+- the manual Stripe lifecycle proof passes payment, grant, consume, refund, and replay
+- `@wlgewis-gmtc/apex-sdk@0.1.0` and `@wlgewis-gmtc/apex@0.1.1` are public on npm; the CLI has been verified from a fresh Node project
 
-Real paid onboarding still stops at Connect Stripe until Phase 5 acceptance passes.
+The install path is real. Self-serve connected-account onboarding still requires Phase 5 External-test OAuth acceptance.
 
 ## 2. How APEX ships
 
 ![How APEX ships](../public/assets/launch/apex-how-it-ships.svg)
 
-The SaaS company can install the published thin server-side `@wlgewis-gmtc/apex-sdk` client. APEX itself remains hosted infrastructure.
+The SaaS company can use the published guided CLI (`npx @wlgewis-gmtc/apex init`) or install the thin server-side `@wlgewis-gmtc/apex-sdk` client directly. APEX itself remains hosted infrastructure.
 
 Canonical direction:
 
@@ -63,7 +64,7 @@ Hosted APEX service
 Verified connected Stripe events
 ```
 
-The SDK is published as `@wlgewis-gmtc/apex-sdk@0.1.0`. It exposes the frozen v1 hosted API and does not resurrect older `/check` or reservation requirements.
+The SDK is published as `@wlgewis-gmtc/apex-sdk@0.1.0`, and the guided CLI is published as `@wlgewis-gmtc/apex@0.1.1`. The CLI installs/configures the SDK and verifies the workspace credential through hosted `/v1/whoami`; neither package owns the ledger or Stripe ingress.
 
 ## 3. Payment to product value
 
