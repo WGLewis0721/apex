@@ -98,7 +98,7 @@ function CopyButton({ text }: { text: string }) {
 }
 
 function ArchitectureStrip() {
-  const nodes = ['Your app', '@apex/sdk / CLI', 'APEX Cloud', 'Stripe'];
+  const nodes = ['Your app', '@wlgewis-gmtc/apex-sdk / CLI', 'APEX Cloud', 'Stripe'];
   return (
     <div className="ob-arch" aria-label="APEX architecture">
       <div className="ob-arch-row">
@@ -833,23 +833,23 @@ function BackendInstallStep({ workspaceId }: { workspaceId: string | null }) {
     <>
       <p className="ob-eyebrow">{stepEyebrow('launcher', 'INSTALL APEX')}</p>
       <h1>Install APEX.</h1>
-      <p className="ob-lede">Your APEX workspace and Stripe connection are ready. The hosted APEX API is live; the remaining client-install gate is package distribution.</p>
+      <p className="ob-lede">Your APEX workspace and Stripe connection are ready. The hosted APEX API is live, and the server SDK is now published and installable.</p>
       <ArchitectureStrip />
       <div className="ob-celebrate"><CheckCircle2 size={20} /> Workspace linked{workspaceId ? <> · <code>{workspaceId}</code></> : null}</div>
-      <CodeBlock label="Server SDK (when published)" code="npm install @apex/sdk" />
+      <CodeBlock label="Published server SDK" code="npm install @wlgewis-gmtc/apex-sdk" />
       <CodeBlock label="Guided CLI (when published)" code="npx @apex/cli init" />
       <div className="ob-preview-note">
         <Info size={15} />
-        <span><strong>Install package publication is the remaining gate.</strong> The SDK code is release-ready, but <code>@apex/sdk</code> and <code>@apex/cli</code> are not published to npm yet. APEX will not mark Go live complete until the real package can be installed and verified.</span>
+        <span><strong>The server SDK is published.</strong> <code>@wlgewis-gmtc/apex-sdk@0.1.0</code> is published to npm. The guided <code>@apex/cli</code> is not published yet. APEX will not mark Go live complete until the real package can be installed and verified.</span>
       </div>
-      <p className="ob-note">This is now a real onboarding step, not a dead end. Once npm publication is available, this screen can execute the real install/verification flow without changing the Stripe connection you already completed.</p>
+      <p className="ob-note">This is now a real onboarding step, not a dead end. The direct SDK install works today. The next step is the guided CLI install and verification flow.</p>
     </>
   );
 }
 
 const CLI_INIT = 'npx @apex/cli init';
-const NPM_INSTALL = 'npm install @apex/sdk';
-const QUICKSTART = `import { Apex } from "@apex/sdk";
+const NPM_INSTALL = 'npm install @wlgewis-gmtc/apex-sdk';
+const QUICKSTART = `import { Apex } from "@wlgewis-gmtc/apex-sdk";
 
 const apex = new Apex({ apiKey: process.env.APEX_SECRET_KEY });
 
@@ -883,7 +883,7 @@ function staticDetailFor(n: number, email: string | null, workspaceId: string | 
     case 1: return `Signed in as ${email ?? 'you'} · workspace ${workspaceId}`;
     case 2: return 'Project scan complete';
     case 3: return 'Node.js 20 · React · TypeScript';
-    case 4: return '@apex/sdk@0.1.0-preview';
+    case 4: return '@wlgewis-gmtc/apex-sdk@0.1.0';
     case 5: return '.env.local (APEX_PUBLISHABLE_KEY, APEX_SECRET_KEY)';
     case 6: return `Linked to ${workspaceId}`;
     case 7: return 'Stripe connection confirmed (demo)';
@@ -1003,7 +1003,7 @@ function LauncherStep({ launcherStage, email, workspaceId, onProgress, onOpenDas
       {allDone ? (
         <>
           <div className="ob-celebrate is-ready"><CheckCircle2 size={22} /> APEX IS READY.</div>
-          <p className="ob-note">Nothing above called a real backend — @apex/cli, @apex/sdk, and the APEX Cloud API are all previews.</p>
+          <p className="ob-note">Nothing above called a real backend — @apex/cli, @wlgewis-gmtc/apex-sdk, and the APEX Cloud API are all previews.</p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <button className="ob-ghost" onClick={verifyAgain} disabled={reverifying}>
               {reverifying ? <><Loader2 size={15} className="ob-spin" /> Checking…</> : 'Verify APEX'}
@@ -1023,7 +1023,7 @@ function LauncherStep({ launcherStage, email, workspaceId, onProgress, onOpenDas
 
       <CodeBlock label="Or install the SDK directly" code={NPM_INSTALL} />
       <CodeBlock label="Server-side quickstart" code={QUICKSTART} />
-      <p className="ob-preview-flag"><Code2 size={13} /> API design preview · @apex/sdk and @apex/cli are not published packages yet.</p>
+      <p className="ob-preview-flag"><Code2 size={13} /> SDK live · @wlgewis-gmtc/apex-sdk@0.1.0 is published. Guided CLI still pending.</p>
       <CodeBlock label="Optional embedded components" code={COMPONENTS} />
       <p className="ob-preview-flag"><Code2 size={13} /> API design preview · these components are not published yet.</p>
       <div className="ob-mini">

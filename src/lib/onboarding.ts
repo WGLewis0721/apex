@@ -32,7 +32,7 @@ export const LAUNCHER_STAGES = [
   'Signing into APEX workspace',
   'Detecting project',
   'Found React / Node / TypeScript',
-  'Installing @apex/sdk',
+  'Installing @wlgewis-gmtc/apex-sdk',
   'Creating APEX environment configuration',
   'Linking the selected workspace',
   'Connecting Stripe configuration',

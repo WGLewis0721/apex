@@ -46,14 +46,14 @@ Real paid onboarding still stops at Connect Stripe until Phase 5 acceptance pass
 
 ![How APEX ships](../public/assets/launch/apex-how-it-ships.svg)
 
-The SaaS company will install a thin server-side `@apex/sdk` client. APEX itself remains hosted infrastructure.
+The SaaS company can install the published thin server-side `@wlgewis-gmtc/apex-sdk` client. APEX itself remains hosted infrastructure.
 
 Canonical direction:
 
 ```text
 Customer SaaS server
    ↓
-@apex/sdk / APEX API
+@wlgewis-gmtc/apex-sdk / APEX API
    ↓
 Hosted APEX service
    ├─ entitlements read
@@ -63,7 +63,7 @@ Hosted APEX service
 Verified connected Stripe events
 ```
 
-The SDK is not published yet. The first SDK should expose the frozen v1 API—not resurrect older `/check` or reservation requirements.
+The SDK is published as `@wlgewis-gmtc/apex-sdk@0.1.0`. It exposes the frozen v1 hosted API and does not resurrect older `/check` or reservation requirements.
 
 ## 3. Payment to product value
 

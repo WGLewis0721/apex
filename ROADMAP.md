@@ -178,7 +178,7 @@ Approved for the frozen v1:
 - Supabase Edge Functions for current server/API/webhook work
 - `stripe_webhook_events` persisted-event replay using existing Supabase/Postgres capabilities when ingress is wired
 - Stripe
-- TypeScript/Node for the first server SDK (`@apex/sdk`)
+- TypeScript/Node for the first server SDK (`@wlgewis-gmtc/apex-sdk`)
 
 ### Technology rule
 
@@ -196,7 +196,7 @@ Do not invent a queue vendor, new database, new cloud runtime, cache, framework,
 | 4 | Paid workspace provisioning | ✅ Real |
 | 5 | Connect customer's Stripe | 🟡 Public OAuth app 0.2.0 uploaded; External-test selection and first install remain |
 | 6 | Hosted product-state core | ✅ Manual pilot accepted; 6.4 expiry reconciliation and 6.5 support timeline implemented pending evaluation; public connected-account acceptance remains |
-| 7 | SDK + customer balance integration | 🟡 SDK release-ready; npm publication credential remains |
+| 7 | SDK + customer balance integration | 🟡 SDK `0.1.0` published; guided CLI and customer balance UI remain |
 | 8 | Connected Stripe end-to-end proof | ✅ Manual lifecycle automated; public OAuth-connected repetition remains |
 | 9 | Live operator dashboard | ✅ Tenant-scoped hosted event and ledger view deployed |
 
@@ -477,7 +477,7 @@ Later SDK responsibilities may add signed local entitlement evaluation, purchase
 
 Do not put APEX secret credentials in browser-only code.
 
-**Status:** 🟡 Client implementation, tests, package metadata, and release workflow complete; npm publication requires scope ownership and an `NPM_TOKEN`.
+**Status:** ✅ `@wlgewis-gmtc/apex-sdk@0.1.0` is published to npm and installable. The guided CLI and customer balance UI remain separate Phase 7 work.
 
 ## 7.2 Customer balance UI
 

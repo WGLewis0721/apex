@@ -206,7 +206,7 @@ The public API must authenticate the APEX server credential, enforce workspace/e
 
 ## SDK
 
-The first `@apex/sdk` is a thin **server-side** client over the hosted APEX API. Product state belongs in the hosted APEX service, not inside the SDK.
+The first `@wlgewis-gmtc/apex-sdk` is a thin **server-side** client over the hosted APEX API. Product state belongs in the hosted APEX service, not inside the SDK.
 
 Frozen first SDK responsibilities:
 
