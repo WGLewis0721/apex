@@ -1,5 +1,6 @@
 import { admin, checked } from "../_shared/core.ts";
-import { connectedStripe, processConnectedEvent } from "../_shared/connected_event.ts";
+import { connectedStripe } from "../_shared/connected_event.ts";
+import { processConnectedStripeEvent } from "../_shared/connected_stripe_ingress.ts";
 
 type Receipt = {
   id: string; retry_claim: string; stripe_connection_id: string;
@@ -29,27 +30,49 @@ async function retry(receipt: Receipt): Promise<void> {
     if (event.id !== receipt.stripe_event_id || event.type !== receipt.event_type || event.livemode !== false ||
       (event.account && event.account !== receipt.payload.account) ||
       (event.data.object as { id?: string }).id !== receipt.payload.object_id) throw new OperatorAction("binding_mismatch");
-    const result = await processConnectedEvent(event, connection, async (args) => {
-      const { data, error } = await db.rpc("process_claimed_stripe_retry", {
-        p_receipt_id: receipt.id, p_claim: receipt.retry_claim, p_args: args,
-      });
-      // Only classify known DB errors; never retain arbitrary provider/DB text.
-      if (error?.message.includes("unconfigured_stripe_price")) throw new OperatorAction("mapping_required");
-      if (error?.message.includes("retry_binding_mismatch")) throw new OperatorAction("binding_mismatch");
-      return checked({ data, error });
-    }, stripe);
-    const outcome = await result.json();
-    if (outcome.pending || outcome.ignored) {
+    // Same processor as initial delivery; only the RPC is lease-fenced so a
+    // stale worker cannot write after its claim expired.
+    const outcome = await processConnectedStripeEvent({
+      connectionId: connection.id,
+      stripeEventId: receipt.stripe_event_id,
+      event,
+      stripe,
+      rpc: async (args) => {
+        const { data, error } = await db.rpc("process_claimed_stripe_retry", {
+          p_receipt_id: receipt.id, p_claim: receipt.retry_claim, p_args: args,
+        });
+        // Only classify known DB errors; never retain arbitrary provider/DB text.
+        if (error?.message.includes("unconfigured_stripe_price")) throw new OperatorAction("mapping_required");
+        if (error?.message.includes("retry_binding_mismatch")) throw new OperatorAction("binding_mismatch");
+        return checked({ data, error });
+      },
+    });
+
+    if (outcome.status === "failed") {
+      const reason = outcome.error === "APEX_CUSTOMER_NOT_FOUND"
+        ? "customer_required"
+        : outcome.error === "NO_MAPPABLE_PRICE_LINES"
+        ? "mapping_required"
+        : outcome.permanent
+        ? "source_required"
+        : "processing_failed";
       checked(await db.rpc("finish_connected_stripe_retry", {
         p_receipt_id: receipt.id, p_claim: receipt.retry_claim,
-        p_reason: outcome.pending ? "payment_pending" : "source_required",
-        p_operator: !outcome.pending,
+        p_reason: reason, p_operator: Boolean(outcome.permanent),
+      }));
+      return;
+    }
+    if (outcome.kind === "noop") {
+      checked(await db.rpc("finish_connected_stripe_retry", {
+        p_receipt_id: receipt.id, p_claim: receipt.retry_claim,
+        p_reason: "payment_pending", p_operator: false,
       }));
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    const sourceMissing = message === "Refund source ambiguous";
-    const attributionMissing = ["Checkout mapping incomplete", "Refund mapping incomplete"].includes(message);
+    const sourceMissing = message.includes("refund_source_ambiguous");
+    const attributionMissing = message.includes("APEX_CUSTOMER_NOT_FOUND") ||
+      message.includes("customer_not_in_workspace");
     const reason = error instanceof OperatorAction ? error.message : sourceMissing ? "source_required" :
       attributionMissing ? "customer_required" : "processing_failed";
     checked(await db.rpc("finish_connected_stripe_retry", {

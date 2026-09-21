@@ -11,8 +11,8 @@
 // `process_connected_stripe_ingress`.
 
 import Stripe from "npm:stripe@22.4.0";
-import { admin, env, idOf } from "./core.ts";
-import { decryptCredential } from "./credentials.ts";
+import { admin, idOf } from "./core.ts";
+import { connectedStripe } from "./connected_event.ts";
 
 export type Connection = {
   id: string;
@@ -115,45 +115,6 @@ export async function persistConnectedStripeEvent(connection: Connection, event:
   return { row: existing.data, replay: true };
 }
 
-/**
- * A Stripe client acting on the connected account, using APEX's own credentials.
- * Prefers the stored OAuth grant; falls back to the platform key with the
- * connected account header. Never uses anything supplied by a client app.
- */
-async function connectedStripe(connection: Connection): Promise<Stripe> {
-  const db = admin();
-  const { data: token } = await db.from("stripe_oauth_tokens")
-    .select("refresh_token_ciphertext,install_mode")
-    .eq("workspace_id", connection.workspace_id)
-    .maybeSingle();
-
-  if (token?.refresh_token_ciphertext) {
-    const refreshToken = await decryptCredential(
-      token.refresh_token_ciphertext,
-      env("APEX_CREDENTIAL_ENCRYPTION_KEY"),
-      connection.workspace_id,
-    );
-    const secret = env(
-      token.install_mode === "sandbox" ? "STRIPE_APP_SANDBOX_SECRET_KEY" : "STRIPE_APP_TEST_SECRET_KEY",
-    );
-    const response = await fetch("https://api.stripe.com/v1/oauth/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${btoa(`${secret}:`)}`,
-      },
-      body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }),
-    });
-    const body = await response.json().catch(() => ({})) as { access_token?: string };
-    if (!response.ok || !body.access_token) throw new Error("STRIPE_OAUTH_REFRESH_FAILED");
-    return new Stripe(body.access_token, { apiVersion: API_VERSION });
-  }
-
-  const platformKey = Deno.env.get("STRIPE_SECRET_KEY");
-  if (!platformKey) throw new Error("NO_CONNECTED_STRIPE_CREDENTIAL");
-  return new Stripe(platformKey, { apiVersion: API_VERSION, stripeAccount: connection.stripe_account_id });
-}
-
 type NormalizedLine = { line_id: string; price_id: string; quantity: number };
 type NormalizedAction =
   | { kind: "payment"; customer_id: string; payment_id: string; lines: NormalizedLine[] }
@@ -217,13 +178,22 @@ async function paymentLines(stripe: Stripe, paymentIntentId: string): Promise<No
  * to the same refund id, so different event ids describing one business action
  * cannot produce two ledger effects.
  */
-async function normalize(connection: Connection, event: Stripe.Event): Promise<NormalizedAction> {
+/**
+ * Canonical normalization: every payment-shaped event collapses to its payment
+ * intent and every refund-shaped event to its refund id, so different event ids
+ * describing one business action cannot produce two ledger effects.
+ */
+export async function normalizeConnectedAction(
+  connection: Connection,
+  event: Stripe.Event,
+  client?: Stripe,
+): Promise<NormalizedAction> {
   if (!SUPPORTED_EVENT_TYPES.has(event.type)) {
     return { kind: "noop", reason: "UNSUPPORTED_EVENT_TYPE" };
   }
   if (event.type === "account.application.deauthorized") return { kind: "deauthorize" };
 
-  const stripe = await connectedStripe(connection);
+  const stripe = client ?? await connectedStripe(connection.workspace_id);
 
   if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
     const incoming = event.data.object as Stripe.Checkout.Session;
@@ -313,9 +283,25 @@ async function normalize(connection: Connection, event: Stripe.Event): Promise<N
  * It never accepts a normalized grant, a credit amount, or a customer id from a
  * caller: the only inputs are the connection and the persisted event id.
  */
+export type IngressRpc = (args: {
+  p_connection_id: string;
+  p_event_id: string;
+  p_action: NormalizedAction;
+}) => Promise<unknown>;
+
 export async function processConnectedStripeEvent(input: {
   connectionId: string;
   stripeEventId: string;
+  /** Verified by Stripe signature (delivery) or retrieved from Stripe (retry). */
+  event?: Stripe.Event;
+  /** An already-built connected client whose binding the caller verified. */
+  stripe?: Stripe;
+  /**
+   * How the transactional processor is invoked. The default calls
+   * `process_connected_stripe_ingress` directly; the scheduled retry worker
+   * passes a lease-fenced wrapper so stale workers cannot write.
+   */
+  rpc?: IngressRpc;
 }): Promise<IngressOutcome> {
   const db = admin();
   const { data: receipt, error: receiptError } = await db.from("stripe_webhook_events")
@@ -335,16 +321,27 @@ export async function processConnectedStripeEvent(input: {
     return { status: "failed", error: "CONNECTION_LOOKUP_FAILED" };
   }
   const connection = connectionRow as Connection;
-  const event = receipt.payload as unknown as Stripe.Event;
 
   try {
-    const action = await normalize(connection, event);
-    const { data, error } = await db.rpc("process_connected_stripe_ingress", {
+    const stripe = input.stripe ?? await connectedStripe(connection.workspace_id);
+    // The event comes from the caller only when Stripe itself vouched for it:
+    // a verified webhook signature, or a retrieval by persisted event id.
+    const event = input.event ?? await stripe.events.retrieve(input.stripeEventId);
+    if (event.id !== input.stripeEventId) throw permanent("EVENT_IDENTITY_MISMATCH");
+    if (event.livemode) throw permanent("LIVE_MODE_EVENT_BLOCKED");
+
+    const action = await normalizeConnectedAction(connection, event, stripe);
+    const call: IngressRpc = input.rpc ?? (async (args) => {
+      const { data, error } = await db.rpc("process_connected_stripe_ingress", args);
+      if (error) throw new Error(error.message ?? "INGRESS_PROCESSING_FAILED");
+      return data;
+    });
+
+    const data = await call({
       p_connection_id: connection.id,
       p_event_id: input.stripeEventId,
       p_action: action,
     });
-    if (error) throw new Error(error.message ?? "INGRESS_PROCESSING_FAILED");
     const result = data as { replayed?: boolean; kind?: string } | null;
     return {
       status: "processed",

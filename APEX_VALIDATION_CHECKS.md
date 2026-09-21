@@ -308,3 +308,48 @@ Manual-pilot and APEX-own-billing events are excluded. Stripe event retrieval de
 provider retention and existing event-read OAuth permission. Repeated provider failures
 stop after eight attempts for operator handling.
 
+
+---
+
+# Single-processor convergence — checks added 2026-09-21 (OPUS-INGRESS-16+)
+
+Initial delivery and scheduled retry now run the same processor,
+`processConnectedStripeEvent` in `_shared/connected_stripe_ingress.ts`, over
+`process_connected_stripe_ingress`. The retry path differs only in that its RPC call is lease-fenced
+through `process_claimed_stripe_retry`. The duplicate claim/backoff engine is dropped.
+
+## OPUS-INGRESS-16 — Delivery and retry run identical business logic
+- **Purpose:** No path-dependent ledger behavior.
+- **Command:** `grep -rn "process_connected_stripe_event\|process_connected_stripe_ingress" supabase/functions/`
+- **Expected:** Neither the connected webhook nor the retry worker references
+  `process_connected_stripe_event`; both reach the ledger only via
+  `processConnectedStripeEvent`. `connected_event.ts` exports only `connectedStripe`.
+- **Required:** None (static check).
+
+## OPUS-INGRESS-17 — Only one retry engine exists
+- **Purpose:** A second scheduler cannot be pointed at the same receipts.
+- **Command:** In SQL: `select proname from pg_proc join pg_namespace n on n.oid=pronamespace where nspname='public' and proname in ('claim_stripe_webhook_events','fail_stripe_webhook_event','request_stripe_event_replay','claim_connected_stripe_retries','finish_connected_stripe_retry');`
+  Then `curl -X POST <project>/functions/v1/apex-stripe-event-retry`.
+- **Expected:** Only `claim_connected_stripe_retries` and `finish_connected_stripe_retry` exist. The
+  retired endpoint answers `410`. The cron job still targets `apex-connected-stripe-retry`.
+- **Required:** Supabase SQL access.
+
+## OPUS-INGRESS-18 — Lease fencing still holds on the canonical path
+- **Purpose:** The processor swap did not weaken the retry lease.
+- **Command:** Call `process_claimed_stripe_retry` with a stale/incorrect `p_claim` for a claimed
+  receipt, with `p_args` carrying `p_action`.
+- **Expected:** Raises `stale_retry_claim`; no ledger effect. A correct claim with a mismatched
+  connection/token binding raises `retry_binding_mismatch`.
+- **Required:** Supabase SQL access to a test workspace.
+
+## OPUS-INGRESS-19 — All four connected event types reach the ledger from both paths
+- **Purpose:** `refund.created` / `refund.updated` coverage is real in the deployed code, not just
+  in the module.
+- **Command:** Deliver `payment_intent.succeeded`, `charge.refunded`, `refund.created`, and
+  `refund.updated` for one connected test account, and separately force each to fail once so the
+  cron retry worker reprocesses it.
+- **Expected:** Each type produces the same outcome on delivery and on retry: one grant per payment
+  intent, one adjustment per refund id, proportional to the refunded amount.
+- **Required:** Connected test-mode Stripe account, a configured price mapping, and the cron retry
+  token. This is the check to run as part of the Phase 6.2 lifecycle acceptance, after the External-test
+  install.

@@ -140,3 +140,29 @@ check, `git diff --check`, git commit/push; Supabase apply_migration, deploy_edg
 and the scheduler activation SQL. No broad tests, real purchases/refunds, or Phase 8 proof.
 Previous local Phase 5 work was preserved in its original checkout, not included here.
 
+
+## Single-processor convergence statuses (2026-09-21)
+
+| Check ID | Status | Note |
+| --- | --- | --- |
+| OPUS-INGRESS-16 | READY_FOR_FREE_EVALUATION | Static check, no credentials. `deno check` passes for both functions. |
+| OPUS-INGRESS-17 | IMPLEMENTED_PENDING_EVALUATION | The three duplicate-engine functions were dropped live and the retired endpoint returns 410 (observed). The cron target was not modified. |
+| OPUS-INGRESS-18 | IMPLEMENTED_PENDING_EVALUATION | Fencing and binding re-checks are unchanged from the incoming implementation; only the final call inside the fence changed. Not re-exercised with a stale claim. |
+| OPUS-INGRESS-19 | BLOCKED_USER_ACTION | Needs the External-test connected account, a price mapping, and the retry token. This is the Phase 6.2 lifecycle acceptance run. |
+
+**Third deployment record (2026-09-21):** applied migration `single_connected_ingress_processor`;
+deployed `apex-connected-stripe-webhook` (v8), `apex-connected-stripe-retry` (v3), and retired
+`apex-stripe-event-retry` (v2, returns 410). Live smoke: unsigned webhook → 400, retry worker without
+or with a malformed token → 401, retired endpoint → 410.
+
+**Corrections to the earlier record in this file:** (1) the v7 deployment did *not* support
+`refund.created` / `refund.updated` — that normalization existed only in the ingress module, which
+nothing called; it is now reached from both paths. (2) "Install APEX" is the SDK/CLI installation gate
+(Step 6), not the Stripe Dashboard app-install step; the External-test Stripe App authorization is a
+Phase 5 acceptance dependency and npm publication is the Step 6 blocker.
+
+**Defect this pass closed:** initial delivery and scheduled retry were running different business
+logic for the same receipt — delivery through `process_connected_stripe_event` (event-id idempotency,
+full-amount refunds) and the newer action-scoped processor reachable by nothing. Both now run the
+canonical processor, so one purchase yields one grant and one refund yields one proportional
+adjustment regardless of which path handles it.
