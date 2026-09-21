@@ -7,7 +7,6 @@ import {
 } from "../_shared/core.ts";
 
 const PRICE_ID_PATTERN = /^price_[A-Za-z0-9_]+$/;
-const MAX_CREDIT_AMOUNT = 100_000;
 
 async function ownedWorkspace(req: Request) {
   const user = await authenticated(req);
@@ -35,7 +34,7 @@ function validatePriceId(value: unknown) {
 
 function validateAmount(value: unknown) {
   const amount = typeof value === "number" ? value : Number(value);
-  if (!Number.isSafeInteger(amount) || amount <= 0 || amount > MAX_CREDIT_AMOUNT) {
+  if (!Number.isSafeInteger(amount) || amount <= 0) {
     return { error: "Credit amount must be a whole number greater than zero." };
   }
   return { amount };
@@ -57,6 +56,33 @@ function mappingRow(row: {
   };
 }
 
+function needsMapping(event: { last_error?: string | null; retry_operator_action?: string | null }) {
+  const error = event.last_error ?? "";
+  const action = event.retry_operator_action ?? "";
+  return error.includes("unconfigured_stripe_price")
+    || error.includes("mapping_required")
+    || action === "mapping_required";
+}
+
+async function requeueMappingBlockedEvents(workspaceId: string) {
+  const db = admin();
+  const events = checked(await db.from("stripe_webhook_events")
+    .select("id,status,last_error,retry_operator_action")
+    .eq("workspace_id", workspaceId)
+    .in("status", ["failed", "received"])) ?? [];
+  let requeued = 0;
+  for (const event of events) {
+    if (!needsMapping(event)) continue;
+    const result = await db.rpc("requeue_connected_stripe_retry", {
+      p_receipt_id: event.id,
+      p_workspace_id: workspaceId,
+    });
+    if (result.error) throw new Error("Database operation failed");
+    if (result.data === true) requeued += 1;
+  }
+  return requeued;
+}
+
 async function snapshot(workspaceId: string) {
   const db = admin();
   const [workspaceResult, connectionsResult, customersResult, accountsResult,
@@ -72,7 +98,7 @@ async function snapshot(workspaceId: string) {
       .eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(100),
     db.from("credit_ledger").select("id,customer_id,credit_grant_id,entry_type,amount,idempotency_key,created_at")
       .eq("workspace_id", workspaceId).order("created_at", { ascending: false }).limit(100),
-    db.from("stripe_webhook_events").select("id,stripe_connection_id,stripe_event_id,event_type,status,attempt_count,last_error,received_at,processed_at,updated_at")
+    db.from("stripe_webhook_events").select("id,stripe_connection_id,stripe_event_id,event_type,status,attempt_count,last_error,retry_operator_action,received_at,processed_at,updated_at")
       .eq("workspace_id", workspaceId).order("received_at", { ascending: false }).limit(100),
     db.from("stripe_credit_price_mappings").select("id,stripe_price_id,credit_amount,is_active,updated_at")
       .eq("workspace_id", workspaceId).order("stripe_price_id", { ascending: true }),
@@ -89,7 +115,7 @@ async function snapshot(workspaceId: string) {
     ledger: checked(ledgerResult) ?? [],
     events,
     mappings: (checked(mappingsResult) ?? []).map(mappingRow),
-    mappingNeeded: events.some((event) => (event.last_error ?? "").includes("unconfigured_stripe_price")),
+    mappingNeeded: events.some(needsMapping),
   };
 }
 
@@ -120,7 +146,8 @@ async function upsertMapping(workspaceId: string, body: Record<string, unknown>)
       is_active: true,
     }).select("id,stripe_price_id,credit_amount,is_active,updated_at").single());
 
-  return response({ mapping: mappingRow(saved!) });
+  const requeued = await requeueMappingBlockedEvents(workspaceId);
+  return response({ mapping: mappingRow(saved!), requeued });
 }
 
 async function setMappingActive(workspaceId: string, body: Record<string, unknown>) {
@@ -139,7 +166,8 @@ async function setMappingActive(workspaceId: string, body: Record<string, unknow
   }).eq("id", mappingId).eq("workspace_id", workspaceId)
     .select("id,stripe_price_id,credit_amount,is_active,updated_at").maybeSingle());
   if (!saved) return response({ error: "That price mapping is not in this workspace." }, 404);
-  return response({ mapping: mappingRow(saved) });
+  const requeued = saved.is_active ? await requeueMappingBlockedEvents(workspaceId) : 0;
+  return response({ mapping: mappingRow(saved), requeued });
 }
 
 export async function handler(req: Request): Promise<Response> {
