@@ -85,7 +85,7 @@ Phase 7.1 distribution is now externally proven:
 - `npx @wlgewis-gmtc/apex init` was run from a fresh Node project
 - the CLI installed the SDK, wrote the server-side environment file, preserved gitignore/idempotency behavior, resolved `ApexClient`, and authenticated a real workspace credential through hosted `GET /v1/whoami`
 
-This closes the install/distribution gap. The next net-new product gap is configuring Stripe Price → APEX credit mappings without SQL or demo metadata.
+This closes the install/distribution gap. Stripe Price → APEX credit mapping management is now implemented in Phase 7.1.2 and awaits hosted deployment/evaluation; the next acceptance gap is External-test OAuth-connected lifecycle proof.
 
 ## Canonical product statement
 
@@ -207,7 +207,7 @@ Do not invent a queue vendor, new database, new cloud runtime, cache, framework,
 | 4 | Paid workspace provisioning | ✅ Real |
 | 5 | Connect customer's Stripe | 🟡 Public OAuth app 0.2.0 uploaded; External-test selection and first install remain |
 | 6 | Hosted product-state core | ✅ Manual pilot accepted; 6.4 expiry reconciliation and 6.5 support timeline implemented pending evaluation; public connected-account acceptance remains |
-| 7 | Install + merchant integration | 🟡 SDK `0.1.0` and guided CLI `0.1.1` are published; Stripe price-mapping setup and customer balance UI remain |
+| 7 | Install + merchant integration | 🟡 SDK `0.1.0` and guided CLI `0.1.1` are published; Stripe price-mapping setup is implemented pending hosted evaluation; customer balance UI remains |
 | 8 | Connected Stripe end-to-end proof | ✅ Manual lifecycle automated; public OAuth-connected repetition remains |
 | 9 | Live operator dashboard | ✅ Tenant-scoped hosted event and ledger view deployed |
 
@@ -520,7 +520,7 @@ Minimum v1 scope:
 
 **Done when:** a workspace owner can configure a Stripe Price from the APEX product surface, then a connected test purchase using that Price reaches the existing ingress without SQL or `apex_credits` metadata.
 
-**Status:** ⏳ **Next net-new engineering slice.** Backend mapping enforcement already exists; the management API/UI does not.
+**Status:** 🟡 **Implemented, pending hosted deployment/evaluation.** Workspace-owner management UI/API and mapping-required requeue integration are implemented over the existing mapping table and retry path. Acceptance still requires deploying `apex-operator` and proving one blocked mapping-required receipt is requeued and processed by the existing scheduler/processor.
 
 
 ## 7.2 Customer balance UI
@@ -613,7 +613,7 @@ Later views may add usage counters, renewals, access-decision history, reservati
 
 # Immediate next actions
 
-1. **Net-new: build Phase 7.1.2 Stripe price-mapping setup** over the existing `stripe_credit_price_mappings` source of truth. No SQL or Checkout metadata should be required for a normal pilot customer.
+1. **Deploy/evaluate Phase 7.1.2 Stripe price-mapping setup**: deploy the updated `apex-operator`, configure an active mapping, and prove one `mapping_required` receipt is requeued and then processed through the existing retry/processor path.
 2. Finish **Phase 5 External-test OAuth acceptance**: complete one real test OAuth connection and confirm the persisted connected account is bound to the expected workspace.
 3. Run **Phase 8 through the OAuth-connected account** using the existing canonical connected-event processor and retry path: payment → grant → consume → DENY → replay → refund → replay → final ledger explanation.
 4. Build **Phase 7.2 merchant customer balance/history** from the existing hosted balance, entitlements, and timeline APIs.
