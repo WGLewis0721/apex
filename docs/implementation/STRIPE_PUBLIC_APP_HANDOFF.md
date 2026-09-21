@@ -6,26 +6,27 @@ installs, returns successful installs to APEX onboarding, and points OAuth at th
 
 ## Uploaded version
 
-Version `0.2.0` uploaded successfully from the **apex test dev** sandbox after completing a fresh Stripe CLI
-device authorization for that account. Stripe reports the version as ready. External-test selection and the
-first install remain Dashboard-driven acceptance steps.
+`0.2.0` was uploaded previously, but a later merge conflict regressed the repository manifest back to `com.graymatter.apex` and dropped permissions required by the connected processor. Version `0.2.1` restores the uploaded public app id `com.graymatter.apex-dev`, sandbox compatibility, post-install return, and the full read permissions used by connected ingress.
+
+Stripe's current sandbox-support guidance requires new public-app versions to be uploaded from the **main/live developer account**, not from the managed sandbox. The managed sandbox is used for sandbox API keys and sandbox event destinations. External-test selection and installation remain Dashboard-driven controls.
 
 ## Finish in Stripe
 
-1. Open **Dashboard → Apps → APEX → Version history**, select `0.2.0`, and set it as the External-test
-   version for a sandbox. If Stripe offers a **Link access** choice, use the unrestricted testing link;
-   some Dashboard variants omit this choice and generate the links directly.
-2. Copy the generated sandbox OAuth client ID and configure `STRIPE_APP_SANDBOX_CLIENT_ID`,
-   `STRIPE_APP_SANDBOX_SECRET_KEY`, and `STRIPE_APP_OAUTH_MODE=sandbox` as Supabase function secrets.
-3. In Workbench, create a connected-account event destination for `checkout.session.completed`,
+1. From the **main/live APEX developer account**, upload `0.2.1` from `stripe-app/` with `stripe apps upload`.
+2. Open **Developers → Apps → APEX → External test**, click **Get Started** (or **Edit**), and select `0.2.1`. If the External test tab is missing, use **Create a release** and confirm **public** distribution first.
+3. For OAuth, use the generated **sandbox** install link. If a published/private version is already installed in the tester environment, uninstall it first from **Settings → Installed Apps**.
+4. Copy the generated sandbox OAuth client ID and configure `STRIPE_APP_SANDBOX_CLIENT_ID`,
+   `STRIPE_APP_SANDBOX_SECRET_KEY`, and `STRIPE_APP_OAUTH_MODE=sandbox` as Supabase function secrets. The sandbox secret key must come from the app's **managed sandbox**.
+5. In the managed sandbox Workbench, create a connected-account event destination for `checkout.session.completed`,
    `checkout.session.async_payment_succeeded`, and `charge.refunded`, pointing at:
 
    ```text
    https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-connected-stripe-webhook
    ```
 
-4. Store that destination's signing secret as `APEX_CONNECTED_STRIPE_WEBHOOK_SECRET`, install through APEX,
-   configure one Stripe Price mapping, and repeat the lifecycle proof through the connected account.
+6. Store that destination's signing secret as `APEX_CONNECTED_STRIPE_WEBHOOK_SECRET`.
+7. Install the External-test app into a **separate tester sandbox/account** using the generated invite/OAuth link. Do not use the managed sandbox as the customer install target.
+8. Return to APEX, complete the OAuth connection, configure one Stripe Price mapping, and repeat the lifecycle proof through the connected account.
 
 Never commit or paste the developer key, webhook signing secret, OAuth refresh token, Supabase PAT, or APEX
 secret API key. External-test selection and account authorization are Stripe Dashboard controls and cannot
