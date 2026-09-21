@@ -8,12 +8,12 @@ installs, returns successful installs to APEX onboarding, and points OAuth at th
 
 `0.2.0` was uploaded previously, but a later merge conflict regressed the repository manifest back to `com.graymatter.apex` and dropped permissions required by the connected processor. Version `0.2.1` restores the uploaded public app id `com.graymatter.apex-dev`, sandbox compatibility, post-install return, and the full read permissions used by connected ingress.
 
-Stripe's current sandbox-support guidance requires new public-app versions to be uploaded from the **main/live developer account**, not from the managed sandbox. The managed sandbox is used for sandbox API keys and sandbox event destinations. External-test selection and installation remain Dashboard-driven controls.
+For this existing app ID, Stripe CLI confirms the owning developer context is the `apex test dev` sandbox (`acct_1UDyaOCu4VfuBF6D`); upload of `0.2.1` succeeded there on September 20, 2026. Do not recreate the globally unique app ID from the separate `Apex · live` account. External-test selection and installation remain Dashboard-driven controls.
 
 ## Finish in Stripe
 
-1. From the **main/live APEX developer account**, upload `0.2.1` from `stripe-app/` with `stripe apps upload`.
-2. Open **Developers → Apps → APEX → External test**, click **Get Started** (or **Edit**), and select `0.2.1`. If the External test tab is missing, use **Create a release** and confirm **public** distribution first.
+1. Use the Stripe CLI context that owns `com.graymatter.apex-dev`: `apex test dev` (`acct_1UDyaOCu4VfuBF6D`). Version `0.2.1` is now uploaded successfully.
+2. Open the APEX app's **External test** tab in Stripe Dashboard, click **Get Started** (or **Edit**), and select `0.2.1`. If the External test tab is missing, use **Create a release** and confirm **public** distribution first.
 3. For OAuth, use the generated **sandbox** install link. If a published/private version is already installed in the tester environment, uninstall it first from **Settings → Installed Apps**.
 4. Copy the generated sandbox OAuth client ID and configure `STRIPE_APP_SANDBOX_CLIENT_ID`,
    `STRIPE_APP_SANDBOX_SECRET_KEY`, and `STRIPE_APP_OAUTH_MODE=sandbox` as Supabase function secrets. The sandbox secret key must come from the app's **managed sandbox**.
