@@ -619,3 +619,35 @@ Later views may add usage counters, renewals, access-decision history, reservati
 4. Build **Phase 7.2 merchant customer balance/history** from the existing hosted balance, entitlements, and timeline APIs.
 
 Do not reopen cloud/runtime selection, add reservations, add `/check`, signed local evaluation, recurring allowances, rollover, or a second write path unless later customer evidence justifies it.
+
+---
+
+# Production commercialization gate — September 30, 2026
+
+APEX is a hosted control plane/SDK/CLI, not an end-user iOS app. **App Store distribution is not a production requirement for APEX itself.** Its release gate is whether another SaaS product can safely connect money movement to product access and operate that lifecycle without manual database work.
+
+## Remaining before accepting paying production customers
+
+- [ ] Complete Phase 5 External-test OAuth acceptance with a real connected Stripe test account and verify workspace/account binding.
+- [ ] Complete Phase 7.1.2 hosted price-mapping acceptance: mapping-required receipt → operator configuration → requeue → existing processor → exactly one grant.
+- [ ] Repeat the complete Phase 8 OAuth-connected lifecycle: purchase → grant → consume → DENY → replay → refund → replay → final ledger explanation.
+- [ ] Production-accept expiry reconciliation against real hosted data and document the scheduler/runbook.
+- [ ] Add merchant-facing customer balance/history reference UI (Phase 7.2) or a documented integration recipe sufficient for the first customer.
+- [ ] Add production operational alerts/dashboards for webhook verification failures, stuck inbox receipts, retry exhaustion, reconciliation drift, OAuth disconnects, mapping-required events, and API error/latency thresholds.
+- [ ] Add operator runbooks for replay/recovery, Stripe disconnect/reconnect, incorrect mapping correction, customer support investigation, incident response, backup/restore, and secret/key rotation.
+- [ ] Prove tenant isolation and authorization for all operator/customer-facing endpoints with automated negative tests.
+- [ ] Freeze production API/SDK compatibility policy, versioning/deprecation policy, rate limits/quotas, and documented error/retry semantics.
+- [ ] Finish customer-facing Terms, Privacy/Data Processing disclosures, support/SLA expectations, retention/deletion policy, and security/contact process.
+- [ ] Decide APEX's own merchant billing model and implement it separately from customer product ledgers: subscription/invoice for APEX service, failed-payment handling, cancellation, tax/invoice requirements, and internal entitlement to APEX service.
+- [ ] Run a first-customer production pilot with test money first, then a bounded live transaction, and reconcile Stripe ↔ APEX ↔ customer-visible access before general availability.
+
+## Apple/App Store integration responsibility
+
+When APEX powers an iOS app that sells digital goods/services, the **client product** must implement Apple's approved commerce path. Add an Apple commerce adapter only when Studigo/another real customer requires it:
+- [ ] ingest verified App Store transaction/server-notification events;
+- [ ] normalize Apple purchase/refund/revocation events into the same APEX grant/entitlement invariants without creating a second source of truth;
+- [ ] support restore/reconciliation and idempotency across device reinstall/replay;
+- [ ] preserve provider/source attribution so Stripe and Apple grants/refunds cannot claw back one another incorrectly.
+
+**Commercial-production exit:** one external SaaS can self-serve connect, map a product, sell it, grant/consume/revoke value exactly once, explain the full lifecycle, recover from expected failures, and pay Gray Matter for APEX itself without operator SQL or ambiguous ledger state.
+
