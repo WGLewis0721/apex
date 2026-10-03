@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  createRateLimiter, createSheetsStore, createWaitlistHandler, cell, normalizePrivateKey, signServiceAccountJwt,
-  SHEET_HEADERS, toRow, validateSubmission, WAITLIST_CONSENT_VERSION, waitlistHandlerFromEnv, type WaitlistStore,
+  createFormSubmitNotifier, createRateLimiter, createSheetsStore, createWaitlistHandler, cell, normalizePrivateKey, signServiceAccountJwt,
+  SHEET_HEADERS, toRow, validateSubmission, WAITLIST_CONSENT_VERSION, waitlistHandlerFromEnv, type WaitlistNotifier, type WaitlistStore,
 } from "./waitlist.ts";
 
 const valid = { email: "  Ada@Example.COM ", name: "Ada", company: "Analytical", role: "Engineer", teamSize: "2-10", useCase: "Check the beta", source: "landing", consent: true };
@@ -137,7 +137,7 @@ test("rate limit returns 429 with Retry-After per client IP", async () => {
 });
 
 test("unconfigured storage is a retryable 503, storage failure a retryable 502", async () => {
-  const off = await call(waitlistHandlerFromEnv({}), valid);
+  const off = await call(waitlistHandlerFromEnv({ WAITLIST_NOTIFY_EMAIL: "off" }, { product: "Test", siteUrl: "https://app.example.com/" }), valid);
   assert.equal(off.status, 503);
   const offPayload = await off.json();
   assert.equal(offPayload.code, "WAITLIST_UNAVAILABLE");
@@ -236,4 +236,112 @@ test("end to end: handler + Sheets store against a fake Google", async () => {
   const handler = createWaitlistHandler({ store, now: () => new Date("2026-10-03T12:00:00Z"), log: quiet });
   assert.equal((await call(handler, valid)).status, 200);
   assert.equal(JSON.parse(String(google.calls.at(-1)!.init.body)).values[0][1], "ada@example.com");
+});
+
+// --- Email alert (FormSubmit) -------------------------------------------------
+
+function recordingNotifier(fail = false) {
+  const sent: { email: string; submittedAt: string }[] = [];
+  const notifier: WaitlistNotifier = {
+    notify: async (entry, submittedAt) => {
+      if (fail) throw new Error("relay down");
+      sent.push({ email: entry.email, submittedAt });
+    },
+  };
+  return { sent, notifier };
+}
+
+test("a new signup is saved, then alerted once; a repeat signup is not alerted again", async () => {
+  const { sent, notifier } = recordingNotifier();
+  const { rows, handler } = make({ notifier });
+  await call(handler, valid);
+  await call(handler, { ...valid, email: "ADA@example.com" });
+  assert.equal(rows.length, 1);
+  assert.deepEqual(sent, [{ email: "ada@example.com", submittedAt: "2026-10-03T12:00:00.000Z" }]);
+});
+
+test("with a sheet, a failed alert is logged and the signup still succeeds", async () => {
+  const errors: unknown[][] = [];
+  const { rows, handler } = make({ notifier: recordingNotifier(true).notifier, log: { error: (...args: unknown[]) => { errors.push(args); } } });
+  const res = await call(handler, valid);
+  assert.equal(res.status, 200);
+  assert.equal(rows.length, 1);
+  assert.equal(errors.length, 1);
+});
+
+test("email-only: the alert is the record, so its failure is a retryable 502", async () => {
+  const ok = recordingNotifier();
+  const emailOnly = createWaitlistHandler({ store: null, notifier: ok.notifier, log: quiet });
+  assert.equal((await call(emailOnly, valid)).status, 200);
+  assert.equal(ok.sent.length, 1);
+  const failing = createWaitlistHandler({ store: null, notifier: recordingNotifier(true).notifier, log: quiet });
+  const res = await call(failing, valid);
+  assert.equal(res.status, 502);
+  assert.equal((await res.json()).retryable, true);
+});
+
+test("honeypot and invalid submissions never send an alert", async () => {
+  const { sent, notifier } = recordingNotifier();
+  const { handler } = make({ notifier });
+  await call(handler, { ...valid, website: "spam" });
+  await call(handler, { email: "bad", consent: true });
+  assert.equal(sent.length, 0);
+});
+
+function fakeFormSubmit(reply: { status?: number; body?: unknown } = {}) {
+  const calls: { url: string; init: RequestInit }[] = [];
+  const fetchImpl = (async (input: string | URL | Request, init: RequestInit = {}) => {
+    calls.push({ url: String(input), init });
+    return new Response(JSON.stringify(reply.body ?? { success: "true", message: "The form was submitted successfully." }), { status: reply.status ?? 200 });
+  }) as typeof fetch;
+  return { calls, fetch: fetchImpl };
+}
+
+test("FormSubmit alert: endpoint, headers, subject, reply-to and fields", async () => {
+  const relay = fakeFormSubmit();
+  const notifier = createFormSubmitNotifier({ to: "owner@example.com", product: "Spread", siteUrl: "https://spread.example.app/", fetch: relay.fetch });
+  const entry = validateSubmission({ ...valid, name: "=SUM(1)" });
+  await notifier.notify(entry, "2026-10-03T12:00:00.000Z");
+  const [{ url, init }] = relay.calls as [{ url: string; init: RequestInit }];
+  assert.equal(url, "https://formsubmit.co/ajax/owner%40example.com");
+  const headers = init.headers as Record<string, string>;
+  assert.equal(headers["content-type"], "application/json");
+  assert.equal(headers["accept"], "application/json");
+  assert.equal(headers["referer"], "https://spread.example.app/");
+  assert.equal(headers["origin"], "https://spread.example.app");
+  const body = JSON.parse(String(init.body));
+  assert.equal(body._subject, "[Spread] New beta waitlist signup: ada@example.com");
+  assert.equal(body._replyto, "ada@example.com");
+  assert.equal(body._template, "table");
+  assert.equal(body._captcha, "false");
+  assert.equal(body.product, "Spread");
+  assert.equal(body.name, "=SUM(1)");
+  assert.equal(body.team_size, "2-10");
+  assert.equal(body.consent_version, WAITLIST_CONSENT_VERSION);
+});
+
+test("FormSubmit alert rejects unconfirmed delivery, including the activation reply", async () => {
+  const entry = validateSubmission(valid);
+  const pending = createFormSubmitNotifier({ to: "o@example.com", product: "P", siteUrl: "https://p.example/", fetch: fakeFormSubmit({ body: { success: "false", message: "This form needs Activation." } }).fetch });
+  await assert.rejects(pending.notify(entry, "t"), (error: Error) => /needs Activation/.test(error.message));
+  const down = createFormSubmitNotifier({ to: "o@example.com", product: "P", siteUrl: "https://p.example/", fetch: fakeFormSubmit({ status: 500, body: {} }).fetch });
+  await assert.rejects(down.notify(entry, "t"), (error: { name: string; status: number }) => error.name === "NotifyError" && error.status === 500);
+});
+
+test("env wiring: alerts default to the Gray Matter inbox and can be redirected or turned off", async () => {
+  const product = { product: "Test", siteUrl: "https://app.example.com/" };
+  const original = globalThis.fetch;
+  const relay = fakeFormSubmit();
+  globalThis.fetch = relay.fetch;
+  try {
+    assert.equal((await call(waitlistHandlerFromEnv({}, product), valid)).status, 200);
+    assert.equal(relay.calls.at(-1)!.url, "https://formsubmit.co/ajax/graymattertechllc%40gmail.com");
+    assert.equal((await call(waitlistHandlerFromEnv({ WAITLIST_NOTIFY_EMAIL: "a1b2c3alias" }, product), valid)).status, 200);
+    assert.equal(relay.calls.at(-1)!.url, "https://formsubmit.co/ajax/a1b2c3alias");
+    const before = relay.calls.length;
+    assert.equal((await call(waitlistHandlerFromEnv({ WAITLIST_NOTIFY_EMAIL: "OFF" }, product), valid)).status, 503);
+    assert.equal(relay.calls.length, before);
+  } finally {
+    globalThis.fetch = original;
+  }
 });

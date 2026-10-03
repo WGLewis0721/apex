@@ -1,6 +1,6 @@
 # Waitlist API
 
-the `apex-waitlist` Supabase Edge Function collects beta-tester/interest signups and appends each one as a row in the **APEX Beta Waitlist** Google Sheet. It stands apart from the product: it needs no account and changes no product data.
+the `apex-waitlist` Supabase Edge Function collects beta-tester/interest signups. Each new signup is appended as a row in the **APEX Beta Waitlist** Google Sheet and emailed as an alert to **graymattertechllc@gmail.com** through FormSubmit, the same relay the Gray Matter site's contact form uses. It stands apart from the product: it needs no account and changes no product data.
 
 The request/response contract is identical across PoryGen, Studigo, APEX, FundMatch and Spread, so one frontend form pattern works for all five.
 
@@ -67,8 +67,8 @@ Errors are `{ error, code, retryable, field? }`. `error` is safe to show the use
 | 413 | `REQUEST_TOO_LARGE` | — | no | Body over 8 KB. |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | — | no | Send `application/json`. |
 | 429 | `RATE_LIMITED` | — | yes | Too many attempts from one IP; honour `Retry-After` (seconds). |
-| 502 | `WAITLIST_STORAGE_FAILED` | — | yes | Google Sheets call failed. |
-| 503 | `WAITLIST_UNAVAILABLE` | — | yes | Google credentials aren't configured on this deployment. |
+| 502 | `WAITLIST_STORAGE_FAILED` | — | yes | Saving failed: the Google Sheets call, or (with no sheet configured) the email alert. |
+| 503 | `WAITLIST_UNAVAILABLE` | — | yes | Neither the sheet nor email alerts are configured (alerts turned off and no Google credentials). |
 | 500 | `WAITLIST_FAILED` | — | yes | Unexpected error. |
 
 Suggested UI: disable the button while the request is in flight; on `ok` show a thank-you state; on a `field` error mark that input; on `retryable` offer a retry.
@@ -91,9 +91,21 @@ submitted_at | email | name | company | role | team_size | use_case | source | c
 - Values are written with `valueInputOption=RAW`, and text starting with `= + - @` gets a leading `'`, so submitted text can't run as a formula in Sheets or in a CSV/Excel export.
 - Duplicate check: column B is read before each append. Two simultaneous submits of the same new email can both land; rare and harmless.
 
+## Email alerts
+
+Every **new** signup (not repeats, honeypot hits or invalid submissions) sends one email to `graymattertechllc@gmail.com`:
+
+- Subject: `[APEX] New beta waitlist signup: <email>`, with every field in a table.
+- Reply-To is the person's address, so replying from Gmail reaches them directly.
+- Sent server-side to `https://formsubmit.co/ajax/<address>`, identified by the stable site URL `https://wglewis0721.github.io/apex/` (`APEX_APP_URL` overrides it).
+- With the sheet configured, the sheet is the record and a failed alert is only logged. Without the sheet, the email is the record and a failed alert returns 502.
+- `WAITLIST_NOTIFY_EMAIL` overrides the address (or takes FormSubmit's random alias after activation); `off` disables alerts.
+
+**One-time activation:** FormSubmit holds the first message for a new form and emails an **Activate Form** link to the inbox. Click it once for APEX; that first signup is still saved in the sheet, but its alert is not re-sent. After activating, FormSubmit offers a random alias you can put in `WAITLIST_NOTIFY_EMAIL` so the address isn't in requests.
+
 ## Setup
 
-One Google service account serves all five products.
+Email alerts need no setup beyond the activation click above. The sheet needs a Google service account; one serves all five products.
 
 1. **Google Cloud project** → APIs & Services → enable **Google Sheets API**.
 2. IAM & Admin → Service Accounts → **Create service account** (no roles) → Keys → **Add key → JSON**. Keep the file private; never commit it.
@@ -107,6 +119,7 @@ One Google service account serves all five products.
    | `WAITLIST_SPREADSHEET_ID` | the ID between `/d/` and `/edit` in the **APEX Beta Waitlist** URL |
    | `WAITLIST_SHEET_TAB` | optional; empty = first tab |
    | `WAITLIST_ALLOWED_ORIGINS` | optional, comma-separated extra browser origins |
+   | `WAITLIST_NOTIFY_EMAIL` | optional; defaults to `graymattertechllc@gmail.com`; a FormSubmit alias; or `off` |
 
 5. Check it:
 
@@ -116,7 +129,7 @@ curl -sS -X POST https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-wait
   -d '{"email":"you@example.com","consent":true,"source":"setup-check"}'
 ```
 
-Expect `{"ok":true,"status":"joined"}` and a new row. `503 WAITLIST_UNAVAILABLE` means a variable is missing; `502` usually means the folder/sheet isn't shared with the service account, `WAITLIST_SHEET_TAB` names a missing tab, or the Sheets API isn't enabled (the server log shows Google's HTTP status, never the key).
+Expect `{"ok":true,"status":"joined"}`, a new row, and an alert email (or, the very first time, FormSubmit's activation email). `503 WAITLIST_UNAVAILABLE` means alerts are off and a Google variable is missing; `502` usually means the folder/sheet isn't shared with the service account, `WAITLIST_SHEET_TAB` names a missing tab, or the Sheets API isn't enabled (the server log shows Google's HTTP status, never the key).
 
 ## Abuse controls
 
@@ -128,4 +141,4 @@ Expect `{"ok":true,"status":"joined"}` and a new row. `503 WAITLIST_UNAVAILABLE`
 
 ## Privacy
 
-Waitlist contact details are **deliberately stored** in Google Sheets (Google is a subprocessor). No IP address, user agent or product data goes into the row. Name the waitlist in the privacy policy, and honour removal requests by deleting the row.
+Waitlist contact details are **deliberately stored** in Google Sheets and sent by email through FormSubmit to the Gray Matter Gmail inbox (Google and FormSubmit are subprocessors). No IP address, user agent or product data goes into the row. Name the waitlist in the privacy policy, and honour removal requests by deleting the row.

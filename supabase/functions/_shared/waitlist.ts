@@ -118,15 +118,21 @@ export interface WaitlistStore {
   appendRow(row: string[]): Promise<void>;
 }
 
+/** Sends a "new signup" alert. Only called for emails not already on the list. */
+export interface WaitlistNotifier {
+  notify(entry: WaitlistEntry, submittedAt: string): Promise<void>;
+}
+
 export interface WaitlistHandlerOptions {
   store: WaitlistStore | null;
+  notifier?: WaitlistNotifier | null;
   allowedOrigins?: readonly string[];
   rateLimit?: RateLimit;
   now?: () => Date;
   log?: { error?: (...args: unknown[]) => void };
 }
 
-export function createWaitlistHandler({ store, allowedOrigins = [], rateLimit = createRateLimiter(), now = () => new Date(), log = console }: WaitlistHandlerOptions) {
+export function createWaitlistHandler({ store, notifier = null, allowedOrigins = [], rateLimit = createRateLimiter(), now = () => new Date(), log = console }: WaitlistHandlerOptions) {
   return async function handleWaitlist(request: Request): Promise<Response> {
     const origin = request.headers.get("origin");
     const allowed = originAllowed(request, allowedOrigins);
@@ -155,12 +161,31 @@ export function createWaitlistHandler({ store, allowedOrigins = [], rateLimit = 
         return json(200, { ok: true, status: "joined" });
       }
       const entry = validateSubmission(body);
-      if (!store) throw new WaitlistError("WAITLIST_UNAVAILABLE", "The waitlist is not open yet. Try again later.", 503, undefined, true);
-      try {
-        if (!(await store.hasEmail(entry.email))) await store.appendRow(toRow(entry, now().toISOString()));
-      } catch (error) {
-        log.error?.("waitlist storage failed", (error as { status?: number })?.status ?? "", (error as Error)?.message ?? error);
-        throw new WaitlistError("WAITLIST_STORAGE_FAILED", "We couldn't save your signup. Try again in a moment.", 502, undefined, true);
+      if (!store && !notifier) throw new WaitlistError("WAITLIST_UNAVAILABLE", "The waitlist is not open yet. Try again later.", 503, undefined, true);
+      const submittedAt = now().toISOString();
+      const storageFailed = (what: string, error: unknown) => {
+        log.error?.(what, (error as { status?: number })?.status ?? "", (error as Error)?.message ?? error);
+        return new WaitlistError("WAITLIST_STORAGE_FAILED", "We couldn't save your signup. Try again in a moment.", 502, undefined, true);
+      };
+      // The sheet is the record; the email is an alert. With a sheet, a failed
+      // alert is logged and the signup still succeeds. Without one, the email
+      // is the only record, so its failure is the request's failure.
+      let isNew = true;
+      if (store) {
+        try {
+          isNew = !(await store.hasEmail(entry.email));
+          if (isNew) await store.appendRow(toRow(entry, submittedAt));
+        } catch (error) {
+          throw storageFailed("waitlist storage failed", error);
+        }
+      }
+      if (notifier && isNew) {
+        try {
+          await notifier.notify(entry, submittedAt);
+        } catch (error) {
+          if (!store) throw storageFailed("waitlist notification failed", error);
+          log.error?.("waitlist notification failed (signup saved)", (error as Error)?.message ?? error);
+        }
       }
       // Identical response for new and existing emails, so the endpoint can't be
       // used to check who has signed up.
@@ -292,16 +317,96 @@ export function createSheetsStore({ clientEmail, privateKey, spreadsheetId, tab 
   };
 }
 
+// --- Email alert via FormSubmit ----------------------------------------------
+// Same relay the Gray Matter site's contact form uses: https://formsubmit.co
+// The first message to a new address/site triggers a one-time activation email.
+
+/** Every product's signups alert this inbox unless WAITLIST_NOTIFY_EMAIL overrides it. */
+export const DEFAULT_NOTIFY_EMAIL = "graymattertechllc@gmail.com";
+
+export class NotifyError extends Error {
+  status: number;
+  constructor(message: string, status: number) { super(message); this.name = "NotifyError"; this.status = status; }
+}
+
+export interface FormSubmitOptions {
+  /** Inbox address, or the random alias FormSubmit gives after activation. */
+  to: string;
+  /** Product name for the subject line, e.g. "Spread". */
+  product: string;
+  /** Stable public URL of the product; FormSubmit identifies the form by it. */
+  siteUrl: string;
+  fetch?: typeof fetch;
+}
+
+export function createFormSubmitNotifier({ to, product, siteUrl, fetch: fetchImpl = (...args) => fetch(...args) }: FormSubmitOptions): WaitlistNotifier {
+  const url = `https://formsubmit.co/ajax/${encodeURIComponent(to)}`;
+  return {
+    async notify(entry, submittedAt) {
+      const body = {
+        _subject: `[${product}] New beta waitlist signup: ${entry.email}`,
+        _template: "table",
+        _captcha: "false",
+        _replyto: entry.email,
+        product,
+        email: entry.email,
+        name: entry.name,
+        company: entry.company,
+        role: entry.role,
+        team_size: entry.teamSize,
+        use_case: entry.useCase,
+        source: entry.source,
+        submitted_at: submittedAt,
+        consent_version: WAITLIST_CONSENT_VERSION,
+      };
+      let response: Response;
+      try {
+        response = await fetchImpl(url, {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json", referer: siteUrl, origin: new URL(siteUrl).origin },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+      } catch {
+        throw new NotifyError("FormSubmit request failed.", 0);
+      }
+      const result = (await response.json().catch(() => ({}))) as { success?: unknown; message?: unknown };
+      if (!response.ok || !(result.success === true || result.success === "true")) {
+        // Includes the one-time "This form needs Activation" reply.
+        throw new NotifyError(`FormSubmit did not confirm delivery (${response.status}): ${String(result.message ?? "no message")}`, response.status);
+      }
+    },
+  };
+}
+
 // --- Wiring from environment variables --------------------------------------
 
-/** Reads GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, WAITLIST_SPREADSHEET_ID, WAITLIST_SHEET_TAB, WAITLIST_ALLOWED_ORIGINS. */
+/**
+ * Reads GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, WAITLIST_SPREADSHEET_ID,
+ * WAITLIST_SHEET_TAB, WAITLIST_ALLOWED_ORIGINS and WAITLIST_NOTIFY_EMAIL.
+ */
 export type WaitlistEnv = Record<string, string | undefined>;
 
-/** Builds the handler from server-side env vars; unconfigured → every POST answers 503. */
-export function waitlistHandlerFromEnv(env: WaitlistEnv, extraOrigins: readonly string[] = []) {
+export interface WaitlistProduct {
+  /** Product name used in alert subjects, e.g. "Spread". */
+  product: string;
+  /** Stable production URL, e.g. "https://spread-app-teal.vercel.app/". */
+  siteUrl: string;
+  /** Browser origins allowed besides the app's own host. */
+  allowedOrigins?: readonly string[];
+}
+
+/**
+ * Builds the handler from server-side env vars. The sheet needs the three Google
+ * vars; the email alert goes to DEFAULT_NOTIFY_EMAIL unless WAITLIST_NOTIFY_EMAIL
+ * names another address or is "off". With neither, every POST answers 503.
+ */
+export function waitlistHandlerFromEnv(env: WaitlistEnv, { product, siteUrl, allowedOrigins: extraOrigins = [] }: WaitlistProduct) {
   const store = env["GOOGLE_SERVICE_ACCOUNT_EMAIL"] && env["GOOGLE_PRIVATE_KEY"] && env["WAITLIST_SPREADSHEET_ID"]
     ? createSheetsStore({ clientEmail: env["GOOGLE_SERVICE_ACCOUNT_EMAIL"], privateKey: env["GOOGLE_PRIVATE_KEY"], spreadsheetId: env["WAITLIST_SPREADSHEET_ID"], tab: env["WAITLIST_SHEET_TAB"] ?? "" })
     : null;
+  const notifyTo = (env["WAITLIST_NOTIFY_EMAIL"] ?? "").trim() || DEFAULT_NOTIFY_EMAIL;
+  const notifier = notifyTo.toLowerCase() === "off" ? null : createFormSubmitNotifier({ to: notifyTo, product, siteUrl });
   const allowedOrigins = [...extraOrigins, ...String(env["WAITLIST_ALLOWED_ORIGINS"] ?? "").split(",").map(origin => origin.trim()).filter(Boolean)];
-  return createWaitlistHandler({ store, allowedOrigins });
+  return createWaitlistHandler({ store, notifier, allowedOrigins });
 }
