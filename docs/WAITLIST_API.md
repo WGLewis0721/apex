@@ -79,7 +79,7 @@ The APEX app origin is always allowed. Add others to `WAITLIST_ALLOWED_ORIGINS`.
 
 ## Spreadsheet
 
-Rows go to the **first tab** of **APEX Beta Waitlist** (in the owner's Drive folder *Beta Waitlists*), or to the tab named by `WAITLIST_SHEET_TAB`. Row 1 is the header, columns A–J:
+Rows go to the **first tab** of **APEX Beta Waitlist** (in *Gray Matter LLC › 03 - Sales & Clients › Beta Waitlists*), or to the tab named by `WAITLIST_SHEET_TAB`. Row 1 is the header, columns A–J:
 
 ```
 submitted_at | email | name | company | role | team_size | use_case | source | consent_version | status
