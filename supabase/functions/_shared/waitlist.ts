@@ -123,17 +123,19 @@ export interface WaitlistHandlerOptions {
 }
 
 export function createWaitlistHandler({ store, notifier = null, allowedOrigins = [], rateLimit = createRateLimiter(), now = () => new Date(), log = console }: WaitlistHandlerOptions) {
-  // Same-email submissions take turns within this instance (double clicks,
-  // retries), so the read-then-append below cannot interleave for one address.
-  // Sheets has no unique constraint, so two instances can still race; rare.
+  // Same-email submissions arriving while one is being saved (double clicks,
+  // retries) join that save instead of doing their own read-then-append, so a
+  // burst costs one Sheets round trip. Sheets has no unique constraint, so two
+  // instances can still race; rare.
   const inFlight = new Map<string, Promise<boolean>>();
   const saveOnce = (entry: WaitlistEntry, submittedAt: string, sheet: WaitlistStore) => {
-    const previous = inFlight.get(entry.email) ?? Promise.resolve(false);
-    const run = previous.catch(() => false).then(async () => {
+    const active = inFlight.get(entry.email);
+    if (active) return active.then(() => false);
+    const run = (async () => {
       if (await sheet.hasEmail(entry.email)) return false;
       await sheet.appendRow(toRow(entry, submittedAt));
       return true;
-    });
+    })();
     inFlight.set(entry.email, run);
     const cleanup = () => { if (inFlight.get(entry.email) === run) inFlight.delete(entry.email); };
     run.then(cleanup, cleanup);

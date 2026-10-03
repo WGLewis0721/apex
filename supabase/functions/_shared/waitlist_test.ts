@@ -291,6 +291,19 @@ test("simultaneous submissions of one new email store a single row", async () =>
   assert.equal(sent.length, 1);
 });
 
+test("a same-email burst shares one sheet read instead of queueing one per request", async () => {
+  let reads = 0;
+  const rows: string[][] = [];
+  const slow: WaitlistStore = {
+    hasEmail: async email => { reads++; await new Promise(r => setTimeout(r, 20)); return rows.some(row => row[1] === email); },
+    appendRow: async row => { rows.push(row); },
+  };
+  const handler = createWaitlistHandler({ store: slow, log: quiet });
+  await Promise.all(Array.from({ length: 8 }, () => call(handler, valid)));
+  assert.equal(reads, 1);
+  assert.equal(rows.length, 1);
+});
+
 test("emails starting with a formula character or apostrophe are refused, so stored emails stay verbatim", async () => {
   const { rows, handler } = make();
   for (const email of ["+tag@example.com", "-x@example.com", "=cmd@example.com", "'foo@example.com"]) {
