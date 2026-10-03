@@ -1,0 +1,20 @@
+.ap-waitlist { padding: clamp(80px, 10vw, 150px) clamp(24px, 5vw, 80px); background: var(--brand-canvas); border-top: 1px solid #16243a1f; }
+.ap-waitlist-inner { max-width: 1380px; margin: auto; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(32px, 6vw, 92px); align-items: center; }
+.ap-waitlist-copy h2 { margin: 18px 0 22px; color: var(--brand-ink); font-family: var(--brand-display); font-size: clamp(3.5rem, 6vw, 6.5rem); font-weight: 550; line-height: .99; letter-spacing: -.045em; }
+.ap-waitlist-copy h2 em { color: var(--brand-cobalt); font-weight: inherit; }
+.ap-waitlist-copy > p:not(.ap-eyebrow) { max-width: 53ch; font-size: clamp(1rem, 1.3vw, 1.2rem); line-height: 1.6; }
+.ap-waitlist-form { max-width: 620px; margin-top: 34px; }
+.ap-waitlist-form > label:first-child { display: block; margin-bottom: 9px; font-weight: 700; }
+.ap-waitlist-fields { display: flex; gap: 8px; }
+.ap-waitlist-fields input { min-width: 0; flex: 1; border: 1px solid #16243a55; border-radius: 8px; background: #fff; color: var(--brand-ink); padding: 14px 16px; font: inherit; }
+.ap-waitlist-fields button { border: 0; white-space: nowrap; cursor: pointer; }
+.ap-waitlist-fields button:disabled { opacity: .6; cursor: wait; }
+.ap-waitlist-consent { display: flex; gap: 9px; align-items: flex-start; margin-top: 16px; color: #435168; font-size: .83rem; line-height: 1.45; }
+.ap-waitlist-consent input { flex: none; margin-top: 3px; accent-color: var(--brand-cobalt); }
+.ap-waitlist-feedback { min-height: 2.8em; margin: 12px 0 0; color: #435168; font-size: .83rem; line-height: 1.4; }
+.ap-waitlist-visual { position: relative; overflow: hidden; border-radius: 20px; background: #f7f2e8; box-shadow: 0 28px 70px #16243a14; }
+.ap-waitlist-visual video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.ap-waitlist-visual button { position: absolute; right: 12px; bottom: 12px; border: 1px solid #16243a44; border-radius: 999px; background: #f7f2e8ea; padding: 7px 12px; color: var(--brand-ink); font: inherit; font-size: .72rem; font-weight: 700; cursor: pointer; }
+.ap-waitlist :is(input, button):focus-visible { outline: 3px solid var(--brand-cobalt); outline-offset: 3px; }
+@media (max-width: 850px) { .ap-waitlist-inner { grid-template-columns: 1fr; } }
+@media (max-width: 580px) { .ap-waitlist-fields { flex-direction: column; } .ap-waitlist-fields button { min-height: 50px; justify-content: center; } }
