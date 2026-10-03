@@ -1,5 +1,5 @@
 import { CSSProperties, lazy, Suspense, useEffect, useReducer, useRef, useState } from 'react';
-import { ArrowRight, Check, CheckCircle2, ChevronRight, Code2, Copy, CreditCard, ExternalLink, Layers, Maximize2, Pause, Play, Plus, Receipt, RotateCcw, Sparkles, Unlock, X } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, ChevronRight, Code2, Copy, CreditCard, ExternalLink, Layers, Plus, Receipt, RotateCcw, Sparkles, Unlock } from 'lucide-react';
 import { allowance, embeddedReducer, initialEmbedded, plans } from './lib/embeddedDemo';
 import './product.css';
 import './plain-language.css';
@@ -15,7 +15,6 @@ const themes = [
   { name: 'Cobalt', color: '#006fe8' },
   { name: 'Rust', color: '#a94f38' },
 ];
-const chapters = [ ['Connect', 0], ['Subscribe', 6], ['Track usage', 12], ['Upgrade', 21], ['Make it yours', 28] ] as const;
 
 export default function ProductSite() {
   const [route, setRoute] = useState(() => window.location.hash);
@@ -24,58 +23,11 @@ export default function ProductSite() {
   const recoveryOpen = new URLSearchParams(window.location.search).get('recovery') === '1';
   const startOpen = route === '#start' || recoveryOpen;
   const docsOpen = route === '#docs' || route.startsWith('#docs/') || route.startsWith('#docs?');
-  const [filmOpen, setFilmOpen] = useState(false);
-  const film = useRef<HTMLDialogElement>(null);
-  const fullVideo = useRef<HTMLVideoElement>(null);
-  const preview = useRef<HTMLVideoElement>(null);
-  const watchButton = useRef<HTMLButtonElement>(null);
-  const manuallyPaused = useRef(false);
-  const [playing, setPlaying] = useState(false);
-  const [chapter, setChapter] = useState(0);
-  const [videoFailed, setVideoFailed] = useState(false);
-
   useEffect(() => {
     const sync = () => setRoute(window.location.hash);
     window.addEventListener('hashchange', sync);
     return () => window.removeEventListener('hashchange', sync);
   }, []);
-
-  useEffect(() => {
-    if (consoleOpen || formaOpen || startOpen || docsOpen || filmOpen) return;
-    const el = preview.current;
-    if (!el) return;
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting || motion.matches || manuallyPaused.current) el.pause();
-      else void el.play().catch(() => setPlaying(false));
-    }, { threshold: 0.2 });
-    observer.observe(el);
-    const reduce = () => { if (motion.matches) el.pause(); };
-    motion.addEventListener('change', reduce);
-    return () => { observer.disconnect(); motion.removeEventListener('change', reduce); };
-  }, [consoleOpen, formaOpen, startOpen, docsOpen, filmOpen]);
-
-  useEffect(() => {
-    if (filmOpen) {
-      film.current?.showModal();
-      preview.current?.pause();
-      if (fullVideo.current) {
-        fullVideo.current.currentTime = 0;
-        void fullVideo.current.play().catch(() => {});
-      }
-      document.body.style.overflow = 'hidden';
-    } else {
-      film.current?.close();
-      fullVideo.current?.pause();
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [filmOpen]);
-
-  function closeFilm() {
-    setFilmOpen(false);
-    watchButton.current?.focus();
-  }
 
   if (startOpen) return <Suspense fallback={<p className="ap-loading">Opening onboarding…</p>}><Onboarding/></Suspense>;
 
@@ -119,26 +71,6 @@ export default function ProductSite() {
           </div>
         </div>
 
-        <div className="ap-film-wrap">
-          <div className="ap-film-frame">
-            <video ref={preview} muted loop playsInline preload="metadata" poster={asset('apex-film-poster.jpg')} aria-label="APEX product film: connect payments, track tokens, upgrade and customize your app" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onError={() => setVideoFailed(true)} onTimeUpdate={e => { const t = e.currentTarget.currentTime; setChapter(chapters.reduce((n, c, i) => t >= c[1] ? i : n, 0)); }}>
-              <source src={asset('apex-product-film.mp4')} type="video/mp4"/>
-              <track kind="captions" src={asset('apex-film.vtt')} srcLang="en" label="English"/>
-              Your browser does not support embedded video.
-            </video>
-            <div className="ap-film-top"><span><span className="ap-small-dot"/> THE APEX EXPERIENCE</span><span>SIMULATED DATA</span></div>
-            <div className="ap-film-bottom"><span>They buy. Their access stays correct.</span><div><button aria-label={playing ? 'Pause hero video' : 'Play hero video'} onClick={() => {
-              const el = preview.current;
-              if (!el) return;
-              if (el.paused) { manuallyPaused.current = false; void el.play().catch(() => setVideoFailed(true)); }
-              else { manuallyPaused.current = true; el.pause(); }
-            }}>{playing ? <Pause size={17}/> : <Play size={17}/>}</button><button ref={watchButton} aria-label="Open full product film" onClick={() => setFilmOpen(true)}><Maximize2 size={17}/></button></div></div>
-          </div>
-          {videoFailed && <p className="ap-video-fallback">Video unavailable in this browser. <a href={asset('apex-product-film.mp4')}>Open the MP4 film</a> or try the interactive demo below.</p>}
-          <div className="ap-chapters" aria-label="Video chapters">{chapters.map(([name, time], i) => <button key={name} aria-current={chapter === i ? 'step' : undefined} className={chapter === i ? 'is-active' : ''} onClick={() => {
-            if (preview.current) { manuallyPaused.current = false; preview.current.currentTime = time; void preview.current.play().catch(() => {}); }
-          }}><span>0{i + 1}</span>{name}</button>)}</div>
-        </div>
         <p className="ap-underfilm"><strong>Stripe handles the payment.</strong> <span className="ap-rust">APEX helps make sure your product responds correctly.</span></p>
       </section>
 
@@ -178,11 +110,7 @@ export default function ProductSite() {
 
     <footer className="ap-footer ap-container"><a href="#" className="ap-logo">APEX</a><p>APEX keeps plans, payments, usage limits, credits, and product access in sync.</p><a href="#start">Start with APEX <ExternalLink size={13}/></a><a href="#forma">Open the Forma demo app <ExternalLink size={13}/></a><a href="#console">Open behind-the-scenes controls <ExternalLink size={13}/></a><a href="#docs">Read the docs <ExternalLink size={13}/></a><small>Product preview. All transactions are simulated.</small></footer>
 
-    <dialog ref={film} className="ap-film-dialog" aria-label="APEX product walkthrough" onCancel={closeFilm} onClick={e => { if (e.target === e.currentTarget) closeFilm(); }}>
-      <button autoFocus className="ap-close-film" aria-label="Close film" onClick={closeFilm}><X/></button>
-      {filmOpen && <video ref={fullVideo} controls playsInline preload="metadata" poster={asset('apex-film-poster.jpg')}><source src={asset('apex-product-film.mp4')} type="video/mp4"/><track kind="captions" src={asset('apex-film.vtt')} srcLang="en" label="English" default/></video>}
-      <p>APEX product walkthrough · 36 seconds · simulated data · silent film</p>
-    </dialog>
+
   </div>;
 }
 
