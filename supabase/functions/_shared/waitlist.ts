@@ -43,6 +43,9 @@ export function validateSubmission(body: unknown): WaitlistEntry {
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
   if (!email) throw new WaitlistError("EMAIL_REQUIRED", "Enter your email address.", 400, "email");
   if (email.length > 254 || !EMAIL.test(email)) throw new WaitlistError("INVALID_EMAIL", "Enter a valid email address.", 400, "email");
+  // Legal but practically unused, and they would need the sheet's formula guard,
+  // which would break exact duplicate matching. Refuse them instead.
+  if (/^[=+\-@']/.test(email)) throw new WaitlistError("INVALID_EMAIL", "Enter a valid email address.", 400, "email");
   // Joining is the opt-in; a form that sends an explicit "no" is refused.
   if (input.consent === false) throw new WaitlistError("CONSENT_REQUIRED", "Agree to be contacted about the beta to join the waitlist.", 400, "consent");
   let name = "";
@@ -305,8 +308,8 @@ export function createSheetsStore({ clientEmail, privateKey, spreadsheetId, tab 
     async hasEmail(email) {
       const json = (await call(`${base}/${range(tab, "B2:B")}?majorDimension=COLUMNS`, await authed({ method: "GET" }), "Sheets read")) as { values?: unknown[][] };
       const column = json.values?.[0] ?? [];
-      // toRow may have prefixed an apostrophe (formula guard); RAW stores it literally.
-      return column.some(value => String(value).trim().replace(/^'/, "").toLowerCase() === email);
+      // Accepted emails never start with a formula character, so they are stored verbatim.
+      return column.some(value => String(value).trim().toLowerCase() === email);
     },
     async appendRow(row) {
       // RAW stores every value as typed text, so nothing is evaluated as a formula.

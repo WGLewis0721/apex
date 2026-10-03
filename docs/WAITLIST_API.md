@@ -77,7 +77,7 @@ submitted_at | email | name | consent_version | status
 - `consent_version` is `WAITLIST_CONSENT_VERSION` in the waitlist module. Bump it when the wording under the form changes.
 - `status` starts as `waitlisted`. Change it by hand (`invited`, `active`, `unsubscribed`, …) as you send beta invites; the API never rewrites rows.
 - Values are written with `valueInputOption=RAW`, and text starting with `= + - @` gets a leading `'`, so submitted text can't run as a formula in Sheets or in a CSV/Excel export.
-- Duplicate check: column B is read before each append (ignoring the formula-guard apostrophe), and same-email submissions take turns within a server instance, so double clicks store one row. Google Sheets has no unique constraint, so two server instances receiving the same new email at the same instant can still both append; rare and harmless.
+- Duplicate check: column B is read before each append, and same-email submissions take turns within a server instance, so double clicks store one row. Addresses starting with `=`, `+`, `-` or `'` are refused (legal but practically unused), so stored emails are always verbatim and match exactly. Google Sheets has no unique constraint, so two server instances receiving the same new email at the same instant can still both append; rare and harmless.
 
 ## Email alerts
 
