@@ -269,15 +269,36 @@ test("with a sheet, a failed alert is logged and the signup still succeeds", asy
   assert.equal(errors.length, 1);
 });
 
-test("email-only: the alert is the record, so its failure is a retryable 502", async () => {
+test("without the sheet, a configured alert does not make a signup succeed", async () => {
   const ok = recordingNotifier();
-  const emailOnly = createWaitlistHandler({ store: null, notifier: ok.notifier, log: quiet });
-  assert.equal((await call(emailOnly, valid)).status, 200);
-  assert.equal(ok.sent.length, 1);
-  const failing = createWaitlistHandler({ store: null, notifier: recordingNotifier(true).notifier, log: quiet });
-  const res = await call(failing, valid);
-  assert.equal(res.status, 502);
-  assert.equal((await res.json()).retryable, true);
+  const res = await call(createWaitlistHandler({ store: null, notifier: ok.notifier, log: quiet }), valid);
+  assert.equal(res.status, 503);
+  assert.equal((await res.json()).code, "WAITLIST_UNAVAILABLE");
+  assert.equal(ok.sent.length, 0);
+});
+
+test("simultaneous submissions of one new email store a single row", async () => {
+  const rows: string[][] = [];
+  const slow: WaitlistStore = {
+    hasEmail: async email => { await new Promise(r => setTimeout(r, 20)); return rows.some(row => row[1] === email); },
+    appendRow: async row => { await new Promise(r => setTimeout(r, 20)); rows.push(row); },
+  };
+  const { sent, notifier } = recordingNotifier();
+  const handler = createWaitlistHandler({ store: slow, notifier, log: quiet });
+  const results = await Promise.all([call(handler, valid), call(handler, valid), call(handler, { ...valid, email: "ADA@example.com" })]);
+  assert.deepEqual(results.map(r => r.status), [200, 200, 200]);
+  assert.equal(rows.length, 1);
+  assert.equal(sent.length, 1);
+});
+
+test("emails stored with the formula-guard apostrophe still count as duplicates", async () => {
+  const { rows, handler } = make();
+  await call(handler, { email: "+tag@example.com" });
+  assert.equal(rows[0][1], "'+tag@example.com");
+  const google = fakeGoogle({ emails: ["'+tag@example.com"] });
+  const { pem } = await testKey();
+  const store = createSheetsStore({ clientEmail: "bot@x", privateKey: pem, spreadsheetId: "s", fetch: google.fetch });
+  assert.equal(await store.hasEmail("+tag@example.com"), true);
 });
 
 test("honeypot and invalid submissions never send an alert", async () => {
@@ -329,19 +350,30 @@ test("FormSubmit alert rejects unconfirmed delivery, including the activation re
   await assert.rejects(down.notify(entry, "t"), (error: { name: string; status: number }) => error.name === "NotifyError" && error.status === 500);
 });
 
-test("env wiring: alerts default to the Gray Matter inbox and can be redirected or turned off", async () => {
+test("env wiring: sheet required; alerts default to the Gray Matter inbox and can be redirected or turned off", async () => {
+  const { pem } = await testKey();
   const product = { product: "Test", siteUrl: "https://app.example.com/" };
+  const google = { GOOGLE_SERVICE_ACCOUNT_EMAIL: "bot@x", GOOGLE_PRIVATE_KEY: pem, WAITLIST_SPREADSHEET_ID: "s" };
   const original = globalThis.fetch;
-  const relay = fakeFormSubmit();
-  globalThis.fetch = relay.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
+    const url = String(input);
+    calls.push(url);
+    if (url.startsWith("https://oauth2.googleapis.com/token")) return new Response(JSON.stringify({ access_token: "t", expires_in: 3600 }));
+    if (url.startsWith("https://sheets.googleapis.com")) return new Response(init.method === "GET" ? "{}" : "{}");
+    return new Response(JSON.stringify({ success: "true" }));
+  }) as typeof fetch;
+  const relayCalls = () => calls.filter(url => url.startsWith("https://formsubmit.co"));
   try {
-    assert.equal((await call(waitlistHandlerFromEnv({}, product), valid)).status, 200);
-    assert.equal(relay.calls.at(-1)!.url, "https://formsubmit.co/ajax/graymattertechllc%40gmail.com");
-    assert.equal((await call(waitlistHandlerFromEnv({ WAITLIST_NOTIFY_EMAIL: "a1b2c3alias" }, product), valid)).status, 200);
-    assert.equal(relay.calls.at(-1)!.url, "https://formsubmit.co/ajax/a1b2c3alias");
-    const before = relay.calls.length;
-    assert.equal((await call(waitlistHandlerFromEnv({ WAITLIST_NOTIFY_EMAIL: "OFF" }, product), valid)).status, 503);
-    assert.equal(relay.calls.length, before);
+    assert.equal((await call(waitlistHandlerFromEnv({}, product), valid)).status, 503);
+    assert.equal(calls.length, 0);
+    assert.equal((await call(waitlistHandlerFromEnv(google, product), { ...valid, email: "one@example.com" })).status, 200);
+    assert.equal(relayCalls().at(-1), "https://formsubmit.co/ajax/graymattertechllc%40gmail.com");
+    assert.equal((await call(waitlistHandlerFromEnv({ ...google, WAITLIST_NOTIFY_EMAIL: "a1b2c3alias" }, product), { ...valid, email: "two@example.com" })).status, 200);
+    assert.equal(relayCalls().at(-1), "https://formsubmit.co/ajax/a1b2c3alias");
+    const before = relayCalls().length;
+    assert.equal((await call(waitlistHandlerFromEnv({ ...google, WAITLIST_NOTIFY_EMAIL: "OFF" }, product), { ...valid, email: "three@example.com" })).status, 200);
+    assert.equal(relayCalls().length, before);
   } finally {
     globalThis.fetch = original;
   }
