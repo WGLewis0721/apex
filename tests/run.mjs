@@ -6,4 +6,6 @@ try {
   writeFileSync(`${output}/package.json`, '{"type":"commonjs"}');
   execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', 'src/lib/controlPlane.ts', 'src/lib/assurance.ts', 'src/lib/embeddedDemo.ts', 'src/lib/forma.ts', 'src/lib/onboarding.ts', 'src/lib/priceMappings.ts', '--target', 'ES2022', '--module', 'commonjs', '--skipLibCheck', '--strict', '--outDir', output], { stdio: 'inherit' });
   execFileSync(process.execPath, ['--test', 'tests/assurance.test.cjs', 'tests/embedded.test.cjs', 'tests/forma.test.cjs', 'tests/onboarding.test.cjs', 'tests/priceMappings.test.cjs'], { stdio: 'inherit' });
+  // Waitlist edge-function core is runtime-neutral TypeScript; Node runs it directly.
+  execFileSync(process.execPath, ['--experimental-strip-types', '--no-warnings', '--test', 'supabase/functions/_shared/waitlist_test.ts'], { stdio: 'inherit' });
 } finally { rmSync(output, { recursive: true, force: true }); }
