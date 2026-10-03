@@ -120,6 +120,23 @@ export interface WaitlistHandlerOptions {
 }
 
 export function createWaitlistHandler({ store, notifier = null, allowedOrigins = [], rateLimit = createRateLimiter(), now = () => new Date(), log = console }: WaitlistHandlerOptions) {
+  // Same-email submissions take turns within this instance (double clicks,
+  // retries), so the read-then-append below cannot interleave for one address.
+  // Sheets has no unique constraint, so two instances can still race; rare.
+  const inFlight = new Map<string, Promise<boolean>>();
+  const saveOnce = (entry: WaitlistEntry, submittedAt: string, sheet: WaitlistStore) => {
+    const previous = inFlight.get(entry.email) ?? Promise.resolve(false);
+    const run = previous.catch(() => false).then(async () => {
+      if (await sheet.hasEmail(entry.email)) return false;
+      await sheet.appendRow(toRow(entry, submittedAt));
+      return true;
+    });
+    inFlight.set(entry.email, run);
+    const cleanup = () => { if (inFlight.get(entry.email) === run) inFlight.delete(entry.email); };
+    run.then(cleanup, cleanup);
+    return run;
+  };
+
   return async function handleWaitlist(request: Request): Promise<Response> {
     const origin = request.headers.get("origin");
     const allowed = originAllowed(request, allowedOrigins);
@@ -148,29 +165,21 @@ export function createWaitlistHandler({ store, notifier = null, allowedOrigins =
         return json(200, { ok: true, status: "joined" });
       }
       const entry = validateSubmission(body);
-      if (!store && !notifier) throw new WaitlistError("WAITLIST_UNAVAILABLE", "The waitlist is not open yet. Try again later.", 503, undefined, true);
+      // Success always means a durable sheet row; without the sheet, refuse.
+      if (!store) throw new WaitlistError("WAITLIST_UNAVAILABLE", "The waitlist is not open yet. Try again later.", 503, undefined, true);
       const submittedAt = now().toISOString();
-      const storageFailed = (what: string, error: unknown) => {
-        log.error?.(what, (error as { status?: number })?.status ?? "", (error as Error)?.message ?? error);
-        return new WaitlistError("WAITLIST_STORAGE_FAILED", "We couldn't save your signup. Try again in a moment.", 502, undefined, true);
-      };
-      // The sheet is the record; the email is an alert. With a sheet, a failed
-      // alert is logged and the signup still succeeds. Without one, the email
-      // is the only record, so its failure is the request's failure.
-      let isNew = true;
-      if (store) {
-        try {
-          isNew = !(await store.hasEmail(entry.email));
-          if (isNew) await store.appendRow(toRow(entry, submittedAt));
-        } catch (error) {
-          throw storageFailed("waitlist storage failed", error);
-        }
+      let isNew: boolean;
+      try {
+        isNew = await saveOnce(entry, submittedAt, store);
+      } catch (error) {
+        log.error?.("waitlist storage failed", (error as { status?: number })?.status ?? "", (error as Error)?.message ?? error);
+        throw new WaitlistError("WAITLIST_STORAGE_FAILED", "We couldn't save your signup. Try again in a moment.", 502, undefined, true);
       }
+      // The alert is best-effort and only follows a saved row.
       if (notifier && isNew) {
         try {
           await notifier.notify(entry, submittedAt);
         } catch (error) {
-          if (!store) throw storageFailed("waitlist notification failed", error);
           log.error?.("waitlist notification failed (signup saved)", (error as Error)?.message ?? error);
         }
       }
@@ -218,7 +227,9 @@ async function readJson(request: Request): Promise<unknown> {
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SHEETS_URL = "https://sheets.googleapis.com/v4/spreadsheets";
 const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
-const TIMEOUT_MS = 8_000;
+// Per call. A cold signup makes three Sheets calls, so keep the total well
+// inside the function limit (30 s on PoryGen/Studigo).
+const TIMEOUT_MS = 4_000;
 
 export class SheetsError extends Error {
   status: number;
@@ -294,7 +305,8 @@ export function createSheetsStore({ clientEmail, privateKey, spreadsheetId, tab 
     async hasEmail(email) {
       const json = (await call(`${base}/${range(tab, "B2:B")}?majorDimension=COLUMNS`, await authed({ method: "GET" }), "Sheets read")) as { values?: unknown[][] };
       const column = json.values?.[0] ?? [];
-      return column.some(value => String(value).trim().toLowerCase() === email);
+      // toRow may have prefixed an apostrophe (formula guard); RAW stores it literally.
+      return column.some(value => String(value).trim().replace(/^'/, "").toLowerCase() === email);
     },
     async appendRow(row) {
       // RAW stores every value as typed text, so nothing is evaluated as a formula.
@@ -380,8 +392,9 @@ export interface WaitlistProduct {
 
 /**
  * Builds the handler from server-side env vars. The sheet needs the three Google
- * vars; the email alert goes to DEFAULT_NOTIFY_EMAIL unless WAITLIST_NOTIFY_EMAIL
- * names another address or is "off". With neither, every POST answers 503.
+ * vars (without them every POST answers 503); the optional server-side alert
+ * goes to DEFAULT_NOTIFY_EMAIL unless WAITLIST_NOTIFY_EMAIL names another
+ * address or is "off".
  */
 export function waitlistHandlerFromEnv(env: WaitlistEnv, { product, siteUrl, allowedOrigins: extraOrigins = [] }: WaitlistProduct) {
   const store = env["GOOGLE_SERVICE_ACCOUNT_EMAIL"] && env["GOOGLE_PRIVATE_KEY"] && env["WAITLIST_SPREADSHEET_ID"]

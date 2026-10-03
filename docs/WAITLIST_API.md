@@ -1,6 +1,6 @@
 # Waitlist API
 
-the `apex-waitlist` Supabase Edge Function collects beta-tester/interest signups (name and email). Each new signup is appended as a row in the **APEX Beta Waitlist** Google Sheet; the form then emails an alert to **graymattertechllc@gmail.com** through FormSubmit (see *Email alerts*). It stands apart from the product: it needs no account and changes no product data.
+The `apex-waitlist` Supabase Edge Function collects beta-tester/interest signups (name and email). Each new signup is appended as a row in the **APEX Beta Waitlist** Google Sheet; the form then emails an alert to **graymattertechllc@gmail.com** through FormSubmit (see *Email alerts*). It stands apart from the product: it needs no account and changes no product data.
 
 The request/response contract is identical across PoryGen, Studigo, APEX, FundMatch and Spread, so one frontend form pattern works for all five.
 
@@ -55,8 +55,8 @@ Errors are `{ error, code, retryable, field? }`. `error` is safe to show the use
 | 413 | `REQUEST_TOO_LARGE` | — | no | Body over 8 KB. |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | — | no | Send `application/json`. |
 | 429 | `RATE_LIMITED` | — | yes | Too many attempts from one IP; honour `Retry-After` (seconds). |
-| 502 | `WAITLIST_STORAGE_FAILED` | — | yes | Saving failed: the Google Sheets call, or (with no sheet configured) the email alert. |
-| 503 | `WAITLIST_UNAVAILABLE` | — | yes | Neither the sheet nor email alerts are configured (alerts turned off and no Google credentials). |
+| 502 | `WAITLIST_STORAGE_FAILED` | — | yes | Saving to the Google Sheet failed. |
+| 503 | `WAITLIST_UNAVAILABLE` | — | yes | The Google Sheet isn't configured on this deployment. Success is never reported without a saved row. |
 | 500 | `WAITLIST_FAILED` | — | yes | Unexpected error. |
 
 Suggested UI: disable the button while the request is in flight; on `ok` show a thank-you state; on a `field` error mark that input; on `retryable` offer a retry.
@@ -77,7 +77,7 @@ submitted_at | email | name | consent_version | status
 - `consent_version` is `WAITLIST_CONSENT_VERSION` in the waitlist module. Bump it when the wording under the form changes.
 - `status` starts as `waitlisted`. Change it by hand (`invited`, `active`, `unsubscribed`, …) as you send beta invites; the API never rewrites rows.
 - Values are written with `valueInputOption=RAW`, and text starting with `= + - @` gets a leading `'`, so submitted text can't run as a formula in Sheets or in a CSV/Excel export.
-- Duplicate check: column B is read before each append. Two simultaneous submits of the same new email can both land; rare and harmless.
+- Duplicate check: column B is read before each append (ignoring the formula-guard apostrophe), and same-email submissions take turns within a server instance, so double clicks store one row. Google Sheets has no unique constraint, so two server instances receiving the same new email at the same instant can still both append; rare and harmless.
 
 ## Email alerts
 
@@ -131,7 +131,7 @@ curl -sS -X POST https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-wait
   -d '{"email":"you@example.com","consent":true,"source":"setup-check"}'
 ```
 
-Expect `{"ok":true,"status":"joined"}` and a new row. `503 WAITLIST_UNAVAILABLE` means a Google variable is missing (and server alerts are off); `502` usually means the folder/sheet isn't shared with the service account, `WAITLIST_SHEET_TAB` names a missing tab, or the Sheets API isn't enabled (the server log shows Google's HTTP status, never the key).
+Expect `{"ok":true,"status":"joined"}` and a new row. `503 WAITLIST_UNAVAILABLE` means a Google variable is missing; `502` usually means the folder/sheet isn't shared with the service account, `WAITLIST_SHEET_TAB` names a missing tab, or the Sheets API isn't enabled (the server log shows Google's HTTP status, never the key).
 
 ## Abuse controls
 
