@@ -1,6 +1,7 @@
 import { CSSProperties, lazy, Suspense, useEffect, useReducer, useRef, useState } from 'react';
 import { ArrowRight, Check, CheckCircle2, ChevronRight, Code2, Copy, CreditCard, ExternalLink, Layers, Maximize2, Pause, Play, Plus, Receipt, RotateCcw, Sparkles, Unlock, X } from 'lucide-react';
 import { allowance, embeddedReducer, initialEmbedded, plans } from './lib/embeddedDemo';
+import { WaitlistSection } from './components/WaitlistSection';
 import './product.css';
 import './plain-language.css';
 
@@ -173,6 +174,7 @@ export default function ProductSite() {
 
       <DeveloperSection/>
 
+      <WaitlistSection />
       <section className="ap-final-cta"><p className="ap-eyebrow">THE SIMPLE VERSION.</p><h2>Make sure what you sell<br/>is what customers get.</h2><div className="ap-final-actions"><a href="#start" className="ap-button">Start with APEX <ArrowRight size={17}/></a><a href="#playground" className="ap-text-button">Try it yourself <ArrowRight size={17}/></a><a href="#forma" className="ap-text-button">Open the Forma demo app <ArrowRight size={17}/></a></div></section>
     </main>
 
