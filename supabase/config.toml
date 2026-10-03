@@ -74,3 +74,8 @@ verify_jwt = true
 [functions.apex-connected-stripe-retry]
 # Custom scheduler token verified via a service-only Postgres hash check.
 verify_jwt = false
+
+[functions.apex-waitlist]
+# Public beta waitlist signup. No account exists yet, so there is no JWT; the
+# handler enforces origin, size, rate and consent checks itself.
+verify_jwt = false
