@@ -18,3 +18,8 @@
 .ap-waitlist :is(input, button):focus-visible { outline: 3px solid var(--brand-cobalt); outline-offset: 3px; }
 @media (max-width: 850px) { .ap-waitlist-inner { grid-template-columns: 1fr; } }
 @media (max-width: 580px) { .ap-waitlist-fields { flex-direction: column; } .ap-waitlist-fields button { min-height: 50px; justify-content: center; } }
+
+.ap-waitlist-form > label:not([class]) { display: block; margin: 0 0 9px; font-weight: 600; }
+.ap-waitlist-form > label:not([class]):not(:first-child) { margin-top: 17px; }
+.ap-waitlist-form .ap-waitlist-name { display: block; width: 100%; box-sizing: border-box; border: 1px solid #16243a55; border-radius: 8px; background: #fff; color: var(--brand-ink); padding: 14px 16px; font: inherit; }
+.ap-waitlist-form .ap-waitlist-trap { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }

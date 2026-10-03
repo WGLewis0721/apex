@@ -278,6 +278,7 @@ The SDK and CLI install path is now real and externally verified. Self-serve con
 - `docs/CLAUDE_CUSTOMER_FUNNEL.md` — onboarding/customer journey
 - `docs/APEX_LAUNCH_DISTRIBUTION.md` — how APEX is sold, shipped, and explained
 - `docs/implementation/APEX_BILLING.md` — APEX's own billing/provisioning versus customer Stripe
+- `docs/WAITLIST_API.md` — public beta waitlist (`apex-waitlist` function → Google Sheets)
 - `stripe-app/README.md` — Stripe Apps OAuth setup
 - `#docs` in the live app — learning + technical documentation
 
