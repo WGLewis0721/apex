@@ -6,16 +6,14 @@
 
 export const WAITLIST_CONSENT_VERSION = "2026-10-03-v1";
 export const MAX_BODY_BYTES = 8 * 1024;
-export const TEAM_SIZES = ["1", "2-10", "11-50", "51-200", "200+"] as const;
-/** Columns A:J of the sheet, in order. Row 1 must hold these headers. */
-export const SHEET_HEADERS = ["submitted_at", "email", "name", "company", "role", "team_size", "use_case", "source", "consent_version", "status"] as const;
-
-const TEXT_FIELDS = { name: 100, company: 120, role: 80, useCase: 1000, source: 100 } as const;
-type TextField = keyof typeof TEXT_FIELDS;
+/** Columns A:E of the sheet, in order. Row 1 must hold these headers. */
+export const SHEET_HEADERS = ["submitted_at", "email", "name", "consent_version", "status"] as const;
+const NAME_MAX = 100;
 // Deliberately simple: one @, no spaces, a dotted domain. Delivery is the real check.
 const EMAIL = /^[^\s@"<>()[\],;:\\]+@[^\s@"<>()[\],;:\\]+\.[^\s@"<>()[\],;:\\]{2,}$/;
 
-export type WaitlistEntry = { email: string; teamSize: string } & Record<TextField, string>;
+/** Only name and email are collected; any other field a form sends is ignored. */
+export type WaitlistEntry = { email: string; name: string };
 
 export class WaitlistError extends Error {
   code: string;
@@ -41,33 +39,22 @@ export const cell = (value: string) => (/^[=+\-@\t\r]/.test(value) ? `'${value}`
 
 export function validateSubmission(body: unknown): WaitlistEntry {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new WaitlistError("INVALID_REQUEST", "Send a JSON object.");
-  const input = body as { email?: unknown; consent?: unknown; teamSize?: unknown } & Partial<Record<TextField, unknown>>;
+  const input = body as { email?: unknown; name?: unknown; consent?: unknown };
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
   if (!email) throw new WaitlistError("EMAIL_REQUIRED", "Enter your email address.", 400, "email");
   if (email.length > 254 || !EMAIL.test(email)) throw new WaitlistError("INVALID_EMAIL", "Enter a valid email address.", 400, "email");
-  if (input.consent !== true) throw new WaitlistError("CONSENT_REQUIRED", "Agree to be contacted about the beta to join the waitlist.", 400, "consent");
-
-  const fields = {} as Record<TextField, string>;
-  for (const [field, max] of Object.entries(TEXT_FIELDS) as [TextField, number][]) {
-    const value = input[field];
-    if (value === undefined || value === null || value === "") { fields[field] = ""; continue; }
-    if (typeof value !== "string") throw new WaitlistError("INVALID_FIELD", `${field} must be text.`, 400, field);
-    fields[field] = clean(value, max);
+  // Joining is the opt-in; a form that sends an explicit "no" is refused.
+  if (input.consent === false) throw new WaitlistError("CONSENT_REQUIRED", "Agree to be contacted about the beta to join the waitlist.", 400, "consent");
+  let name = "";
+  if (input.name !== undefined && input.name !== null && input.name !== "") {
+    if (typeof input.name !== "string") throw new WaitlistError("INVALID_FIELD", "name must be text.", 400, "name");
+    name = clean(input.name, NAME_MAX);
   }
-  let teamSize = "";
-  if (input.teamSize !== undefined && input.teamSize !== null && input.teamSize !== "") {
-    if (!(TEAM_SIZES as readonly unknown[]).includes(input.teamSize)) {
-      throw new WaitlistError("INVALID_FIELD", `teamSize must be one of ${TEAM_SIZES.join(", ")}.`, 400, "teamSize");
-    }
-    teamSize = input.teamSize as string;
-  }
-  return { email, teamSize, ...fields };
+  return { email, name };
 }
 
-export const toRow = (entry: WaitlistEntry, submittedAt: string) => [
-  submittedAt, entry.email, entry.name, entry.company, entry.role, entry.teamSize,
-  entry.useCase, entry.source, WAITLIST_CONSENT_VERSION, "waitlisted",
-].map(cell);
+export const toRow = (entry: WaitlistEntry, submittedAt: string) =>
+  [submittedAt, entry.email, entry.name, WAITLIST_CONSENT_VERSION, "waitlisted"].map(cell);
 
 // --- Abuse controls ---------------------------------------------------------
 
@@ -311,7 +298,7 @@ export function createSheetsStore({ clientEmail, privateKey, spreadsheetId, tab 
     },
     async appendRow(row) {
       // RAW stores every value as typed text, so nothing is evaluated as a formula.
-      const url = `${base}/${range(tab, "A:J")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
+      const url = `${base}/${range(tab, "A:E")}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
       await call(url, await authed({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ values: [row] }) }), "Sheets append");
     },
   };
@@ -349,13 +336,8 @@ export function createFormSubmitNotifier({ to, product, siteUrl, fetch: fetchImp
         _captcha: "false",
         _replyto: entry.email,
         product,
-        email: entry.email,
         name: entry.name,
-        company: entry.company,
-        role: entry.role,
-        team_size: entry.teamSize,
-        use_case: entry.useCase,
-        source: entry.source,
+        email: entry.email,
         submitted_at: submittedAt,
         consent_version: WAITLIST_CONSENT_VERSION,
       };

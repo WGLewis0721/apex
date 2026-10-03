@@ -17,15 +17,9 @@ const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/
   method: 'POST',
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({
-    email: 'ada@example.com',      // required
-    consent: true,                 // required, must be literal true
-    name: 'Ada Lovelace',          // optional
-    company: 'Analytical Engines', // optional
-    role: 'Engineer',              // optional, free text
-    teamSize: '2-10',              // optional: "1" | "2-10" | "11-50" | "51-200" | "200+"
-    useCase: 'What they want to use it for', // optional
-    source: 'landing',             // optional: where the form lives, e.g. landing | pricing | utm_campaign
-    website: '',                   // honeypot: render as a hidden input and leave empty
+    name: 'Ada Lovelace',     // optional, shown as a required field in the form
+    email: 'ada@example.com', // required
+    website: '',              // honeypot: render as a hidden input and leave empty
   }),
 });
 const result = await response.json();
@@ -33,17 +27,11 @@ const result = await response.json();
 
 | Field | Type | Rule |
 |---|---|---|
+| `name` | string | ≤100 chars; trimmed, single line. |
 | `email` | string | Required. Trimmed and lowercased. ≤254 chars. |
-| `consent` | boolean | Required, must be `true`. Back it with an unticked checkbox, e.g. “Email me about the APEX beta. I can unsubscribe anytime.” |
-| `name` | string | Optional, ≤100 chars. |
-| `company` | string | Optional, ≤120 chars. |
-| `role` | string | Optional, ≤80 chars. |
-| `teamSize` | string | Optional, one of `1`, `2-10`, `11-50`, `51-200`, `200+`. |
-| `useCase` | string | Optional, ≤1000 chars. Newlines collapse to spaces. |
-| `source` | string | Optional, ≤100 chars. |
 | `website` | string | Honeypot. Hide it from people (`position:absolute; left:-9999px`, `tabindex="-1"`, `autocomplete="off"`, `aria-hidden="true"`), not with `type="hidden"`. |
 
-Longer optional text is truncated, not rejected. An email plus consent is a complete signup.
+**Only name and email are collected.** Any other field a form sends (`product`, `source`, `audience`, `consent`, …) is ignored and never stored, except that `consent: false` is refused. Submitting the form is the opt-in, so put a line under the button such as “We'll email you about the APEX beta. Unsubscribe anytime.”
 
 ### Responses
 
@@ -59,8 +47,8 @@ Errors are `{ error, code, retryable, field? }`. `error` is safe to show the use
 |---|---|---|---|---|
 | 400 | `EMAIL_REQUIRED` | `email` | no | No email. |
 | 400 | `INVALID_EMAIL` | `email` | no | Not a plausible email address. |
-| 400 | `CONSENT_REQUIRED` | `consent` | no | `consent !== true`. |
-| 400 | `INVALID_FIELD` | the field | no | Wrong type, or `teamSize` not in the list. |
+| 400 | `CONSENT_REQUIRED` | `consent` | no | The form sent `consent: false`. |
+| 400 | `INVALID_FIELD` | `name` | no | `name` isn't text. |
 | 400 | `INVALID_JSON` / `INVALID_REQUEST` | — | no | Body isn't a JSON object. |
 | 403 | `ORIGIN_NOT_ALLOWED` | — | no | Browser `Origin` isn't this site or the allowlist. |
 | 405 | `METHOD_NOT_ALLOWED` | — | no | Use POST. |
@@ -79,14 +67,14 @@ The APEX app origin is always allowed. Add others to `WAITLIST_ALLOWED_ORIGINS`.
 
 ## Spreadsheet
 
-Rows go to the **first tab** of **APEX Beta Waitlist** (in *Gray Matter LLC › 03 - Sales & Clients › Beta Waitlists*), or to the tab named by `WAITLIST_SHEET_TAB`. Row 1 is the header, columns A–J:
+Rows go to the **first tab** of **APEX Beta Waitlist** (in *Gray Matter LLC › 03 - Sales & Clients › Beta Waitlists*), or to the tab named by `WAITLIST_SHEET_TAB`. Row 1 is the header, columns A–E:
 
 ```
-submitted_at | email | name | company | role | team_size | use_case | source | consent_version | status
+submitted_at | email | name | consent_version | status
 ```
 
 - `submitted_at` is ISO-8601 UTC.
-- `consent_version` is `WAITLIST_CONSENT_VERSION` in the waitlist module. Bump it when the consent wording changes.
+- `consent_version` is `WAITLIST_CONSENT_VERSION` in the waitlist module. Bump it when the wording under the form changes.
 - `status` starts as `waitlisted`. Change it by hand (`invited`, `active`, `unsubscribed`, …) as you send beta invites; the API never rewrites rows.
 - Values are written with `valueInputOption=RAW`, and text starting with `= + - @` gets a leading `'`, so submitted text can't run as a formula in Sheets or in a CSV/Excel export.
 - Duplicate check: column B is read before each append. Two simultaneous submits of the same new email can both land; rare and harmless.
@@ -95,7 +83,7 @@ submitted_at | email | name | company | role | team_size | use_case | source | c
 
 Every **new** signup (not repeats, honeypot hits or invalid submissions) sends one email to `graymattertechllc@gmail.com`:
 
-- Subject: `[APEX] New beta waitlist signup: <email>`, with every field in a table.
+- Subject: `[APEX] New beta waitlist signup: <email>`, with the name, email and time in a table.
 - Reply-To is the person's address, so replying from Gmail reaches them directly.
 - Sent server-side to `https://formsubmit.co/ajax/<address>`, identified by the stable site URL `https://wglewis0721.github.io/apex/` (`APEX_APP_URL` overrides it).
 - With the sheet configured, the sheet is the record and a failed alert is only logged. Without the sheet, the email is the record and a failed alert returns 502.
@@ -134,11 +122,11 @@ Expect `{"ok":true,"status":"joined"}`, a new row, and an alert email (or, the v
 ## Abuse controls
 
 - Origin check with an explicit allowlist (above).
-- 8 KB body cap, JSON only, strict types, enum `teamSize`.
+- 8 KB body cap, JSON only, strict types; unknown fields are dropped.
 - Honeypot `website` field: filled → fake success, nothing stored.
 - In-memory limit of 10 attempts per IP per 10 minutes, per warm instance — best-effort only. For a durable limit use Supabase's platform limits; the function's limit is per isolate.
 - Error responses never include Google responses or credentials.
 
 ## Privacy
 
-Waitlist contact details are **deliberately stored** in Google Sheets and sent by email through FormSubmit to the Gray Matter Gmail inbox (Google and FormSubmit are subprocessors). No IP address, user agent or product data goes into the row. Name the waitlist in the privacy policy, and honour removal requests by deleting the row.
+Waitlist contact details are **deliberately stored** in Google Sheets and sent by email through FormSubmit to the Gray Matter Gmail inbox (Google and FormSubmit are subprocessors). Only the name, email and signup time are stored; no IP address, user agent or other form fields. Name the waitlist in the privacy policy, and honour removal requests by deleting the row.

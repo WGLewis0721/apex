@@ -5,7 +5,8 @@ import {
   SHEET_HEADERS, toRow, validateSubmission, WAITLIST_CONSENT_VERSION, waitlistHandlerFromEnv, type WaitlistNotifier, type WaitlistStore,
 } from "./waitlist.ts";
 
-const valid = { email: "  Ada@Example.COM ", name: "Ada", company: "Analytical", role: "Engineer", teamSize: "2-10", useCase: "Check the beta", source: "landing", consent: true };
+// Includes the extra fields the homepage forms send; they must be ignored.
+const valid = { email: "  Ada@Example.COM ", name: "Ada", consent: true, product: "Spread", source: "homepage", audience: "founder" };
 const quiet = { error() {} };
 
 function memoryStore() {
@@ -37,13 +38,14 @@ test("valid signup appends one normalized row in header order", async () => {
   assert.equal(res.headers.get("cache-control"), "no-store");
   assert.equal(rows.length, 1);
   assert.equal(rows[0].length, SHEET_HEADERS.length);
-  assert.deepEqual(rows[0], ["2026-10-03T12:00:00.000Z", "ada@example.com", "Ada", "Analytical", "Engineer", "2-10", "Check the beta", "landing", WAITLIST_CONSENT_VERSION, "waitlisted"]);
+  assert.deepEqual(rows[0], ["2026-10-03T12:00:00.000Z", "ada@example.com", "Ada", WAITLIST_CONSENT_VERSION, "waitlisted"]);
 });
 
-test("email plus consent is a complete signup", async () => {
+test("an email alone is a complete signup; extra fields are dropped", async () => {
   const { rows, handler } = make();
-  assert.equal((await call(handler, { email: "solo@example.dev", consent: true })).status, 200);
-  assert.deepEqual(rows[0].slice(1, 8), ["solo@example.dev", "", "", "", "", "", ""]);
+  assert.equal((await call(handler, { email: "solo@example.dev" })).status, 200);
+  assert.deepEqual(rows[0].slice(1, 3), ["solo@example.dev", ""]);
+  assert.deepEqual(validateSubmission(valid), { email: "ada@example.com", name: "Ada" });
 });
 
 test("duplicate email is stored once and the response does not reveal it", async () => {
@@ -62,9 +64,7 @@ test("validation errors name the field", async () => {
     [{ email: "not-an-email", consent: true }, "INVALID_EMAIL", "email"],
     [{ email: "a@b", consent: true }, "INVALID_EMAIL", "email"],
     [{ email: `${"a".repeat(250)}@x.io`, consent: true }, "INVALID_EMAIL", "email"],
-    [{ email: "a@b.co" }, "CONSENT_REQUIRED", "consent"],
-    [{ email: "a@b.co", consent: "yes" }, "CONSENT_REQUIRED", "consent"],
-    [{ email: "a@b.co", consent: true, teamSize: "7" }, "INVALID_FIELD", "teamSize"],
+    [{ email: "a@b.co", consent: false }, "CONSENT_REQUIRED", "consent"],
     [{ email: "a@b.co", consent: true, name: 42 }, "INVALID_FIELD", "name"],
   ];
   for (const [body, code, field] of cases) {
@@ -86,13 +86,13 @@ test("request shape boundaries", async () => {
   assert.equal((await call(handler, valid, { type: "text/plain" })).status, 415);
   assert.equal((await (await call(handler, null, { raw: "{oops" })).json()).code, "INVALID_JSON");
   assert.equal((await (await call(handler, null, { raw: "[]" })).json()).code, "INVALID_REQUEST");
-  assert.equal((await call(handler, { ...valid, useCase: "x".repeat(9000) })).status, 413);
+  assert.equal((await call(handler, { ...valid, padding: "x".repeat(9000) })).status, 413);
 });
 
 test("free text is trimmed, single-lined, length-capped and formula-safe", () => {
-  const entry = validateSubmission({ ...valid, name: '  =HYPERLINK("http://evil")  ', useCase: "line one\n\nline\ttwo", company: "x".repeat(500) });
-  assert.equal(entry.useCase, "line one line two");
-  assert.equal(entry.company.length, 120);
+  assert.equal(validateSubmission({ ...valid, name: "  Ada\n\nLove\tlace " }).name, "Ada Love lace");
+  assert.equal(validateSubmission({ ...valid, name: "x".repeat(500) }).name.length, 100);
+  const entry = validateSubmission({ ...valid, name: '  =HYPERLINK("http://evil")  ' });
   assert.equal(toRow(entry, "t")[2], `'=HYPERLINK("http://evil")`);
   for (const prefix of ["=", "+", "-", "@"]) assert.equal(cell(`${prefix}1`), `'${prefix}1`);
   assert.equal(cell("plain"), "plain");
@@ -213,7 +213,7 @@ test("Sheets store without a tab name targets the first tab", async () => {
   await store.hasEmail("a@b.co");
   await store.appendRow(["x"]);
   assert.match(google.calls[1].url, /\/values\/B2%3AB\?/);
-  assert.match(google.calls[2].url, /\/values\/A%3AJ:append\?/);
+  assert.match(google.calls[2].url, /\/values\/A%3AE:append\?/);
 });
 
 test("Sheets store refreshes an expired token and surfaces HTTP failures", async () => {
@@ -316,7 +316,8 @@ test("FormSubmit alert: endpoint, headers, subject, reply-to and fields", async 
   assert.equal(body._captcha, "false");
   assert.equal(body.product, "Spread");
   assert.equal(body.name, "=SUM(1)");
-  assert.equal(body.team_size, "2-10");
+  assert.equal(body.email, "ada@example.com");
+  assert.equal("source" in body || "audience" in body || "company" in body, false);
   assert.equal(body.consent_version, WAITLIST_CONSENT_VERSION);
 });
 
