@@ -271,6 +271,7 @@ The SDK and CLI install path is now real and externally verified. Self-serve con
 
 ## Documentation map
 
+- `README.md` — concise shipped baseline and setup
 - `docs/BUSINESS_MODEL.md` — commercial North Star, value-addition filter, architecture discipline
 - `ROADMAP.md` — implementation source of truth and acceptance status
 - `docs/PRODUCT_CONTRACT.md` — canonical technical/product promise and invariants
@@ -280,6 +281,8 @@ The SDK and CLI install path is now real and externally verified. Self-serve con
 - `docs/implementation/APEX_BILLING.md` — APEX's own billing/provisioning versus customer Stripe
 - `docs/WAITLIST_API.md` — public beta waitlist (`apex-waitlist` function → Google Sheets)
 - `stripe-app/README.md` — Stripe Apps OAuth setup
+- `docs/implementation/STRIPE_PUBLIC_APP_HANDOFF.md` — verified publisher and remaining External-test steps
+- `APEX_VALIDATION_CHECKS.md` / `APEX_VALIDATION_STATUS.md` — dated Phase 6 test records, not the current release scoreboard
 - `#docs` in the live app — learning + technical documentation
 
 ## Development

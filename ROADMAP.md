@@ -2,6 +2,19 @@
 
 This file is the permanent implementation source of truth for APEX. Read it before starting work and update it after every meaningful implementation change.
 
+## Golden baseline and current gate — October 4, 2026
+
+The hosted wallet, manual Stripe test lifecycle, published SDK/CLI, and
+operator console are the current shipped baseline. The public Stripe App
+version `0.3.0` has been uploaded by the dedicated `Apex-Public` account.
+External-test OAuth installation, the connected-account lifecycle, and the
+mapping-required requeue acceptance remain open. See
+[the publisher handoff](docs/implementation/STRIPE_PUBLIC_APP_HANDOFF.md)
+and [Immediate next actions](#immediate-next-actions). Preserve the shipped
+baseline while closing these gates; do not restart the ledger or distribution
+work. The dated execution entries below record the sequence of work and may
+describe states that later changed.
+
 ## Business North Star
 
 **APEX makes money when SaaS companies make digital value easier to sell, deliver, meter, replenish, and explain.**
@@ -22,7 +35,7 @@ If not, it is not core APEX work without a strong reason.
 
 See `docs/BUSINESS_MODEL.md` for the canonical commercial model.
 
-## September 12, 2026 execution update — current status override
+## September 12, 2026 execution record (historical)
 
 The Stripe webhook pilot completed a real sandbox Checkout-to-credit proof:
 
@@ -67,9 +80,9 @@ priority is to preserve this result in automated evidence and remove pilot-only 
    product/price mappings rather than Checkout metadata for normal pilot customers.
 4. **Automate the proof — complete:** `scripts/run-stripe-lifecycle-proof.ps1` creates an isolated test
    payment, asserts grant/consume/refund state, resends both events, and reconciles the final ledger.
-5. **Publish the thin SDK — engineering complete:** server-only client, validation, retry/timeout behavior,
-   tests, package contents, and provenance workflow are complete. npm scope ownership and `NPM_TOKEN` are
-   the remaining release credentials.
+5. **Publish the thin SDK — complete:** server-only client, validation, retry/timeout behavior,
+   tests, package contents, and provenance workflow were completed. The SDK
+   has since been published as `@wlgewis-gmtc/apex-sdk@0.1.0`.
 6. **Build scalable onboarding — upload complete, Dashboard gate remains:** public app version 0.2.0 is
    uploaded and ready under the eligible `apex test dev` owner. External-test selection, generated OAuth
    configuration, and the first install remain Dashboard/account-authorized actions.
@@ -85,7 +98,10 @@ Phase 7.1 distribution is now externally proven:
 - `npx @wlgewis-gmtc/apex init` was run from a fresh Node project
 - the CLI installed the SDK, wrote the server-side environment file, preserved gitignore/idempotency behavior, resolved `ApexClient`, and authenticated a real workspace credential through hosted `GET /v1/whoami`
 
-This closes the install/distribution gap. Stripe Price → APEX credit mapping management is now implemented in Phase 7.1.2 and awaits hosted deployment/evaluation; the next acceptance gap is External-test OAuth-connected lifecycle proof.
+This closes the install/distribution gap. Stripe Price → APEX credit mapping
+management was later deployed as `apex-operator` v3; hosted end-to-end
+mapping-required acceptance still awaits an OAuth-connected receipt. The
+next gate is External-test OAuth-connected lifecycle proof.
 
 ## Canonical product statement
 
@@ -650,4 +666,3 @@ When APEX powers an iOS app that sells digital goods/services, the **client prod
 - [ ] preserve provider/source attribution so Stripe and Apple grants/refunds cannot claw back one another incorrectly.
 
 **Commercial-production exit:** one external SaaS can self-serve connect, map a product, sell it, grant/consume/revoke value exactly once, explain the full lifecycle, recover from expected failures, and pay Gray Matter for APEX itself without operator SQL or ambiguous ledger state.
-
