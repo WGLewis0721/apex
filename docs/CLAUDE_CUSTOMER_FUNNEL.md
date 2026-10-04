@@ -2,6 +2,11 @@
 
 Read `../ROADMAP.md`, `PRODUCT_CONTRACT.md`, and `architecture/APEX_V1_LEDGER.md` first. This file defines the customer-facing onboarding experience; the roadmap owns production status.
 
+The implementation inventory below is a September 9 design snapshot. Several
+items subsequently shipped; use [ROADMAP.md](../ROADMAP.md) for today's
+implemented/deployed/accepted distinctions and do not use this inventory as
+a release checklist.
+
 ## Mission
 
 Make APEX feel as straightforward to adopt as buying and installing a polished software product: understand it, choose it, create an account, pay, connect Stripe, install, verify, and enter the dashboard.
@@ -28,7 +33,7 @@ See APEX
 
 The current UI may combine these into fewer visible screens, but backend acceptance gates remain separate.
 
-## Current reality — September 9, 2026
+## September 9, 2026 implementation snapshot (historical)
 
 - Marketing/demo experience: built.
 - Supabase account creation/login: real.

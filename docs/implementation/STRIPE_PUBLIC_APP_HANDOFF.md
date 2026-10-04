@@ -1,6 +1,6 @@
 # Public Stripe App acceptance handoff
 
-## September 20, 2026 publisher upload success
+## Verified publisher and remaining gate
 
 Successfully uploaded to `Apex-Public` (`acct_1UHy0wCoLTpL33rR`):
 
@@ -16,28 +16,21 @@ External-test OAuth client IDs (non-secret):
 - sandbox: `ca_VIZIlnmITkpUK1IMS99RdI8MLCI6M019`
 - test mode: `ca_VIZIguaoDPfYgmN0shFhXref18uKVVMq`
 
-Next gate is Stripe Dashboard External test configuration for version `0.3.0`, followed by install into a separate tester sandbox and hosted OAuth/webhook proof.
+The next gate is Dashboard External testing of this version, installation into
+a separate tester sandbox, and hosted OAuth/webhook lifecycle proof.
 
-## September 20, 2026 blocker: Connect-enabled live account
-
-Attempting to upload the canonical public app from `Apex · live` (`acct_1UDVhGCpWLixBiNT`) fails with Stripe's explicit error:
+The older `Apex · live` account (`acct_1UDVhGCpWLixBiNT`) is
+Connect-enabled; attempting a public-app upload from it returned:
 
 `Because your account is a Connect platform, you cannot choose the public distribution at this time.`
 
-Stripe's current OAuth Stripe Apps documentation states that a Connect-enabled Stripe account cannot publish a Stripe App and that developers in this situation must create/use a **separate Stripe account** for the public app. Therefore:
+Do not switch back to that account for the public app. Keep Stripe Connect
+disabled on the dedicated publisher account. The prior sandbox app
+`com.graymatter.apex-dev` version `0.2.1` remains a development artifact;
+it is not the live External-test publisher. The prior `com.graymatter.apex`
+identifier was unavailable, so `com.graymattertechllc.apex` is canonical.
 
-- `Apex · live` cannot own the public APEX Stripe App while Connect remains enabled.
-- `apex test dev` is only a sandbox development artifact and cannot substitute for the required live public-app owner.
-- The supported next step is a new/other **verified live Stripe account with Connect not enabled**, then upload `com.graymattertechllc.apex` version `0.3.0` there.
-- Do not enable Stripe Connect on that dedicated app-publisher account.
-
-## Correct External-test ownership model
-
-Stripe's current sandbox-support documentation requires the public app version used for External testing to be uploaded from the **live/main developer account**, not from a sandbox-created app.
-
-The prior sandbox app `com.graymatter.apex-dev` version `0.2.1` remains a development artifact. Its Dashboard correctly shows that External testing is unavailable there until business verification, and Stripe does not promote that globally unique app ID into the live account.
-
-The canonical live External-test app now uses:
+The uploaded manifest uses:
 
 - app id: `com.graymattertechllc.apex`
 - version: `0.3.0`
@@ -46,27 +39,22 @@ The canonical live External-test app now uses:
 - sandbox installs: enabled
 - callback: `https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-stripe-connect-callback`
 
-Upload this manifest from the verified **Apex · live** developer account. The app ID becomes permanent after its first successful upload. The prior `com.graymatter.apex` identifier was rejected as globally taken when uploading from the dedicated `Apex-Public` live account, so `com.graymattertechllc.apex` is the canonical publisher ID going forward.
+The manifest has already been uploaded; do not upload it again merely to
+perform External-test acceptance.
 
 ## Finish in Stripe
 
-1. Switch Stripe CLI to **Apex · live**.
-2. From `stripe-app/`, upload with `stripe apps upload --live`.
-3. In the live Dashboard, open **Developers → Apps / Created apps → APEX → External test** and select `0.3.0`.
-4. If External test is not visible, use **Create a release** and confirm **Public** distribution.
-5. Use the generated sandbox OAuth link to install into a separate tester sandbox.
-6. For general sandbox installs, use the public app's **managed sandbox** API key for the OAuth code exchange and create the connected-account event destination in that managed sandbox.
-7. Point the destination at:
+1. Use the **Apex-Public** publisher Dashboard and confirm `com.graymattertechllc.apex` version `0.3.0` is available for External testing.
+2. Select that version for External testing; resolve any account-verification or release requirement shown by that Dashboard before continuing.
+3. Use the generated sandbox OAuth link to install into a separate tester sandbox.
+4. For general sandbox installs, use the public app's **managed sandbox** API key for the OAuth code exchange and create the connected-account event destination in that managed sandbox.
+5. Point the destination at:
    `https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-connected-stripe-webhook`
-8. Subscribe to `checkout.session.completed`, `checkout.session.async_payment_succeeded`, and `charge.refunded`.
-9. Store the managed-sandbox OAuth client/key and destination signing secret in Supabase as the existing mode-specific secrets.
-10. Install through APEX onboarding and confirm the OAuth-connected account persists before running Phase 8.
+6. Subscribe to `checkout.session.completed`, `checkout.session.async_payment_succeeded`, and `charge.refunded`.
+7. Store the managed-sandbox OAuth client/key and destination signing secret in Supabase as the existing mode-specific secrets.
+8. Install through APEX onboarding and confirm the OAuth-connected account persists before running Phase 8.
 
 Do not commit or paste Stripe secret keys, webhook signing secrets, OAuth refresh tokens, Supabase PATs, or APEX secret keys.
-
----
-
-
 
 ## Connected ingress processor contract (Phase 6.2)
 

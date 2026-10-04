@@ -1,5 +1,9 @@
 # APEX validation checks — this run only
 
+**Historical test plan.** See [ROADMAP.md](ROADMAP.md) for the current
+production acceptance gate; a check listed here is not automatically pending
+after later deployments.
+
 Scope of this file: **only** the checks created for the net-new work implemented in this run.
 
 Net-new work in this run, from the current `ROADMAP.md`:

@@ -1,5 +1,10 @@
 # APEX validation status — this run only
 
+**Historical test-run record.** These statuses were recorded during earlier
+Phase 6.2/6.4/6.5 work; later hosted deployments, npm publication, and the
+operator console are documented in [ROADMAP.md](ROADMAP.md). Preserve check IDs
+as evidence, but use the roadmap's current acceptance gate for release decisions.
+
 Statuses for **only** the checks created in this run (`APEX_VALIDATION_CHECKS.md`).
 No check is marked PASS here; free evaluation models run them later.
 
