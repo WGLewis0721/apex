@@ -1,6 +1,6 @@
 # Public Stripe App acceptance handoff
 
-## September 20, 2026 publisher upload success
+## Verified publisher and remaining gate
 
 Successfully uploaded to `Apex-Public` (`acct_1UHy0wCoLTpL33rR`):
 
@@ -16,14 +16,8 @@ External-test OAuth client IDs (non-secret):
 - sandbox: `ca_VIZIlnmITkpUK1IMS99RdI8MLCI6M019`
 - test mode: `ca_VIZIguaoDPfYgmN0shFhXref18uKVVMq`
 
-Next gate is Stripe Dashboard External test configuration for version `0.3.0`, followed by install into a separate tester sandbox and hosted OAuth/webhook proof.
-
-## Publisher decision and current acceptance gate
-
-The canonical public app `com.graymattertechllc.apex` version `0.3.0`
-was uploaded successfully from the dedicated `Apex-Public` live account
-above. The next acceptance gate is External testing, a separate tester
-sandbox install, and the hosted OAuth/webhook lifecycle.
+The next gate is Dashboard External testing of this version, installation into
+a separate tester sandbox, and hosted OAuth/webhook lifecycle proof.
 
 The older `Apex · live` account (`acct_1UDVhGCpWLixBiNT`) is
 Connect-enabled; attempting a public-app upload from it returned:
@@ -31,17 +25,12 @@ Connect-enabled; attempting a public-app upload from it returned:
 `Because your account is a Connect platform, you cannot choose the public distribution at this time.`
 
 Do not switch back to that account for the public app. Keep Stripe Connect
-disabled on the dedicated publisher account. The older `apex test dev`
-sandbox app is only a development artifact.
+disabled on the dedicated publisher account. The prior sandbox app
+`com.graymatter.apex-dev` version `0.2.1` remains a development artifact;
+it is not the live External-test publisher. The prior `com.graymatter.apex`
+identifier was unavailable, so `com.graymattertechllc.apex` is canonical.
 
-## Correct External-test ownership model
-
-The public app version for External testing belongs to the dedicated
-`Apex-Public` live publisher account, not the `apex test dev` sandbox.
-
-The prior sandbox app `com.graymatter.apex-dev` version `0.2.1` remains a development artifact. Its Dashboard correctly shows that External testing is unavailable there until business verification, and Stripe does not promote that globally unique app ID into the live account.
-
-The canonical live External-test app now uses:
+The uploaded manifest uses:
 
 - app id: `com.graymattertechllc.apex`
 - version: `0.3.0`
@@ -50,9 +39,8 @@ The canonical live External-test app now uses:
 - sandbox installs: enabled
 - callback: `https://fnmxlmjrkgojowpzrcwa.supabase.co/functions/v1/apex-stripe-connect-callback`
 
-The manifest has already been uploaded by `Apex-Public`; do not upload it
-again merely to perform the External-test acceptance. The prior
-`com.graymatter.apex` identifier was unavailable; the ID above is canonical.
+The manifest has already been uploaded; do not upload it again merely to
+perform External-test acceptance.
 
 ## Finish in Stripe
 
@@ -67,10 +55,6 @@ again merely to perform the External-test acceptance. The prior
 8. Install through APEX onboarding and confirm the OAuth-connected account persists before running Phase 8.
 
 Do not commit or paste Stripe secret keys, webhook signing secrets, OAuth refresh tokens, Supabase PATs, or APEX secret keys.
-
----
-
-
 
 ## Connected ingress processor contract (Phase 6.2)
 
